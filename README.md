@@ -2,6 +2,8 @@
 
 Security-first web component library with zero dependencies.
 
+**[Live Demo](https://barryprender.github.io/Secure-UI/)** — Try all components in your browser.
+
 ## 🔒 Features
 
 - **7 Secure Components**: Input, Textarea, Select, Form, File Upload, DateTime, Table
@@ -234,11 +236,11 @@ All components include comprehensive tests:
 # Run all tests
 npm test
 
-# Run unit tests
-npm run test:unit
+# Run tests in watch mode
+npm run test:watch
 
-# Run security tests
-npm run test:security
+# Run tests with coverage report
+npm run test:coverage
 ```
 
 ## 📖 Documentation
@@ -296,12 +298,11 @@ MIT License - see LICENSE file for details.
 
 ## 🔗 Links
 
-- [GitHub Repository](https://github.com/yourusername/secure-ui)
+- [GitHub Repository](https://github.com/Barryprender/Secure-UI)
 - [npm Package](https://npmjs.com/package/@secure-ui/components)
-- [Documentation](https://github.com/yourusername/secure-ui/tree/main/packages/secure-ui-components)
-- [Showcase Site](https://secure-ui-showcase.example.com)
+- [Live Demo](https://barryprender.github.io/Secure-UI/)
 
 ## 🆘 Support
 
-- [Issue Tracker](https://github.com/yourusername/secure-ui/issues)
-- [Discussions](https://github.com/yourusername/secure-ui/discussions)
+- [Issue Tracker](https://github.com/Barryprender/Secure-UI/issues)
+- [Discussions](https://github.com/Barryprender/Secure-UI/discussions)
