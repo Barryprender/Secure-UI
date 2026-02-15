@@ -1,0 +1,153 @@
+/**
+ * Secure Textarea Component Styles
+ * Uses design tokens for full customizability
+ */
+
+/* Container */
+.textarea-container {
+  margin-bottom: var(--secure-ui-form-gap);
+  font-family: var(--secure-ui-font-family-base);
+}
+
+/* Label */
+label {
+  display: block;
+  margin-bottom: var(--secure-ui-form-label-margin-bottom);
+  font-size: var(--secure-ui-label-font-size);
+  font-weight: var(--secure-ui-label-font-weight);
+  color: var(--secure-ui-label-color);
+}
+
+.label-suffix {
+  font-weight: var(--secure-ui-font-weight-normal);
+  color: var(--secure-ui-color-text-secondary);
+  font-size: var(--secure-ui-font-size-xs);
+  margin-left: var(--secure-ui-space-1);
+}
+
+.security-badge {
+  display: inline-block;
+  padding: var(--secure-ui-badge-padding);
+  margin-left: var(--secure-ui-space-2);
+  font-size: var(--secure-ui-badge-font-size);
+  font-weight: var(--secure-ui-font-weight-semibold);
+  border-radius: var(--secure-ui-badge-border-radius);
+  text-transform: uppercase;
+  background-color: var(--secure-ui-color-bg-tertiary);
+  color: var(--secure-ui-color-text-secondary);
+  border: var(--secure-ui-border-width-thin) solid var(--secure-ui-color-border);
+}
+
+/* Textarea Wrapper */
+.textarea-wrapper {
+  position: relative;
+}
+
+/* Textarea Field */
+.textarea-field {
+  width: 100%;
+  min-height: var(--secure-ui-textarea-min-height);
+  padding: var(--secure-ui-textarea-padding);
+
+  font-family: var(--secure-ui-font-family-base);
+  font-size: var(--secure-ui-input-font-size);
+  line-height: var(--secure-ui-line-height-normal);
+  color: var(--secure-ui-input-text-color);
+
+  background-color: var(--secure-ui-input-bg);
+  border: var(--secure-ui-input-border-width) solid var(--secure-ui-input-border-color);
+  border-radius: var(--secure-ui-input-border-radius);
+
+  transition: all var(--secure-ui-transition-base) var(--secure-ui-transition-ease-in-out);
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.textarea-field::placeholder {
+  color: var(--secure-ui-input-placeholder-color);
+}
+
+.textarea-field:hover:not(:disabled) {
+  border-color: var(--secure-ui-input-border-color-hover);
+}
+
+.textarea-field:focus {
+  outline: none;
+  border-color: var(--secure-ui-input-border-color-focus);
+  box-shadow: var(--secure-ui-shadow-focus);
+}
+
+.textarea-field.error {
+  border-color: var(--secure-ui-color-error);
+}
+
+.textarea-field.error:focus {
+  box-shadow: var(--secure-ui-shadow-focus-error);
+}
+
+.textarea-field:read-only:not(:disabled) {
+  background-color: var(--secure-ui-color-bg-secondary);
+  cursor: default;
+  resize: none;
+}
+
+.textarea-field:disabled {
+  background-color: var(--secure-ui-input-disabled-bg);
+  cursor: not-allowed;
+  opacity: var(--secure-ui-input-disabled-opacity);
+}
+
+
+/* Character Count */
+.char-count {
+  display: block;
+  margin-top: var(--secure-ui-space-1);
+  font-size: var(--secure-ui-font-size-xs);
+  color: var(--secure-ui-color-text-secondary);
+  text-align: right;
+}
+
+.char-count.warning {
+  color: var(--secure-ui-color-warning);
+  font-weight: var(--secure-ui-font-weight-medium);
+}
+
+/* Error Container */
+.error-container {
+  margin-top: var(--secure-ui-form-error-margin-top);
+  font-size: var(--secure-ui-error-font-size);
+  color: var(--secure-ui-error-color);
+  line-height: var(--secure-ui-line-height-normal);
+  overflow: hidden;
+  max-height: 40px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out, max-height 0.2s ease-out, margin-top 0.2s ease-out;
+}
+
+.error-container.hidden {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  margin-top: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .textarea-field,
+  .error-container {
+    transition: none !important;
+  }
+}
+
+/* Security Tier Styles */
+:host([security-tier="authenticated"]) .textarea-field {
+  border-color: var(--secure-ui-tier-authenticated);
+}
+
+:host([security-tier="sensitive"]) .textarea-field {
+  border-color: var(--secure-ui-tier-sensitive);
+}
+
+:host([security-tier="critical"]) .textarea-field {
+  border-color: var(--secure-ui-tier-critical);
+}

@@ -1,0 +1,294 @@
+/**
+ * Secure File Upload Component Styles
+ * Bulma-inspired design using design tokens for full customizability
+ */
+
+/* Container */
+.file-upload-container {
+  position: relative;
+  margin-bottom: var(--secure-ui-form-gap);
+  font-family: var(--secure-ui-font-family-base);
+}
+
+/* Label */
+label {
+  display: block;
+  margin-bottom: var(--secure-ui-form-label-margin-bottom);
+  font-size: var(--secure-ui-label-font-size);
+  font-weight: var(--secure-ui-label-font-weight);
+  color: var(--secure-ui-label-color);
+}
+
+.label-suffix {
+  font-weight: var(--secure-ui-font-weight-normal);
+  color: var(--secure-ui-color-text-secondary);
+  font-size: var(--secure-ui-font-size-xs);
+  margin-left: var(--secure-ui-space-1);
+}
+
+.security-badge {
+  display: inline-block;
+  padding: var(--secure-ui-badge-padding);
+  margin-left: var(--secure-ui-space-2);
+  font-size: var(--secure-ui-badge-font-size);
+  font-weight: var(--secure-ui-font-weight-semibold);
+  border-radius: var(--secure-ui-badge-border-radius);
+  text-transform: uppercase;
+  background-color: var(--secure-ui-color-bg-tertiary);
+  color: var(--secure-ui-color-text-secondary);
+  border: var(--secure-ui-border-width-thin) solid var(--secure-ui-color-border);
+}
+
+/* Bulma-style file wrapper */
+.drop-zone {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  border-radius: var(--secure-ui-input-border-radius);
+  cursor: pointer;
+  width: 100%;
+}
+
+.drop-zone.drag-over {
+  transform: scale(1.01);
+}
+
+.drop-zone.error .file-cta {
+  border-color: var(--secure-ui-color-error);
+  color: var(--secure-ui-color-error);
+}
+
+/* Hidden native file input */
+.file-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.drop-zone-content {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  pointer-events: none;
+}
+
+/* Call-to-action button (Choose file) */
+.file-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--secure-ui-input-padding-y) var(--secure-ui-input-padding-x);
+  background-color: var(--secure-ui-color-bg-secondary);
+  border: var(--secure-ui-input-border-width) solid var(--secure-ui-input-border-color);
+  border-radius: var(--secure-ui-input-border-radius);
+  color: var(--secure-ui-color-text-primary);
+  font-size: var(--secure-ui-input-font-size);
+  font-weight: var(--secure-ui-font-weight-medium);
+  white-space: nowrap;
+  transition: all var(--secure-ui-transition-base) var(--secure-ui-transition-ease-in-out);
+}
+
+.drop-zone:hover .file-cta {
+  background-color: var(--secure-ui-color-bg-tertiary);
+  border-color: var(--secure-ui-input-border-color-hover);
+}
+
+.drop-zone:active .file-cta {
+  background-color: var(--secure-ui-color-bg-tertiary);
+}
+
+.drop-zone.drag-over .file-cta {
+  background-color: var(--secure-ui-color-primary-light, rgba(102, 126, 234, 0.1));
+  border-color: var(--secure-ui-color-primary);
+  color: var(--secure-ui-color-primary);
+}
+
+/* Upload icon */
+.drop-icon {
+  font-size: var(--secure-ui-font-size-base);
+  margin-right: var(--secure-ui-space-2);
+  display: flex;
+  align-items: center;
+}
+
+/* Button text */
+.drop-text {
+  font-size: var(--secure-ui-font-size-base);
+}
+
+/* File name display area */
+.file-name-display {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  padding: var(--secure-ui-input-padding-y) var(--secure-ui-input-padding-x);
+  border: var(--secure-ui-input-border-width) solid var(--secure-ui-input-border-color);
+  border-left: none;
+  border-radius: 0 var(--secure-ui-input-border-radius) var(--secure-ui-input-border-radius) 0;
+  background-color: var(--secure-ui-input-bg);
+  color: var(--secure-ui-input-placeholder-color);
+  font-size: var(--secure-ui-input-font-size);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-name-display.has-file {
+  color: var(--secure-ui-input-text-color);
+}
+
+/* When has file name, adjust CTA border radius */
+.drop-zone-content.has-name .file-cta {
+  border-radius: var(--secure-ui-input-border-radius) 0 0 var(--secure-ui-input-border-radius);
+  border-right: none;
+}
+
+/* Accepted types hint */
+.drop-hint {
+  display: block;
+  text-align: right;
+  margin-top: var(--secure-ui-space-1);
+  font-size: var(--secure-ui-font-size-xs);
+  color: var(--secure-ui-color-text-secondary);
+}
+
+/* Preview container for selected files */
+.preview-container {
+  margin-top: var(--secure-ui-space-3);
+}
+
+.file-preview {
+  display: flex;
+  align-items: center;
+  padding: var(--secure-ui-space-3);
+  background-color: var(--secure-ui-color-bg-secondary);
+  border: var(--secure-ui-border-width-thin) solid var(--secure-ui-color-border);
+  border-radius: var(--secure-ui-input-border-radius);
+  margin-bottom: var(--secure-ui-space-2);
+}
+
+.file-name {
+  flex: 1;
+  font-size: var(--secure-ui-font-size-sm);
+  color: var(--secure-ui-color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-size {
+  font-size: var(--secure-ui-font-size-xs);
+  color: var(--secure-ui-color-text-secondary);
+  margin-left: var(--secure-ui-space-3);
+  white-space: nowrap;
+}
+
+.remove-file {
+  background: none;
+  border: none;
+  color: var(--secure-ui-color-error);
+  font-size: var(--secure-ui-font-size-base);
+  cursor: pointer;
+  padding: var(--secure-ui-space-1) var(--secure-ui-space-2);
+  margin-left: var(--secure-ui-space-2);
+  border-radius: var(--secure-ui-border-radius-sm);
+  transition: background-color var(--secure-ui-transition-base) var(--secure-ui-transition-ease-in-out);
+  pointer-events: auto;
+}
+
+.remove-file:hover {
+  background-color: var(--secure-ui-color-error-light, rgba(239, 68, 68, 0.1));
+}
+
+/* Error container */
+.error-container {
+  position: absolute;
+  bottom: -1rem;
+  left: 0;  
+  display: var(--error-display);
+  margin-top: var(--secure-ui-form-error-margin-top);
+  padding: var(--secure-ui-space-2) var(--secure-ui-space-3);
+  background-color: var(--secure-ui-color-error-light, rgba(239, 68, 68, 0.1));
+  border-radius: var(--secure-ui-border-radius-sm);
+  color: var(--secure-ui-color-error);
+  font-size: var(--secure-ui-error-font-size);
+}
+
+/* .error-container:not(.hidden) {
+  display: block;
+} */
+
+.error-container.hidden {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  margin-top: 0;
+}
+
+/* Security Tier Styles */
+/* :host([security-tier="public"]) .file-cta {
+  border-color: var(--secure-ui-tier-public);
+}
+
+:host([security-tier="public"]) .file-name-display {
+  border-color: var(--secure-ui-tier-public);
+}
+
+:host([security-tier="authenticated"]) .file-cta {
+  border-color: var(--secure-ui-tier-authenticated);
+}
+
+:host([security-tier="authenticated"]) .file-name-display {
+  border-color: var(--secure-ui-tier-authenticated);
+}
+
+:host([security-tier="authenticated"]) .security-badge {
+  background-color: rgba(33, 150, 243, 0.1);
+  color: var(--secure-ui-tier-authenticated);
+  border-color: var(--secure-ui-tier-authenticated);
+}
+
+:host([security-tier="sensitive"]) .file-cta {
+  border-color: var(--secure-ui-tier-sensitive);
+}
+
+:host([security-tier="sensitive"]) .file-name-display {
+  border-color: var(--secure-ui-tier-sensitive);
+}
+
+:host([security-tier="sensitive"]) .security-badge {
+  background-color: rgba(255, 152, 0, 0.1);
+  color: var(--secure-ui-tier-sensitive);
+  border-color: var(--secure-ui-tier-sensitive);
+}
+
+:host([security-tier="critical"]) .file-cta {
+  border-color: var(--secure-ui-tier-critical);
+}
+
+:host([security-tier="critical"]) .file-name-display {
+  border-color: var(--secure-ui-tier-critical);
+}
+
+:host([security-tier="critical"]) .security-badge {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: var(--secure-ui-tier-critical);
+  border-color: var(--secure-ui-tier-critical);
+} */
+
+/* Disabled state */
+.drop-zone.disabled {
+  opacity: var(--secure-ui-input-disabled-opacity);
+  cursor: not-allowed;
+}
+
+.drop-zone.disabled .file-cta {
+  background-color: var(--secure-ui-input-disabled-bg);
+}

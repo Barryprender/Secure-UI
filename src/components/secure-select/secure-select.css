@@ -1,0 +1,195 @@
+/**
+ * Secure Select Component Styles
+ * Uses design tokens for full customizability
+ */
+
+/* Container */
+.select-container {
+  margin-bottom: var(--secure-ui-form-gap);
+  font-family: var(--secure-ui-font-family-base);
+}
+
+/* Label */
+label {
+  display: block;
+  margin-bottom: var(--secure-ui-form-label-margin-bottom);
+  font-size: var(--secure-ui-label-font-size);
+  font-weight: var(--secure-ui-label-font-weight);
+  color: var(--secure-ui-label-color);
+}
+
+.label-suffix {
+  font-weight: var(--secure-ui-font-weight-normal);
+  color: var(--secure-ui-color-text-secondary);
+  font-size: var(--secure-ui-font-size-xs);
+  margin-left: var(--secure-ui-space-1);
+}
+
+.security-badge {
+  display: inline-block;
+  padding: var(--secure-ui-badge-padding);
+  margin-left: var(--secure-ui-space-2);
+  font-size: var(--secure-ui-badge-font-size);
+  font-weight: var(--secure-ui-font-weight-semibold);
+  border-radius: var(--secure-ui-badge-border-radius);
+  text-transform: uppercase;
+  background-color: var(--secure-ui-color-bg-tertiary);
+  color: var(--secure-ui-color-text-secondary);
+  border: var(--secure-ui-border-width-thin) solid var(--secure-ui-color-border);
+}
+
+/* Select Wrapper */
+.select-wrapper {
+  position: relative;
+}
+
+/* Select Field */
+.select-field {
+  /* appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 10px center; */
+
+  width: 100%;
+  height: var(--secure-ui-select-height);
+  padding: var(--secure-ui-select-padding);
+
+  font-family: var(--secure-ui-font-family-base);
+  font-size: var(--secure-ui-input-font-size);
+  line-height: var(--secure-ui-line-height-normal);
+  color: var(--secure-ui-select-color);
+
+  background-color: var(--secure-ui-select-background-color);
+  border: var(--secure-ui-input-border-width) solid var(--secure-ui-input-border-color);
+  border-radius: var(--secure-ui-input-border-radius);
+
+  transition: all var(--secure-ui-transition-base) var(--secure-ui-transition-ease-in-out);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.select-field, ::picker(select) {
+  appearance: base-select;
+  border-radius: .25rem;
+}
+
+.select-field::picker-icon {
+  color: #999999;
+  transition: 0.2s rotate;
+}
+
+.select-field:open::picker-icon {
+  rotate: 180deg;
+}
+
+.select-field option {
+  display: flex;
+  justify-content: flex-start;
+  color: var(--secure-ui-select-color);
+  background-color: var(--secure-ui-select-background-color);
+  padding: .5rem;
+}
+
+.select-field option:hover {
+  box-shadow: 0px 0px 4px 0px var(--secure-ui-input-border-color) inset;
+  transition: all 0.2s ease-in-out;
+}
+
+.select-field option:first-of-type {
+  border-top-left-radius: none;
+  border-top-right-radius: none;  
+}
+
+.select-field option:last-of-type {
+  border-bottom-left-radius: none;
+  border-bottom-right-radius: none;
+}
+
+.select-field option:nth-of-type(odd) {
+  /* background: grey; */
+}
+
+.select-field option:checked {
+  font-weight: bold;
+}
+
+.select-field option::checkmark {
+  order: 1;
+  margin-left: auto;
+  content: "✓";
+}
+
+.select-field option + option {
+  border-top: 1px solid var(--secure-ui-input-border-color);
+}
+
+.select-field:hover:not(:disabled) {
+  border-color: var(--secure-ui-input-border-color-hover);
+}
+
+.select-field:focus {
+  outline: none;
+  border-color: var(--secure-ui-input-border-color-focus);
+  box-shadow: var(--secure-ui-shadow-focus);
+}
+
+.select-field.error {
+  border-color: var(--secure-ui-color-error);
+}
+
+.select-field.error:focus {
+  box-shadow: var(--secure-ui-shadow-focus-error);
+}
+
+.select-field:disabled {
+  background-color: var(--secure-ui-input-disabled-bg);
+  cursor: not-allowed;
+  opacity: var(--secure-ui-input-disabled-opacity);
+}
+
+.select-field[multiple] {
+  height: auto;
+  min-height: calc(var(--secure-ui-select-height) * 2);
+  padding: var(--secure-ui-space-2);
+}
+
+/* Error Container */
+.error-container {
+  position: absolute;
+  margin-top: var(--secure-ui-form-error-margin-top);
+  font-size: var(--secure-ui-error-font-size);
+  color: var(--secure-ui-error-color);
+  line-height: var(--secure-ui-line-height-normal);
+  overflow: hidden;
+  max-height: 40px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out, max-height 0.2s ease-out, margin-top 0.2s ease-out;
+}
+
+.error-container.hidden {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  margin-top: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .select-field,
+  .error-container {
+    transition: none !important;
+  }
+}
+
+/* Security Tier Styles */
+/* :host([security-tier="authenticated"]) .select-field {
+  border-color: var(--secure-ui-tier-authenticated);
+}
+
+:host([security-tier="sensitive"]) .select-field {
+  border-color: var(--secure-ui-tier-sensitive);
+}
+
+:host([security-tier="critical"]) .select-field {
+  border-color: var(--secure-ui-tier-critical);
+} */

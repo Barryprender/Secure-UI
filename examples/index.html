@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure-UI Components — Examples</title>
+
+  <!-- Design Tokens -->
+  <link rel="stylesheet" href="/latest/styles/tokens.css">
+
+  <!-- All Components -->
+  <script type="module" src="/latest/components/secure-input/secure-input.js"></script>
+  <script type="module" src="/latest/components/secure-textarea/secure-textarea.js"></script>
+  <script type="module" src="/latest/components/secure-select/secure-select.js"></script>
+  <script type="module" src="/latest/components/secure-form/secure-form.js"></script>
+  <script type="module" src="/latest/components/secure-file-upload/secure-file-upload.js"></script>
+  <script type="module" src="/latest/components/secure-datetime/secure-datetime.js"></script>
+  <script type="module" src="/latest/components/secure-table/secure-table.js"></script>
+  <script type="module" src="/latest/components/secure-submit-button/secure-submit-button.js"></script>
+
+  <!-- <link rel="stylesheet" href="styles.css"> -->
+   <style>
+     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--secure-ui-font-family-base);
+      color: var(--secure-ui-color-text-primary);
+      background: var(--secure-ui-color-bg-secondary);
+      line-height: var(--secure-ui-line-height-normal);
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: var(--secure-ui-font-size-3xl);
+      font-weight: var(--secure-ui-font-weight-bold);
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--secure-ui-color-text-secondary);
+      font-size: var(--secure-ui-font-size-base);
+      margin-bottom: 2.5rem;
+    }
+
+    .component-section {
+      background: var(--secure-ui-color-bg-primary);
+      border: 1px solid var(--secure-ui-color-border);
+      border-radius: var(--secure-ui-border-radius-lg);
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .component-section h2 {
+      font-size: var(--secure-ui-font-size-xl);
+      font-weight: var(--secure-ui-font-weight-semibold);
+      margin-bottom: 0.25rem;
+    }
+
+    .component-section .tag {
+      display: inline-block;
+      font-family: var(--secure-ui-font-family-mono);
+      font-size: var(--secure-ui-font-size-xs);
+      color: var(--secure-ui-color-text-secondary);
+      background: var(--secure-ui-color-bg-tertiary);
+      padding: 0.125rem 0.5rem;
+      border-radius: var(--secure-ui-border-radius-sm);
+      margin-bottom: 1.5rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .grid-wide {
+      grid-template-columns: 1fr;
+    }
+
+    .cell {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 0.25rem;
+    }
+
+    .cell-label {
+      font-size: var(--secure-ui-font-size-xs);
+      font-weight: var(--secure-ui-font-weight-medium);
+      color: var(--secure-ui-color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--secure-ui-color-border);
+      margin: 1.5rem 0;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .row > * {
+      flex: 1;
+      min-width: 280px;
+    }
+
+    /* Dialog */
+    dialog {
+      border: 1px solid var(--secure-ui-color-border);
+      border-radius: var(--secure-ui-border-radius-lg);
+      padding: 0;
+      min-width: 380px;
+      max-width: 520px;
+      margin-inline: auto;
+      top: 20vh;
+      font-family: var(--secure-ui-font-family-base);
+      box-shadow: var(--secure-ui-shadow-lg);
+      opacity: 0;
+      transform: scale(0.95) translateY(-8px);
+      transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+    }
+
+    dialog[open] {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0);
+      transition: background 0.15s ease-out;
+    }
+
+    dialog[open]::backdrop {
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      dialog {
+        transition: none !important;
+      }
+      dialog::backdrop {
+        transition: none !important;
+      }
+    }
+
+    .dialog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--secure-ui-color-border);
+    }
+
+    .dialog-header h3 {
+      font-size: var(--secure-ui-font-size-lg);
+      font-weight: var(--secure-ui-font-weight-semibold);
+      margin: 0;
+    }
+
+    .dialog-close {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      color: var(--secure-ui-color-text-secondary);
+      padding: 0.25rem;
+      line-height: 1;
+    }
+
+    .dialog-body {
+      padding: 1.5rem;
+    }
+
+    .dialog-body table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .dialog-body th,
+    .dialog-body td {
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--secure-ui-color-border);
+      font-size: var(--secure-ui-font-size-sm);
+    }
+
+    .dialog-body th {
+      font-weight: var(--secure-ui-font-weight-medium);
+      color: var(--secure-ui-color-text-secondary);
+      width: 40%;
+      white-space: nowrap;
+    }
+
+    .dialog-body td {
+      color: var(--secure-ui-color-text-primary);
+      word-break: break-word;
+    }
+
+    .dialog-body tr:last-child th,
+    .dialog-body tr:last-child td {
+      border-bottom: none;
+    }
+
+    .dialog-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--secure-ui-color-border);
+      text-align: right;
+    }
+
+    button {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--secure-ui-color-border);
+      border-radius: var(--secure-ui-border-radius-base);
+      background: var(--secure-ui-color-bg-primary);
+      cursor: pointer;
+      font-size: var(--secure-ui-font-size-sm);
+      font-family: var(--secure-ui-font-family-base);
+    }
+
+    button:hover {
+      background: var(--secure-ui-color-bg-tertiary);
+    }
+   </style>
+</head>
+<body>
+
+  <h1>Secure-UI Components</h1>
+  <p class="subtitle">All components and their states &mdash; focus and blur fields to trigger validation</p>
+
+  <!-- ============================================
+       SECURE INPUT
+       ============================================ -->
+  <section class="component-section">
+    <h2>Secure Input</h2>
+    <span class="tag">&lt;secure-input&gt;</span>
+
+    <div class="grid">
+      <!-- Security Tiers -->
+      <div class="cell">
+        <span class="cell-label">Public Tier</span>
+        <secure-input label="Username" name="user" placeholder="Enter username" security-tier="public"></secure-input>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Authenticated Tier</span>
+        <secure-input label="Display Name" name="display" placeholder="Your name" security-tier="authenticated"></secure-input>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Sensitive Tier (value masked)</span>
+        <secure-input label="Phone Number" name="phone" placeholder="555-0100" security-tier="sensitive"></secure-input>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Critical Tier (fully masked)</span>
+        <secure-input label="SSN" name="ssn" placeholder="***-**-****" security-tier="critical"></secure-input>
+      </div>
+
+      <hr style="grid-column: 1 / -1;">
+
+      <!-- Validation & Error States -->
+      <div class="cell">
+        <span class="cell-label">Required (blur empty to see error)</span>
+        <secure-input label="Full Name" name="name" required placeholder="Required field" security-tier="public"></secure-input>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Email with Pattern</span>
+        <secure-input label="Email" name="email" type="email" pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" required placeholder="user@example.com" security-tier="public"></secure-input>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Pattern (letters only)</span>
+        <secure-input label="First Name" name="fname" pattern="^[A-Za-z]+$" placeholder="Letters only — try numbers" security-tier="public"></secure-input>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Min Length (5 chars)</span>
+        <secure-input label="Username" name="user_min" minlength="5" placeholder="At least 5 characters" security-tier="public"></secure-input>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Password (sensitive tier)</span>
+        <secure-input label="Password" name="pass" type="password" required minlength="8" placeholder="Min 8 characters" security-tier="sensitive"></secure-input>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Max Length (10)</span>
+        <secure-input label="Nickname" name="nick" maxlength="10" placeholder="Max 10 chars" security-tier="public"></secure-input>
+      </div>
+
+      <hr style="grid-column: 1 / -1;">
+
+      <!-- Disabled / Readonly -->
+      <div class="cell">
+        <span class="cell-label">Disabled</span>
+        <secure-input label="Account ID" name="account" value="ACC-12345" disabled security-tier="public"></secure-input>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Readonly</span>
+        <secure-input label="Created Date" name="created" value="2025-01-15" readonly security-tier="public"></secure-input>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================
+       SECURE TEXTAREA
+       ============================================ -->
+  <section class="component-section">
+    <h2>Secure Textarea</h2>
+    <span class="tag">&lt;secure-textarea&gt;</span>
+
+    <div class="grid">
+      <div class="cell">
+        <span class="cell-label">Public Tier</span>
+        <secure-textarea label="Comments" name="comments" placeholder="Leave a comment..." security-tier="public"></secure-textarea>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Authenticated Tier</span>
+        <secure-textarea label="Notes" name="notes" placeholder="Internal notes..." security-tier="authenticated"></secure-textarea>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Sensitive Tier</span>
+        <secure-textarea label="Medical Notes" name="medical" placeholder="Confidential..." security-tier="sensitive"></secure-textarea>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Critical Tier</span>
+        <secure-textarea label="Encryption Key" name="key" placeholder="Paste key..." security-tier="critical" rows="3"></secure-textarea>
+      </div>
+
+      <hr style="grid-column: 1 / -1;">
+
+      <div class="cell">
+        <span class="cell-label">Required (blur empty to see error)</span>
+        <secure-textarea label="Bio" name="bio" required placeholder="This field is required" security-tier="public"></secure-textarea>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Max Length with Char Counter</span>
+        <secure-textarea label="Summary" name="summary" maxlength="100" placeholder="Type to see counter (max 100)" security-tier="public"></secure-textarea>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Min Length (20 chars)</span>
+        <secure-textarea label="Description" name="desc_min" minlength="20" placeholder="At least 20 characters" security-tier="public"></secure-textarea>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Custom Rows (6)</span>
+        <secure-textarea label="Long Form" name="desc" rows="6" placeholder="Larger textarea" security-tier="public"></secure-textarea>
+      </div>
+
+      <hr style="grid-column: 1 / -1;">
+
+      <div class="cell">
+        <span class="cell-label">Disabled</span>
+        <secure-textarea label="System Log" name="log" disabled security-tier="public">System initialized successfully.</secure-textarea>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Readonly</span>
+        <secure-textarea label="Terms" name="terms" readonly security-tier="public">These are the terms of service. Read-only content that cannot be edited.</secure-textarea>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================
+       SECURE SELECT
+       ============================================ -->
+  <section class="component-section">
+    <h2>Secure Select</h2>
+    <span class="tag">&lt;secure-select&gt;</span>
+
+    <div class="grid">
+      <div class="cell">
+        <span class="cell-label">Public Tier</span>
+        <secure-select label="Country" name="country" security-tier="public">
+          <option value="">-- Select --</option>
+          <option value="us">United States</option>
+          <option value="uk">United Kingdom</option>
+          <option value="ca">Canada</option>
+          <option value="au">Australia</option>
+        </secure-select>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Authenticated Tier</span>
+        <secure-select label="Department" name="dept" security-tier="authenticated">
+          <option value="">-- Select --</option>
+          <option value="eng">Engineering</option>
+          <option value="hr">Human Resources</option>
+          <option value="fin">Finance</option>
+        </secure-select>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Sensitive Tier</span>
+        <secure-select label="Access Level" name="access" security-tier="sensitive">
+          <option value="">-- Select --</option>
+          <option value="read">Read Only</option>
+          <option value="write">Read/Write</option>
+          <option value="admin">Administrator</option>
+        </secure-select>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Critical Tier</span>
+        <secure-select label="Key Algorithm" name="algo" security-tier="critical">
+          <option value="">-- Select --</option>
+          <option value="rsa">RSA-4096</option>
+          <option value="ecdsa">ECDSA P-384</option>
+          <option value="ed25519">Ed25519</option>
+        </secure-select>
+      </div>
+
+      <hr style="grid-column: 1 / -1;">
+
+      <div class="cell">
+        <span class="cell-label">Required (blur without selecting to see error)</span>
+        <secure-select label="Priority" name="priority" required security-tier="public">
+          <option value="">-- Select --</option>
+          <option value="low">Low</option>
+          <option value="med">Medium</option>
+          <option value="high">High</option>
+        </secure-select>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Disabled</span>
+        <secure-select label="Region" name="region" disabled security-tier="public">
+          <option value="na" selected>North America</option>
+          <option value="eu">Europe</option>
+        </secure-select>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Multiple Selection</span>
+        <secure-select label="Languages" name="langs" multiple size="4" security-tier="public">
+          <option value="en">English</option>
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+          <option value="ja">Japanese</option>
+        </secure-select>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Pre-selected Value</span>
+        <secure-select label="Status" name="status" security-tier="public">
+          <option value="draft">Draft</option>
+          <option value="active" selected>Active</option>
+          <option value="archived">Archived</option>
+        </secure-select>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================
+       SECURE DATETIME
+       ============================================ -->
+  <section class="component-section">
+    <h2>Secure DateTime</h2>
+    <span class="tag">&lt;secure-datetime&gt;</span>
+
+    <div class="grid">
+      <div class="cell">
+        <span class="cell-label">Date (Public)</span>
+        <secure-datetime label="Birth Date" name="dob" type="date" security-tier="public"></secure-datetime>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Time (Authenticated)</span>
+        <secure-datetime label="Meeting Time" name="meeting" type="time" security-tier="authenticated"></secure-datetime>
+      </div>
+      <div class="cell">
+        <span class="cell-label">DateTime Local (Sensitive)</span>
+        <secure-datetime label="Appointment" name="appt" type="datetime-local" security-tier="sensitive"></secure-datetime>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Date (Critical)</span>
+        <secure-datetime label="Audit Timestamp" name="audit" type="date" security-tier="critical"></secure-datetime>
+      </div>
+
+      <hr style="grid-column: 1 / -1;">
+
+      <div class="cell">
+        <span class="cell-label">Month Picker</span>
+        <secure-datetime label="Expiry Month" name="expiry" type="month" security-tier="public"></secure-datetime>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Week Picker</span>
+        <secure-datetime label="Sprint Week" name="sprint" type="week" security-tier="public"></secure-datetime>
+      </div>
+      <div class="cell">
+        <span class="cell-label">With Min/Max Range</span>
+        <secure-datetime label="Event Date" name="event" type="date" min="2025-01-01" max="2025-12-31" security-tier="public"></secure-datetime>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Required (blur empty to see error)</span>
+        <secure-datetime label="Start Date" name="start" type="date" required security-tier="public"></secure-datetime>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Disabled</span>
+        <secure-datetime label="Locked Date" name="locked" type="date" value="2025-06-15" disabled security-tier="public"></secure-datetime>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Readonly</span>
+        <secure-datetime label="Record Date" name="record" type="date" value="2025-03-20" readonly security-tier="public"></secure-datetime>
+      </div>
+      <div class="cell">
+        <span class="cell-label">With Timezone</span>
+        <secure-datetime label="Server Time" name="server" type="time" show-timezone security-tier="authenticated"></secure-datetime>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Time with Step (15 min)</span>
+        <secure-datetime label="Slot" name="slot" type="time" step="900" security-tier="public"></secure-datetime>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================
+       SECURE FILE UPLOAD
+       ============================================ -->
+  <section class="component-section">
+    <h2>Secure File Upload</h2>
+    <span class="tag">&lt;secure-file-upload&gt;</span>
+
+    <div class="grid">
+      <div class="cell">
+        <span class="cell-label">Public Tier (all common types, 20MB)</span>
+        <secure-file-upload label="Attachments" name="attach" multiple security-tier="public"></secure-file-upload>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Authenticated Tier (10MB)</span>
+        <secure-file-upload label="Document" name="doc" security-tier="authenticated"></secure-file-upload>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Sensitive Tier (5MB)</span>
+        <secure-file-upload label="ID Scan" name="id" accept="image/*,.pdf" security-tier="sensitive"></secure-file-upload>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Critical Tier (PDF/TXT only, 2MB)</span>
+        <secure-file-upload label="Signed Contract" name="contract" accept=".pdf,.txt" security-tier="critical"></secure-file-upload>
+      </div>
+
+      <hr style="grid-column: 1 / -1;">
+
+      <div class="cell">
+        <span class="cell-label">Required</span>
+        <secure-file-upload label="Resume" name="resume" required accept=".pdf,.doc,.docx" security-tier="public"></secure-file-upload>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Disabled</span>
+        <secure-file-upload label="Upload Locked" name="locked" disabled security-tier="public"></secure-file-upload>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Images Only</span>
+        <secure-file-upload label="Profile Photo" name="photo" accept="image/*" security-tier="public"></secure-file-upload>
+      </div>
+      <div class="cell">
+        <span class="cell-label">Custom Max Size (1MB)</span>
+        <secure-file-upload label="Thumbnail" name="thumb" accept="image/*" max-size="1048576" security-tier="public"></secure-file-upload>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================
+       SECURE TABLE
+       ============================================ -->
+  <section class="component-section">
+    <h2>Secure Table</h2>
+    <span class="tag">&lt;secure-table&gt;</span>
+
+    <div class="grid grid-wide">
+      <div class="cell">
+        <span class="cell-label">With Sorting, Filtering & Pagination</span>
+        <secure-table id="demo-table"></secure-table>
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="grid grid-wide">
+      <div class="cell">
+        <span class="cell-label">With Masked Columns (Sensitive & Critical tiers)</span>
+        <secure-table id="masked-table"></secure-table>
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="grid grid-wide">
+      <div class="cell">
+        <span class="cell-label">Empty State</span>
+        <secure-table id="empty-table"></secure-table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================
+       SECURE FORM
+       ============================================ -->
+  <section class="component-section">
+    <h2>Secure Form</h2>
+    <span class="tag">&lt;secure-form&gt;</span>
+
+    <div class="row">
+      <div class="cell">
+        <span class="cell-label">Contact Form (public) &mdash; all fields validate on blur</span>
+        <secure-form action="/api/contact" method="POST" security-tier="public">
+          <secure-input label="Name" name="form_name" required placeholder="Your name" security-tier="public"></secure-input>
+          <secure-input label="Email" name="form_email" type="email" required pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" placeholder="you@example.com" security-tier="public"></secure-input>
+          <secure-textarea label="Message" name="form_message" required minlength="10" placeholder="At least 10 characters..." security-tier="public"></secure-textarea>
+          <secure-submit-button label="Send"></secure-submit-button>
+        </secure-form>
+      </div>
+
+      <div class="cell">
+        <span class="cell-label">Profile Form (sensitive) with CSRF</span>
+        <secure-form action="/api/profile" method="POST" csrf-token="abc123" security-tier="sensitive">
+          <secure-input label="Legal Name" name="legal_name" required security-tier="sensitive"></secure-input>
+          <secure-input label="Tax ID" name="tax_id" required security-tier="critical"></secure-input>
+          <secure-select label="Country" name="form_country" required security-tier="sensitive">
+            <option value="">-- Select --</option>
+            <option value="us">United States</option>
+            <option value="uk">United Kingdom</option>
+          </secure-select>
+          <secure-datetime label="Date of Birth" name="form_dob" type="date" required security-tier="sensitive"></secure-datetime>
+          <secure-submit-button label="Save Profile"></secure-submit-button>
+        </secure-form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Form data dialog -->
+  <dialog id="form-data-dialog">
+    <div class="dialog-header">
+      <h3 id="dialog-title">Form Data</h3>
+      <button class="dialog-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="dialog-body">
+      <table><tbody id="dialog-table-body"></tbody></table>
+    </div>
+    <div class="dialog-footer">
+      <button class="dialog-close">Close</button>
+    </div>
+  </dialog>
+
+  <!-- ============================================
+       SETUP SCRIPT
+       ============================================ -->
+  <script type="module">
+    // Wait for custom elements to be defined
+    await Promise.all([
+      customElements.whenDefined('secure-table'),
+      customElements.whenDefined('secure-form'),
+      customElements.whenDefined('secure-submit-button')
+    ]);
+
+    // Demo table — sortable, filterable
+    const demoTable = document.getElementById('demo-table');
+    if (demoTable) {
+      demoTable.columns = [
+        { key: 'id', label: 'ID', sortable: true, width: '60px' },
+        { key: 'name', label: 'Name', sortable: true, filterable: true },
+        { key: 'email', label: 'Email', sortable: true, filterable: true },
+        { key: 'role', label: 'Role', sortable: true, filterable: true },
+        { key: 'status', label: 'Status', sortable: true }
+      ];
+      demoTable.data = [
+        { id: 1, name: 'Alice Johnson', email: 'alice@example.com', role: 'Admin', status: 'Active' },
+        { id: 2, name: 'Bob Smith', email: 'bob@example.com', role: 'Editor', status: 'Active' },
+        { id: 3, name: 'Carol White', email: 'carol@example.com', role: 'Viewer', status: 'Inactive' },
+        { id: 4, name: 'David Brown', email: 'david@example.com', role: 'Editor', status: 'Active' },
+        { id: 5, name: 'Eve Davis', email: 'eve@example.com', role: 'Admin', status: 'Active' },
+        { id: 6, name: 'Frank Wilson', email: 'frank@example.com', role: 'Viewer', status: 'Inactive' },
+        { id: 7, name: 'Grace Lee', email: 'grace@example.com', role: 'Editor', status: 'Active' },
+        { id: 8, name: 'Hank Miller', email: 'hank@example.com', role: 'Viewer', status: 'Active' },
+        { id: 9, name: 'Ivy Chen', email: 'ivy@example.com', role: 'Admin', status: 'Active' },
+        { id: 10, name: 'Jack Taylor', email: 'jack@example.com', role: 'Editor', status: 'Inactive' },
+        { id: 11, name: 'Karen Moore', email: 'karen@example.com', role: 'Viewer', status: 'Active' },
+        { id: 12, name: 'Leo Garcia', email: 'leo@example.com', role: 'Editor', status: 'Active' }
+      ];
+    }
+
+    // Masked table — sensitive/critical column tiers
+    const maskedTable = document.getElementById('masked-table');
+    if (maskedTable) {
+      maskedTable.columns = [
+        { key: 'id', label: 'ID', width: '60px' },
+        { key: 'name', label: 'Name', tier: 'public' },
+        { key: 'email', label: 'Email', tier: 'sensitive' },
+        { key: 'ssn', label: 'SSN', tier: 'critical' },
+        { key: 'phone', label: 'Phone', tier: 'sensitive' }
+      ];
+      maskedTable.data = [
+        { id: 1, name: 'Alice Johnson', email: 'alice@example.com', ssn: '123-45-6789', phone: '555-0101' },
+        { id: 2, name: 'Bob Smith', email: 'bob@example.com', ssn: '987-65-4321', phone: '555-0102' },
+        { id: 3, name: 'Carol White', email: 'carol@example.com', ssn: '456-78-9012', phone: '555-0103' }
+      ];
+    }
+
+    // Empty table
+    const emptyTable = document.getElementById('empty-table');
+    if (emptyTable) {
+      emptyTable.columns = [
+        { key: 'id', label: 'ID' },
+        { key: 'name', label: 'Name' },
+        { key: 'value', label: 'Value' }
+      ];
+      emptyTable.data = [];
+    }
+
+    // ---- Form Submit → Dialog ----
+    const dialog = document.getElementById('form-data-dialog');
+    const dialogTitle = document.getElementById('dialog-title');
+    const dialogTableBody = document.getElementById('dialog-table-body');
+
+    // Close buttons
+    dialog.querySelectorAll('.dialog-close').forEach(btn => {
+      btn.addEventListener('click', () => dialog.close());
+    });
+
+    // Backdrop click closes dialog
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog) dialog.close();
+    });
+
+    // Map each secure-form to a friendly title
+    const formTitles = new Map();
+    document.querySelectorAll('secure-form').forEach(sf => {
+      const cellLabel = sf.closest('.cell')?.querySelector('.cell-label');
+      formTitles.set(sf, cellLabel ? cellLabel.textContent : 'Form Data');
+    });
+
+    // Intercept submit on each secure-form
+    document.querySelectorAll('secure-form').forEach(secureForm => {
+      secureForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        // Collect data via the component API
+        const data = secureForm.getData();
+
+        // Populate dialog table
+        dialogTableBody.innerHTML = '';
+        for (const [key, value] of Object.entries(data)) {
+          const tr = document.createElement('tr');
+          const th = document.createElement('th');
+          th.textContent = key;
+          const td = document.createElement('td');
+          td.textContent = value || '(empty)';
+          tr.appendChild(th);
+          tr.appendChild(td);
+          dialogTableBody.appendChild(tr);
+        }
+
+        // Set title and show
+        dialogTitle.textContent = formTitles.get(secureForm) || 'Form Data';
+        dialog.showModal();
+      });
+    });
+  </script>
+
+</body>
+</html>

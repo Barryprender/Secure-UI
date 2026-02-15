@@ -1,0 +1,110 @@
+/**
+ * Secure Submit Button Styles
+ *
+ * Security-aware submit button with smooth state transitions:
+ * disabled ↔ enabled, loading, hover, focus, active.
+ * All animations respect prefers-reduced-motion.
+ */
+
+:host {
+  display: inline-block;
+}
+
+.submit-container {
+  margin-top: 8px;
+  position: relative;
+}
+
+.submit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  min-height: 40px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.2s ease-out, border-color 0.2s ease-out,
+              opacity 0.2s ease-out, box-shadow 0.2s ease-out,
+              color 0.2s ease-out, transform 0.15s ease-out;
+  background-color: #3b82f6;
+  color: #ffffff;
+  user-select: none;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+}
+
+.submit-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+.submit-btn:active:not(:disabled) {
+  background-color: #1d4ed8;
+  transform: scale(0.98);
+  box-shadow: none;
+}
+
+/* Disabled state — smooth transition from enabled */
+.submit-btn:disabled {
+  background-color: #d1d5db;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Label / loading crossfade */
+.btn-label,
+.btn-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.2s ease-out;
+}
+
+.btn-label.hidden,
+.btn-loading.hidden {
+  display: none;
+}
+
+/* Spinner */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .submit-btn {
+    transition: none !important;
+  }
+  .btn-label,
+  .btn-loading {
+    transition: none !important;
+  }
+  .spinner {
+    animation: none;
+    border-right-color: currentColor;
+    opacity: 0.5;
+  }
+}

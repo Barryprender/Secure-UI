@@ -1,0 +1,259 @@
+/**
+ * Secure DateTime Component Styles
+ * Uses design tokens for full customizability
+ */
+
+/* Container */
+.datetime-container {
+  margin-bottom: var(--secure-ui-form-gap);
+  font-family: var(--secure-ui-font-family-base);
+}
+
+/* Label */
+label {
+  display: block;
+  margin-bottom: var(--secure-ui-form-label-margin-bottom);
+  font-size: var(--secure-ui-label-font-size);
+  font-weight: var(--secure-ui-label-font-weight);
+  color: var(--secure-ui-label-color);
+}
+
+.label-suffix {
+  font-weight: var(--secure-ui-font-weight-normal);
+  color: var(--secure-ui-color-text-secondary);
+  font-size: var(--secure-ui-font-size-xs);
+  margin-left: var(--secure-ui-space-1);
+}
+
+.security-badge {
+  display: inline-block;
+  padding: var(--secure-ui-badge-padding);
+  margin-left: var(--secure-ui-space-2);
+  font-size: var(--secure-ui-badge-font-size);
+  font-weight: var(--secure-ui-font-weight-semibold);
+  border-radius: var(--secure-ui-badge-border-radius);
+  text-transform: uppercase;
+  background-color: var(--secure-ui-color-bg-tertiary);
+  color: var(--secure-ui-color-text-secondary);
+  border: var(--secure-ui-border-width-thin) solid var(--secure-ui-color-border);
+}
+
+/* Datetime Wrapper */
+.input-wrapper {
+  position: relative;
+}
+
+/* Datetime Input */
+.datetime-field {
+  width: 100%;
+  height: var(--secure-ui-input-height);
+  padding: var(--secure-ui-input-padding-y) var(--secure-ui-input-padding-x);
+
+  font-family: var(--secure-ui-font-family-base);
+  font-size: var(--secure-ui-input-font-size);
+  line-height: var(--secure-ui-line-height-normal);
+  color: var(--secure-ui-input-text-color);
+
+  background-color: var(--secure-ui-input-bg);
+  border: var(--secure-ui-input-border-width) solid var(--secure-ui-input-border-color);
+  border-radius: var(--secure-ui-input-border-radius);
+
+  transition: all var(--secure-ui-transition-base) var(--secure-ui-transition-ease-in-out);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.datetime-field::placeholder {
+  color: var(--secure-ui-input-placeholder-color);
+}
+
+.datetime-field:hover:not(:disabled):not([readonly]) {
+  border-color: var(--secure-ui-input-border-color-hover);
+}
+
+.datetime-field:focus {
+  outline: none;
+  border-color: var(--secure-ui-input-border-color-focus);
+  box-shadow: var(--secure-ui-shadow-focus);
+}
+
+.datetime-field.error {
+  border-color: var(--secure-ui-color-error);
+}
+
+.datetime-field.error:focus {
+  box-shadow: var(--secure-ui-shadow-focus-error);
+}
+
+.datetime-field:disabled {
+  background-color: var(--secure-ui-input-disabled-bg);
+  cursor: not-allowed;
+  opacity: var(--secure-ui-input-disabled-opacity);
+}
+
+.datetime-field[readonly] {
+  background-color: var(--secure-ui-color-bg-secondary);
+  cursor: default;
+}
+
+/* Calendar Icon Indicator */
+.input-wrapper::after {
+  content: '📅';
+  position: absolute;
+  right: var(--secure-ui-space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: var(--secure-ui-font-size-lg);
+  color: var(--secure-ui-color-text-secondary);
+}
+
+.input-wrapper[data-type="time"]::after {
+  content: '🕐';
+}
+
+.input-wrapper[data-type="datetime-local"]::after {
+  content: '📅🕐';
+}
+
+.input-wrapper[data-type="month"]::after {
+  content: '📆';
+}
+
+.input-wrapper[data-type="week"]::after {
+  content: '📅';
+}
+
+.input-wrapper .timezone-display {
+  position: absolute;
+  right: 0;
+  bottom: -1.25rem;
+}
+
+/* Range Display */
+.range-display {
+  display: none;
+  margin-top: var(--secure-ui-space-2);
+  padding: var(--secure-ui-space-2) var(--secure-ui-space-3);
+  background-color: var(--secure-ui-color-bg-secondary);
+  border-radius: var(--secure-ui-border-radius-sm);
+  font-size: var(--secure-ui-font-size-xs);
+  color: var(--secure-ui-color-text-secondary);
+}
+
+.range-display.visible {
+  display: block;
+}
+
+.range-item {
+  margin-bottom: var(--secure-ui-space-1);
+}
+
+.range-item:last-child {
+  margin-bottom: 0;
+}
+
+.range-label {
+  font-weight: var(--secure-ui-font-weight-medium);
+  margin-right: var(--secure-ui-space-1);
+}
+
+/* Helper Text */
+.helper-text {
+  margin-top: var(--secure-ui-space-2);
+  font-size: var(--secure-ui-font-size-xs);
+  color: var(--secure-ui-color-text-secondary);
+  line-height: var(--secure-ui-line-height-normal);
+}
+
+/* Error Container */
+.error-container {
+  position: absolute;
+  margin-top: var(--secure-ui-form-error-margin-top);
+  font-size: var(--secure-ui-error-font-size);
+  color: var(--secure-ui-error-color);
+  line-height: var(--secure-ui-line-height-normal);
+  overflow: hidden;
+  max-height: 40px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out, max-height 0.2s ease-out, margin-top 0.2s ease-out;
+}
+
+.error-container.hidden {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  margin-top: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .datetime-field,
+  .error-container {
+    transition: none !important;
+  }
+}
+
+/* Security Tier Styles */
+/* :host([security-tier="authenticated"]) .datetime-field {
+  border-color: var(--secure-ui-tier-authenticated);
+}
+
+:host([security-tier="sensitive"]) .datetime-field {
+  border-color: var(--secure-ui-tier-sensitive);
+}
+
+:host([security-tier="critical"]) .datetime-field {
+  border-color: var(--secure-ui-tier-critical);
+} */
+
+/* Browser-specific Adjustments */
+/* Chrome/Safari date picker styling */
+.datetime-field::-webkit-calendar-picker-indicator {
+  display: inline-block;
+  cursor: pointer;
+  opacity: 1;
+  padding: 4px;
+  margin-left: 4px;
+}
+
+.datetime-field:disabled::-webkit-calendar-picker-indicator {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+/* Inner spin button in Chrome/Safari */
+.datetime-field::-webkit-inner-spin-button {
+  height: auto;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+/* Validation States */
+.datetime-field:valid:not(:placeholder-shown):not(:focus) {
+  border-color: var(--secure-ui-color-success);
+}
+
+.datetime-field:invalid:not(:placeholder-shown):not(:focus) {
+  border-color: var(--secure-ui-color-error);
+}
+
+/* Focus Within Container */
+.datetime-container:focus-within label {
+  color: var(--secure-ui-color-primary);
+}
+
+/* Disabled State */
+.datetime-container.disabled {
+  opacity: var(--secure-ui-input-disabled-opacity);
+}
+
+.datetime-container.disabled label {
+  color: var(--secure-ui-color-text-disabled);
+}
+
+/* Required Indicator */
+label .required {
+  color: var(--secure-ui-color-error);
+  margin-left: var(--secure-ui-space-1);
+}

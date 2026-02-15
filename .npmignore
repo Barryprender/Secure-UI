@@ -1,0 +1,46 @@
+# Source files (only dist/ is published)
+src/
+tests/
+build/
+
+# Documentation (keep only README in package)
+docs/
+
+# Development files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Test files
+*.test.js
+*.spec.js
+test/
+coverage/
+
+# Development dependencies
+node_modules/
+
+# Build artifacts (except dist/)
+*.map
+
+# Misc
+TODO.md
+CHANGELOG.md

@@ -1,0 +1,182 @@
+ *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--secure-ui-font-family-base);
+      color: var(--secure-ui-color-text-primary);
+      background: var(--secure-ui-color-bg-secondary);
+      line-height: var(--secure-ui-line-height-normal);
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: var(--secure-ui-font-size-3xl);
+      font-weight: var(--secure-ui-font-weight-bold);
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--secure-ui-color-text-secondary);
+      font-size: var(--secure-ui-font-size-base);
+      margin-bottom: 2.5rem;
+    }
+
+    .component-section {
+      background: var(--secure-ui-color-bg-primary);
+      border: 1px solid var(--secure-ui-color-border);
+      border-radius: var(--secure-ui-border-radius-lg);
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .component-section h2 {
+      font-size: var(--secure-ui-font-size-xl);
+      font-weight: var(--secure-ui-font-weight-semibold);
+      margin-bottom: 0.25rem;
+    }
+
+    .component-section .tag {
+      display: inline-block;
+      font-family: var(--secure-ui-font-family-mono);
+      font-size: var(--secure-ui-font-size-xs);
+      color: var(--secure-ui-color-text-secondary);
+      background: var(--secure-ui-color-bg-tertiary);
+      padding: 0.125rem 0.5rem;
+      border-radius: var(--secure-ui-border-radius-sm);
+      margin-bottom: 1.5rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .grid-wide {
+      grid-template-columns: 1fr;
+    }
+
+    .cell {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .cell-label {
+      font-size: var(--secure-ui-font-size-xs);
+      font-weight: var(--secure-ui-font-weight-medium);
+      color: var(--secure-ui-color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--secure-ui-color-border);
+      margin: 1.5rem 0;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .row > * {
+      flex: 1;
+      min-width: 280px;
+    }
+
+    /* Dialog */
+    dialog {
+      border: 1px solid var(--secure-ui-color-border);
+      border-radius: var(--secure-ui-border-radius-lg);
+      padding: 0;
+      min-width: 380px;
+      max-width: 520px;
+      margin-inline: auto;
+      top: 20vh;
+      font-family: var(--secure-ui-font-family-base);
+      box-shadow: var(--secure-ui-shadow-lg);
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    .dialog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--secure-ui-color-border);
+    }
+
+    .dialog-header h3 {
+      font-size: var(--secure-ui-font-size-lg);
+      font-weight: var(--secure-ui-font-weight-semibold);
+      margin: 0;
+    }
+
+    .dialog-close {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      color: var(--secure-ui-color-text-secondary);
+      padding: 0.25rem;
+      line-height: 1;
+    }
+
+    .dialog-body {
+      padding: 1.5rem;
+    }
+
+    .dialog-body table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .dialog-body th,
+    .dialog-body td {
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--secure-ui-color-border);
+      font-size: var(--secure-ui-font-size-sm);
+    }
+
+    .dialog-body th {
+      font-weight: var(--secure-ui-font-weight-medium);
+      color: var(--secure-ui-color-text-secondary);
+      width: 40%;
+      white-space: nowrap;
+    }
+
+    .dialog-body td {
+      color: var(--secure-ui-color-text-primary);
+      word-break: break-word;
+    }
+
+    .dialog-body tr:last-child th,
+    .dialog-body tr:last-child td {
+      border-bottom: none;
+    }
+
+    .dialog-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--secure-ui-color-border);
+      text-align: right;
+    }
+
+    button {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--secure-ui-color-border);
+      border-radius: var(--secure-ui-border-radius-base);
+      background: var(--secure-ui-color-bg-primary);
+      cursor: pointer;
+      font-size: var(--secure-ui-font-size-sm);
+      font-family: var(--secure-ui-font-family-base);
+    }
+
+    button:hover {
+      background: var(--secure-ui-color-bg-tertiary);
+    }

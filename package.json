@@ -1,0 +1,109 @@
+{
+  "name": "@secure-ui/components",
+  "version": "0.1.0",
+  "description": "Security-first web component library with zero dependencies",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./secure-input": {
+      "types": "./dist/components/secure-input/secure-input.d.ts",
+      "import": "./dist/components/secure-input/secure-input.js"
+    },
+    "./secure-textarea": {
+      "types": "./dist/components/secure-textarea/secure-textarea.d.ts",
+      "import": "./dist/components/secure-textarea/secure-textarea.js"
+    },
+    "./secure-select": {
+      "types": "./dist/components/secure-select/secure-select.d.ts",
+      "import": "./dist/components/secure-select/secure-select.js"
+    },
+    "./secure-form": {
+      "types": "./dist/components/secure-form/secure-form.d.ts",
+      "import": "./dist/components/secure-form/secure-form.js"
+    },
+    "./secure-file-upload": {
+      "types": "./dist/components/secure-file-upload/secure-file-upload.d.ts",
+      "import": "./dist/components/secure-file-upload/secure-file-upload.js"
+    },
+    "./secure-datetime": {
+      "types": "./dist/components/secure-datetime/secure-datetime.d.ts",
+      "import": "./dist/components/secure-datetime/secure-datetime.js"
+    },
+    "./secure-table": {
+      "types": "./dist/components/secure-table/secure-table.d.ts",
+      "import": "./dist/components/secure-table/secure-table.js"
+    },
+    "./base-component": {
+      "types": "./dist/core/base-component.d.ts",
+      "import": "./dist/core/base-component.js"
+    },
+    "./security-config": {
+      "types": "./dist/core/security-config.d.ts",
+      "import": "./dist/core/security-config.js"
+    },
+    "./tokens.css": "./dist/styles/tokens.css"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "clean": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\"",
+    "typecheck": "tsc --noEmit",
+    "build:ts": "tsc",
+    "build:css": "node build/css-inliner.js",
+    "build": "npm run clean && npm run build:ts && npm run build:css",
+    "build:dev": "npm run build:ts && node build/dev-build.js",
+    "serve": "node server.js",
+    "serve:dev": "node --watch server.js",
+    "start": "npm run build && npm run serve",
+    "dev": "npm run build && npm run serve:dev",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "web-components",
+    "security",
+    "ui",
+    "form-components",
+    "vanilla-js",
+    "progressive-enhancement",
+    "zero-dependencies",
+    "xss-prevention",
+    "audit-logging",
+    "input-validation",
+    "shadow-dom",
+    "custom-elements"
+  ],
+  "author": "barry",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Barryprender/Secure-UI.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Barryprender/Secure-UI/issues"
+  },
+  "homepage": "https://github.com/Barryprender/Secure-UI#readme",
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.18",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "happy-dom": "^20.4.0",
+    "jsdom": "^27.4.0",
+    "typescript": "^5.5.0",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

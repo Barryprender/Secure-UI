@@ -1,0 +1,62 @@
+/**
+ * Secure Form Component Styles
+ * Document-level styles (no Shadow DOM)
+ *
+ * Note: secure-form does NOT use Shadow DOM. These styles are injected
+ * into the document via adoptedStyleSheets. Do NOT use :host or ::slotted
+ * selectors here — they only work inside Shadow DOM.
+ */
+
+/* Form Element Display */
+secure-form {
+  display: block;
+}
+
+secure-form .secure-form {
+  padding: 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: transparent;
+}
+
+/* Security tier variants */
+secure-form[security-tier="critical"] .secure-form {
+  padding: 20px;
+}
+
+secure-form[security-tier="public"] .secure-form {
+  border: none;
+}
+
+/* Form Status Messages */
+secure-form .form-status {
+  padding: 12px;
+  margin-bottom: 16px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+secure-form .form-status-hidden {
+  display: none;
+}
+
+secure-form .form-status-info {
+  display: block;
+  background-color: #E3F2FD;
+  color: #1976D2;
+  border: 1px solid #1976D2;
+}
+
+secure-form .form-status-success {
+  display: block;
+  background-color: #E8F5E9;
+  color: #388E3C;
+  border: 1px solid #388E3C;
+}
+
+secure-form .form-status-error {
+  display: block;
+  background-color: #FFEBEE;
+  color: #D32F2F;
+  border: 1px solid #D32F2F;
+}
