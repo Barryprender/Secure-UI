@@ -2,7 +2,7 @@
  * @fileoverview Secure File Upload Component
  *
  * A security-first file upload component that implements progressive enhancement,
- * file type validation, size limits, malware scanning hooks, and audit logging.
+ * file type validation, size limits, scan hook integration, and audit logging.
  *
  * Progressive Enhancement Strategy:
  * 1. Without JavaScript: Falls back to native HTML5 file input
@@ -21,8 +21,8 @@
  * Security Features:
  * - File type validation (MIME type and extension)
  * - File size limits based on security tier
- * - Malware scanning hook integration
- * - Content scanning before upload
+ * - Scan hook integration (e.g. server-side malware scanning)
+ * - Content validation before upload
  * - Rate limiting on uploads
  * - Comprehensive audit logging
  * - Drag-and-drop with validation
@@ -34,6 +34,22 @@
 
 import { SecureBaseComponent } from '../../core/base-component.js';
 import { SecurityTier } from '../../core/security-config.js';
+
+/**
+ * Result returned by a scan hook function.
+ */
+export interface ScanHookResult {
+  /** Whether the file passed the scan */
+  valid: boolean;
+  /** Reason for rejection (when valid is false) */
+  reason?: string;
+}
+
+/**
+ * A function that scans a file and returns a pass/fail result.
+ * Typically sends the file to a server-side scanning endpoint.
+ */
+export type ScanHookFn = (file: File) => Promise<ScanHookResult>;
 
 /**
  * Secure File Upload Web Component
@@ -104,6 +120,18 @@ export class SecureFileUpload extends SecureBaseComponent {
    * @private
    */
   #maxSize: number = 5 * 1024 * 1024; // Default 5MB
+
+  /**
+   * Optional scan hook for server-side file scanning (e.g. malware detection)
+   * @private
+   */
+  #scanHook: ScanHookFn | null = null;
+
+  /**
+   * Whether a scan is currently in progress
+   * @private
+   */
+  #scanning: boolean = false;
 
   /**
    * Observed attributes for this component
@@ -561,6 +589,15 @@ export class SecureFileUpload extends SecureBaseComponent {
           continue;
         }
       }
+
+      // Run scan hook if registered
+      if (this.#scanHook) {
+        const scanResult = await this.#runScanHook(file);
+        if (!scanResult.valid) {
+          errors.push(`${file.name}: ${scanResult.reason || 'Rejected by scan'}`);
+          continue;
+        }
+      }
     }
 
     return {
@@ -616,10 +653,85 @@ export class SecureFileUpload extends SecureBaseComponent {
   }
 
   /**
+   * Run the registered scan hook on a file.
+   *
+   * Shows a scanning indicator, calls the hook, audits the result, and
+   * handles errors gracefully (a hook that throws rejects the file).
+   *
+   * @private
+   */
+  async #runScanHook(file: File): Promise<ScanHookResult> {
+    this.#scanning = true;
+    this.#showScanningState(file.name);
+
+    this.audit('scan_started', {
+      name: this.#fileInput?.name ?? '',
+      fileName: file.name,
+      fileSize: file.size
+    });
+
+    try {
+      const result = await this.#scanHook!(file);
+
+      this.audit(result.valid ? 'scan_passed' : 'scan_rejected', {
+        name: this.#fileInput?.name ?? '',
+        fileName: file.name,
+        reason: result.reason ?? ''
+      });
+
+      return result;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Scan failed';
+
+      this.audit('scan_error', {
+        name: this.#fileInput?.name ?? '',
+        fileName: file.name,
+        error: message
+      });
+
+      return { valid: false, reason: `Scan error: ${message}` };
+    } finally {
+      this.#scanning = false;
+      this.#hideScanningState();
+    }
+  }
+
+  /**
+   * Show a scanning-in-progress indicator on the drop zone
+   *
+   * @private
+   */
+  #showScanningState(fileName: string): void {
+    if (this.#dropZone) {
+      this.#dropZone.classList.add('scanning');
+    }
+    if (this.#fileInput) {
+      this.#fileInput.disabled = true;
+    }
+    if (this.#fileNameDisplay) {
+      this.#fileNameDisplay.textContent = `Scanning ${fileName}\u2026`;
+    }
+  }
+
+  /**
+   * Remove the scanning indicator
+   *
+   * @private
+   */
+  #hideScanningState(): void {
+    if (this.#dropZone) {
+      this.#dropZone.classList.remove('scanning');
+    }
+    if (this.#fileInput && !this.hasAttribute('disabled')) {
+      this.#fileInput.disabled = false;
+    }
+  }
+
+  /**
    * Validate file content
    *
-   * Security Note: Basic content validation. In production, integrate with
-   * malware scanning service.
+   * Security Note: Basic content validation — checks magic numbers to verify
+   * the file content matches its declared MIME type.
    *
    * @private
    */
@@ -835,6 +947,55 @@ export class SecureFileUpload extends SecureBaseComponent {
    */
   clear(): void {
     this.#removeFile();
+  }
+
+  /**
+   * Register a scan hook function for server-side file scanning.
+   *
+   * The hook receives each selected file and must return a Promise that
+   * resolves to `{ valid: boolean; reason?: string }`. When `valid` is
+   * false the file is rejected and the reason is shown to the user.
+   *
+   * @example
+   * ```js
+   * const upload = document.querySelector('secure-file-upload');
+   * upload.setScanHook(async (file) => {
+   *   const form = new FormData();
+   *   form.append('file', file);
+   *   const res = await fetch('/api/scan', { method: 'POST', body: form });
+   *   const { clean, threat } = await res.json();
+   *   return { valid: clean, reason: threat };
+   * });
+   * ```
+   *
+   * @public
+   */
+  setScanHook(hook: ScanHookFn): void {
+    if (typeof hook !== 'function') {
+      throw new TypeError('setScanHook expects a function');
+    }
+    this.#scanHook = hook;
+    this.audit('scan_hook_registered', {
+      name: this.#fileInput?.name ?? ''
+    });
+  }
+
+  /**
+   * Check whether a scan hook is registered
+   *
+   * @public
+   */
+  get hasScanHook(): boolean {
+    return this.#scanHook !== null;
+  }
+
+  /**
+   * Check whether a scan is currently in progress
+   *
+   * @public
+   */
+  get scanning(): boolean {
+    return this.#scanning;
   }
 
   /**

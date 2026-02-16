@@ -292,3 +292,23 @@ label {
 .drop-zone.disabled .file-cta {
   background-color: var(--secure-ui-input-disabled-bg);
 }
+
+/* Scanning state */
+.drop-zone.scanning {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.drop-zone.scanning .file-cta {
+  border-color: var(--secure-ui-color-primary);
+}
+
+.drop-zone.scanning .file-name-display {
+  color: var(--secure-ui-color-primary);
+  animation: scanning-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes scanning-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
