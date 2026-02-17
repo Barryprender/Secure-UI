@@ -75,7 +75,7 @@
     "security",
     "ui",
     "form-components",
-    "vanilla-js",
+    "typescript",
     "progressive-enhancement",
     "zero-dependencies",
     "xss-prevention",

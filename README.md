@@ -6,30 +6,33 @@ Security-first web component library with zero dependencies.
 
 ## 🔒 Features
 
-- **7 Secure Components**: Input, Textarea, Select, Form, File Upload, DateTime, Table
+- **8 Secure Components**: Input, Textarea, Select, Form, File Upload, DateTime, Table, Submit Button
 - **4-Tier Security System**: PUBLIC, AUTHENTICATED, SENSITIVE, CRITICAL
 - **Progressive Enhancement**: Works without JavaScript
-- **Zero Dependencies**: Pure vanilla JavaScript
+- **Zero Dependencies**: Pure TypeScript, no runtime dependencies
 - **Fully Customizable**: CSS Design Tokens + CSS Parts API
-- **SSR Ready**: Server-side rendering support
+- **SSR Friendly**: Components render meaningful markup without JavaScript
 - **Comprehensive Testing**: Unit tests and security tests included
 
 ## 📦 Installation
 
+Clone the repository and build from source:
+
 ```bash
-npm install @secure-ui/components
+git clone https://github.com/Barryprender/Secure-UI.git
+cd Secure-UI/secure-ui-components
+npm install
+npm run build
 ```
 
 ## 🚀 Quick Start
-
-### Using via CDN
 
 ```html
 <!DOCTYPE html>
 <html>
 <head>
   <!-- Include design tokens (optional but recommended) -->
-  <link rel="stylesheet" href="https://unpkg.com/@secure-ui/components/dist/styles/tokens.css">
+  <link rel="stylesheet" href="dist/styles/tokens.css">
 </head>
 <body>
   <secure-input
@@ -41,30 +44,11 @@ npm install @secure-ui/components
   ></secure-input>
 
   <script type="module">
-    import { SecureInput } from 'https://unpkg.com/@secure-ui/components/dist/components/secure-input/secure-input.js';
+    import { SecureInput } from './dist/components/secure-input/secure-input.js';
     customElements.define('secure-input', SecureInput);
   </script>
 </body>
 </html>
-```
-
-### Using with npm
-
-```javascript
-import { SecureInput } from '@secure-ui/components/secure-input';
-
-// Define the custom element
-customElements.define('secure-input', SecureInput);
-```
-
-```html
-<secure-input
-  label="Username"
-  name="username"
-  required
-  minlength="3"
-  maxlength="20"
-></secure-input>
 ```
 
 ## 🧩 Available Components
@@ -143,8 +127,15 @@ Date and time picker with range validation.
   name="birthdate"
   type="date"
   min="1900-01-01"
-  max="2024-12-31"
+  max="2025-12-31"
 ></secure-datetime>
+```
+
+### SecureSubmitButton
+Accessible submit button with loading state and security integration.
+
+```html
+<secure-submit-button label="Submit"></secure-submit-button>
 ```
 
 ### SecureTable
@@ -213,21 +204,6 @@ See `docs/customization.md` for complete styling guide with examples.
 <secure-input security-tier="critical" type="password"></secure-input>
 ```
 
-## 📊 Server-Side Rendering
-
-```javascript
-import { ComponentRenderer } from '@secure-ui/components/ssr';
-
-const renderer = new ComponentRenderer();
-
-const html = renderer.renderSecureInput({
-  label: 'Email',
-  name: 'email',
-  type: 'email',
-  required: true
-});
-```
-
 ## 🧪 Testing
 
 All components include comprehensive tests:
@@ -247,7 +223,6 @@ npm run test:coverage
 
 - [Customization Guide](./docs/customization.md) - Complete styling guide
 - [Architecture](./docs/ARCHITECTURE.md) - Technical architecture details
-- [Security](./docs/SECURITY.md) - Security features and best practices
 
 ## 🛠️ Building
 
@@ -282,11 +257,15 @@ All components support:
 
 ### Common Events
 
-- `secure-input-change` - Value changed
-- `secure-input-focus` - Field focused
-- `secure-input-blur` - Field blurred
-- `secure-validation-error` - Validation failed
-- `secure-audit-event` - Security event logged
+- `secure-input` - Input value changed
+- `secure-textarea` - Textarea value changed
+- `secure-select` - Select value changed
+- `secure-datetime` - DateTime value changed
+- `secure-file-upload` - File upload completed
+- `secure-form-submit` - Form pre-submit (cancelable)
+- `secure-form-success` - Form submission succeeded
+- `secure-audit` - Security event logged (all components)
+- `table-action` - Table row action triggered
 
 ## 🤝 Contributing
 
@@ -299,7 +278,6 @@ MIT License - see LICENSE file for details.
 ## 🔗 Links
 
 - [GitHub Repository](https://github.com/Barryprender/Secure-UI)
-- [npm Package](https://npmjs.com/package/@secure-ui/components)
 - [Live Demo](https://barryprender.github.io/Secure-UI/)
 
 ## 🆘 Support
