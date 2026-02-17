@@ -533,6 +533,99 @@ export class SecureInput extends SecureBaseComponent {
   }
 
   /**
+   * Validate password strength based on security tier
+   *
+   * Tier rules:
+   * - CRITICAL: uppercase + lowercase + digit + symbol, 8+ chars
+   * - SENSITIVE: uppercase + lowercase + digit, 8+ chars
+   * - AUTHENTICATED: 6+ chars
+   * - PUBLIC: no strength requirement
+   *
+   * @private
+   * @returns null if valid or not a password, error message string if invalid
+   */
+  #validatePasswordStrength(value: string): string | null {
+    if (!this.#inputElement || this.#inputElement.type !== 'password') {
+      return null;
+    }
+
+    // Skip strength check on empty values — required check handles that
+    if (!value || value.length === 0) {
+      return null;
+    }
+
+    const tier = this.securityTier;
+
+    if (tier === 'critical') {
+      if (value.length < 8) return 'Password must be at least 8 characters';
+      if (!/[a-z]/.test(value)) return 'Password must include a lowercase letter';
+      if (!/[A-Z]/.test(value)) return 'Password must include an uppercase letter';
+      if (!/[0-9]/.test(value)) return 'Password must include a number';
+      if (!/[^a-zA-Z0-9]/.test(value)) return 'Password must include a special character';
+    } else if (tier === 'sensitive') {
+      if (value.length < 8) return 'Password must be at least 8 characters';
+      if (!/[a-z]/.test(value)) return 'Password must include a lowercase letter';
+      if (!/[A-Z]/.test(value)) return 'Password must include an uppercase letter';
+      if (!/[0-9]/.test(value)) return 'Password must include a number';
+    } else if (tier === 'authenticated') {
+      if (value.length < 6) return 'Password must be at least 6 characters';
+    }
+
+    return null;
+  }
+
+  /**
+   * Validate number input for overflow and safe integer range
+   *
+   * Prevents JavaScript precision loss by checking against Number.MAX_SAFE_INTEGER.
+   * Also enforces min/max attribute constraints.
+   *
+   * @private
+   * @returns null if valid or not a number, error message string if invalid
+   */
+  #validateNumberOverflow(value: string): string | null {
+    if (!this.#inputElement || this.#inputElement.type !== 'number') {
+      return null;
+    }
+
+    // Skip on empty values — required check handles that
+    if (!value || value.length === 0) {
+      return null;
+    }
+
+    const num = Number(value);
+
+    if (!Number.isFinite(num)) {
+      return 'Value must be a valid number';
+    }
+
+    // Check safe integer range for integer values (no decimal point)
+    if (!value.includes('.') && !Number.isSafeInteger(num)) {
+      return 'Value exceeds safe integer range';
+    }
+
+    // Enforce min/max attributes
+    const minAttr = this.getAttribute('min');
+    const maxAttr = this.getAttribute('max');
+
+    if (minAttr !== null) {
+      const min = Number(minAttr);
+      if (Number.isFinite(min) && num < min) {
+        return `Value must be at least ${min}`;
+      }
+    }
+
+    if (maxAttr !== null) {
+      const max = Number(maxAttr);
+      if (Number.isFinite(max) && num > max) {
+        return `Value must be at most ${max}`;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Validate the input and show error messages
    *
    * @private
@@ -547,7 +640,7 @@ export class SecureInput extends SecureBaseComponent {
       return;
     }
 
-    // Perform validation
+    // Perform base validation
     const pattern = this.getAttribute('pattern');
     const minLength = this.getAttribute('minlength');
     const maxLength = this.getAttribute('maxlength');
@@ -560,6 +653,21 @@ export class SecureInput extends SecureBaseComponent {
 
     if (!validation.valid) {
       this.#showError(validation.errors.join(', '));
+      return;
+    }
+
+    // Type-specific validation: password strength
+    const passwordError = this.#validatePasswordStrength(this.#actualValue);
+    if (passwordError) {
+      this.#showError(passwordError);
+      return;
+    }
+
+    // Type-specific validation: number overflow
+    const numberError = this.#validateNumberOverflow(this.#actualValue);
+    if (numberError) {
+      this.#showError(numberError);
+      return;
     }
   }
 
@@ -936,7 +1044,21 @@ export class SecureInput extends SecureBaseComponent {
       maxLength: maxLength ? parseInt(maxLength, 10) : this.config.validation.maxLength
     });
 
-    return validation.valid;
+    if (!validation.valid) {
+      return false;
+    }
+
+    // Type-specific: password strength
+    if (this.#validatePasswordStrength(this.#actualValue) !== null) {
+      return false;
+    }
+
+    // Type-specific: number overflow
+    if (this.#validateNumberOverflow(this.#actualValue) !== null) {
+      return false;
+    }
+
+    return true;
   }
 
   /**
