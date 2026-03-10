@@ -756,10 +756,15 @@ export class SecureForm extends HTMLElement {
 
   /**
    * Sanitize a value to prevent XSS
+   *
+   * Uses the same div.textContent round-trip as SecureBaseComponent to correctly
+   * handle all injection vectors (attribute injection, entity encoding, etc).
    */
   sanitizeValue(value: string): string {
     if (typeof value !== 'string') return '';
-    return value.replace(/[<>]/g, '');
+    const div = document.createElement('div');
+    div.textContent = value;
+    return div.innerHTML;
   }
 
   /**

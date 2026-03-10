@@ -227,7 +227,35 @@ export class SecureFileUpload extends SecureBaseComponent {
 
     const dropIcon = document.createElement('span');
     dropIcon.className = 'drop-icon';
-    dropIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+
+    // Build SVG programmatically — never use innerHTML (CSP + XSS risk)
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '16');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+
+    const svgPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    svgPath.setAttribute('d', 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4');
+    const svgPolyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    svgPolyline.setAttribute('points', '17 8 12 3 7 8');
+    const svgLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    svgLine.setAttribute('x1', '12');
+    svgLine.setAttribute('y1', '3');
+    svgLine.setAttribute('x2', '12');
+    svgLine.setAttribute('y2', '15');
+
+    svg.appendChild(svgPath);
+    svg.appendChild(svgPolyline);
+    svg.appendChild(svgLine);
+    dropIcon.appendChild(svg);
+
     fileCta.appendChild(dropIcon);
 
     const dropText = document.createElement('span');
@@ -259,11 +287,15 @@ export class SecureFileUpload extends SecureBaseComponent {
     container.appendChild(this.#previewContainer);
 
     // Create error container
+    // role="alert" already implies aria-live="assertive" — do not override with polite
     this.#errorContainer = document.createElement('div');
     this.#errorContainer.className = 'error-container hidden';
     this.#errorContainer.setAttribute('role', 'alert');
-    this.#errorContainer.setAttribute('aria-live', 'polite');
+    this.#errorContainer.id = `${this.#instanceId}-error`;
     container.appendChild(this.#errorContainer);
+
+    // Link file input to its error container for screen readers
+    this.#fileInput!.setAttribute('aria-describedby', `${this.#instanceId}-error`);
 
     // Add component styles (CSP-compliant via adoptedStyleSheets)
     this.addComponentStyles(this.#getComponentStyles());
@@ -465,7 +497,8 @@ export class SecureFileUpload extends SecureBaseComponent {
       this.#dropZone!.classList.remove('drag-over');
 
       const dragEvent = e as DragEvent;
-      const files = dragEvent.dataTransfer!.files;
+      if (!dragEvent.dataTransfer) return;
+      const files = dragEvent.dataTransfer.files;
       if (files.length > 0) {
         this.#fileInput!.files = files;
         this.#handleFileSelect({ target: this.#fileInput! });

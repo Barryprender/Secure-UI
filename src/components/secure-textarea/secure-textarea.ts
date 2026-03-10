@@ -167,10 +167,11 @@ export class SecureTextarea extends SecureBaseComponent {
     container.appendChild(this.#charCountElement);
 
     // Create error container
+    // role="alert" already implies aria-live="assertive" — do not override with polite
     this.#errorContainer = document.createElement('div');
     this.#errorContainer.className = 'error-container hidden';
     this.#errorContainer.setAttribute('role', 'alert');
-    this.#errorContainer.setAttribute('aria-live', 'polite');
+    this.#errorContainer.id = `${this.#instanceId}-error`;
     container.appendChild(this.#errorContainer);
 
     // Add component styles (CSP-compliant via adoptedStyleSheets)
@@ -197,6 +198,14 @@ export class SecureTextarea extends SecureBaseComponent {
     if (name) {
       this.#textareaElement!.name = this.sanitizeValue(name);
     }
+
+    // Accessible name fallback when no visible label is provided
+    if (!this.getAttribute('label') && name) {
+      this.#textareaElement!.setAttribute('aria-label', this.sanitizeValue(name));
+    }
+
+    // Link textarea to its error container for screen readers
+    this.#textareaElement!.setAttribute('aria-describedby', `${this.#instanceId}-error`);
 
     // Placeholder
     const placeholder = this.getAttribute('placeholder');

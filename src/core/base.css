@@ -25,13 +25,13 @@
 
 .security-badge {
   display: inline-block;
-  padding: 2px 6px;
-  margin-left: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 3px;
+  padding: var(--secure-ui-badge-padding, 2px 6px);
+  margin-left: var(--secure-ui-space-2, 0.5rem);
+  font-size: var(--secure-ui-badge-font-size, 0.6875rem); /* 11px — below normal text threshold, verify contrast */
+  font-weight: var(--secure-ui-font-weight-semibold, 600);
+  border-radius: var(--secure-ui-badge-border-radius, 0.25rem);
   text-transform: uppercase;
-  background-color: #f0f0f0;
-  color: #666;
-  border: 1px solid #ccc;
+  background-color: var(--secure-ui-color-bg-tertiary);
+  color: var(--secure-ui-color-text-secondary);
+  border: var(--secure-ui-border-width-thin, 1px) solid var(--secure-ui-color-border);
 }

@@ -186,10 +186,11 @@ export class SecureSelect extends SecureBaseComponent {
     container.appendChild(selectWrapper);
 
     // Create error container
+    // role="alert" already implies aria-live="assertive" — do not override with polite
     this.#errorContainer = document.createElement('div');
     this.#errorContainer.className = 'error-container hidden';
     this.#errorContainer.setAttribute('role', 'alert');
-    this.#errorContainer.setAttribute('aria-live', 'polite');
+    this.#errorContainer.id = `${this.#instanceId}-error`;
     container.appendChild(this.#errorContainer);
 
     // Add component styles (CSP-compliant via adoptedStyleSheets)
@@ -216,6 +217,14 @@ export class SecureSelect extends SecureBaseComponent {
     if (name) {
       this.#selectElement!.name = this.sanitizeValue(name);
     }
+
+    // Accessible name fallback when no visible label is provided
+    if (!this.getAttribute('label') && name) {
+      this.#selectElement!.setAttribute('aria-label', this.sanitizeValue(name));
+    }
+
+    // Link select to its error container for screen readers
+    this.#selectElement!.setAttribute('aria-describedby', `${this.#instanceId}-error`);
 
     // Required attribute
     if (this.hasAttribute('required') || config.validation.required) {

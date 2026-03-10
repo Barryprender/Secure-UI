@@ -186,7 +186,7 @@
    --secure-ui-table-border-radius: var(--secure-ui-border-radius-md);
    --secure-ui-td-padding: var(--secure-ui-space-3);
    --secure-ui-th-padding: var(--secure-ui-space-3);
-   --secure-ui-rd-text-align: left;   
+   --secure-ui-table-cell-text-align: left;
 
   /* Badge Components */
   --secure-ui-badge-padding: var(--secure-ui-space-1) var(--secure-ui-space-2);

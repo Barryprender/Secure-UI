@@ -59,7 +59,7 @@ label {
   color: var(--secure-ui-color-error);
 }
 
-/* Hidden native file input */
+/* Hidden native file input — positioned over the entire drop zone */
 .file-input {
   position: absolute;
   top: 0;
@@ -69,6 +69,26 @@ label {
   opacity: 0;
   cursor: pointer;
   z-index: 1;
+}
+
+/* Suppress the native (now invisible) focus ring on the input itself */
+.file-input:focus {
+  outline: none;
+}
+
+/* Show a visible focus ring on the CTA when the hidden input has keyboard focus
+   (WCAG 2.4.7, 2.4.11) — also triggers on programmatic focus */
+.drop-zone:focus-within .file-cta {
+  outline: 2px solid var(--secure-ui-color-border-focus);
+  outline-offset: 2px;
+  box-shadow: var(--secure-ui-shadow-focus);
+}
+
+@media (forced-colors: active) {
+  .drop-zone:focus-within .file-cta {
+    outline: 2px solid ButtonText;
+    box-shadow: none;
+  }
 }
 
 .drop-zone-content {

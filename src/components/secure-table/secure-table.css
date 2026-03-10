@@ -316,22 +316,18 @@
     justify-content: center;
   }
 
-  /* Horizontal scroll indicator */
+  /* Horizontal scroll shadow indicator — purely visual, no generated text content
+     that would be read by screen readers (replaces previous '← Scroll →' ::after) */
   .table-wrapper {
     position: relative;
-  }
-
-  .table-wrapper::after {
-    content: '← Scroll →';
-    position: absolute;
-    bottom: var(--secure-ui-space-2);
-    right: var(--secure-ui-space-2);
-    font-size: var(--secure-ui-font-size-xs);
-    color: var(--secure-ui-color-text-secondary);
-    background-color: var(--secure-ui-color-bg-tertiary);
-    padding: var(--secure-ui-space-1) var(--secure-ui-space-2);
-    border-radius: var(--secure-ui-border-radius-sm);
-    pointer-events: none;
+    background:
+      linear-gradient(to right, var(--secure-ui-color-bg-primary) 0%, transparent 100%) left,
+      linear-gradient(to left,  var(--secure-ui-color-bg-primary) 0%, transparent 100%) right,
+      radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.12), transparent) left,
+      radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.12), transparent) right;
+    background-repeat: no-repeat;
+    background-size: 32px 100%, 32px 100%, 10px 100%, 10px 100%;
+    background-attachment: local, local, scroll, scroll;
   }
 }
 

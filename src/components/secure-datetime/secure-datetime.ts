@@ -171,10 +171,11 @@ export class SecureDateTime extends SecureBaseComponent {
     container.appendChild(inputWrapper);
 
     // Create error container
+    // role="alert" already implies aria-live="assertive" — do not override with polite
     this.#errorContainer = document.createElement('div');
     this.#errorContainer.className = 'error-container hidden';
     this.#errorContainer.setAttribute('role', 'alert');
-    this.#errorContainer.setAttribute('aria-live', 'polite');
+    this.#errorContainer.id = `${this.#instanceId}-error`;
     container.appendChild(this.#errorContainer);
 
     // Add component styles (CSP-compliant via adoptedStyleSheets)
@@ -197,6 +198,19 @@ export class SecureDateTime extends SecureBaseComponent {
     const name = this.getAttribute('name');
     if (name) {
       this.#inputElement!.name = this.sanitizeValue(name);
+    }
+
+    // Accessible name fallback when no visible label is provided
+    if (!this.getAttribute('label') && name) {
+      this.#inputElement!.setAttribute('aria-label', this.sanitizeValue(name));
+    }
+
+    // Link input to its error container for screen readers
+    this.#inputElement!.setAttribute('aria-describedby', `${this.#instanceId}-error`);
+
+    // Timezone element label
+    if (this.#timezoneElement) {
+      this.#timezoneElement.setAttribute('aria-label', `Timezone: ${this.#getTimezoneString()}`);
     }
 
     // Type attribute (date, time, datetime-local, month, week)

@@ -83,6 +83,12 @@ export class SecureSubmitButton extends SecureBaseComponent {
   #effectiveConfig: TierConfig;
 
   /**
+   * Unique instance ID for aria attribute association
+   * @private
+   */
+  #instanceId: string = `secure-submit-button-${Math.random().toString(36).substr(2, 9)}`;
+
+  /**
    * Bound event handler for field change events
    * @private
    */
@@ -142,12 +148,21 @@ export class SecureSubmitButton extends SecureBaseComponent {
     const container = document.createElement('div');
     container.className = 'submit-container';
 
+    // Visually hidden hint explains why the button may be disabled (WCAG 1.3.5, 4.1.2)
+    const hintId = `${this.#instanceId}-hint`;
+    const hint = document.createElement('p');
+    hint.id = hintId;
+    hint.className = 'sr-only';
+    hint.textContent = 'Complete all required fields to enable this button';
+    container.appendChild(hint);
+
     // Create button (type="button" — cannot use type="submit" in shadow DOM)
     this.#buttonElement = document.createElement('button');
     this.#buttonElement.type = 'button';
     this.#buttonElement.className = 'submit-btn';
     this.#buttonElement.disabled = true; // Disabled by default until validity is evaluated
     this.#buttonElement.setAttribute('aria-disabled', 'true');
+    this.#buttonElement.setAttribute('aria-describedby', hintId);
 
     // Label span
     this.#labelElement = document.createElement('span');

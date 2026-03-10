@@ -72,12 +72,6 @@ export class SecureTable extends SecureBaseComponent {
   #pagination: TablePaginationState = { currentPage: 1, pageSize: 10 };
 
   /**
-   * Shadow DOM root
-   * @private
-   */
-  #shadow: ShadowRoot;
-
-  /**
    * Whether the component is using slotted server-rendered content
    * @private
    */
@@ -85,7 +79,6 @@ export class SecureTable extends SecureBaseComponent {
 
   constructor() {
     super();
-    this.#shadow = this.shadowRoot;
   }
 
   /**
@@ -385,11 +378,13 @@ export class SecureTable extends SecureBaseComponent {
     let paginationHtml: string;
 
     if (pageData.length === 0 || this.#columns.length === 0) {
+      const emptyHeading = this.#columns.length === 0 ? 'No columns configured' : 'No results found';
+      const emptyBody = this.#columns.length === 0 ? 'Set the columns property to configure the table' : 'Try adjusting your search term';
       tableHtml = `
         <div class="empty-state">
-          <div class="empty-state-icon">\uD83D\uDD0D</div>
-          <h3>${this.#columns.length === 0 ? 'No columns configured' : 'No results found'}</h3>
-          <p>${this.#columns.length === 0 ? 'Set the columns property to configure the table' : 'Try adjusting your search term'}</p>
+          <div class="empty-state-icon" aria-hidden="true">\uD83D\uDD0D</div>
+          <h3>${this.#sanitize(emptyHeading)}</h3>
+          <p>${this.#sanitize(emptyBody)}</p>
         </div>`;
       paginationHtml = '';
     } else {
@@ -398,16 +393,23 @@ export class SecureTable extends SecureBaseComponent {
           <table class="data-table">
             <thead>
               <tr>
-                ${this.#columns.map(col => `
+                ${this.#columns.map(col => {
+                const isSorted = this.#sortConfig.column === col.key;
+                const sortArrow = isSorted ? (this.#sortConfig.direction === 'asc' ? '\u25B2' : '\u25BC') : '\u25B2';
+                const ariaSortAttr = col.sortable !== false
+                  ? `aria-sort="${isSorted ? (this.#sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}"`
+                  : '';
+                return `
                   <th
-                    class="${col.sortable !== false ? 'sortable' : ''} ${this.#sortConfig.column === col.key ? 'sorted' : ''}"
-                    data-column="${col.key}"
+                    class="${col.sortable !== false ? 'sortable' : ''} ${isSorted ? 'sorted' : ''}"
+                    data-column="${this.#sanitize(col.key)}"
+                    ${ariaSortAttr}
                   >
                     ${this.#sanitize(col.label)}
-                    ${col.sortable !== false ? `<span class="sort-indicator">${this.#sortConfig.column === col.key ? (this.#sortConfig.direction === 'asc' ? '\u25B2' : '\u25BC') : '\u25B2'}</span>` : ''}
-                    ${col.tier ? `<span class="security-badge">${col.tier}</span>` : ''}
-                  </th>
-                `).join('')}
+                    ${col.sortable !== false ? `<span class="sort-indicator" aria-hidden="true">${sortArrow}</span>` : ''}
+                    ${col.tier ? `<span class="security-badge" aria-hidden="true">${this.#sanitize(col.tier)}</span>` : ''}
+                  </th>`;
+              }).join('')}
               </tr>
             </thead>
             <tbody>
@@ -447,14 +449,14 @@ export class SecureTable extends SecureBaseComponent {
    * @private
    */
   #render(): void {
-    if (!this.#shadow) return;
+    if (!this.shadowRoot) return;
 
     const { tableHtml, paginationHtml } = this.#renderTableContent();
 
     // Styles injected as <link> elements inside innerHTML — loads from 'self' (CSP-safe).
     // getBaseStylesheetUrl() uses import.meta.url from base-component.js so the path
     // resolves correctly regardless of where secure-table.js is located.
-    this.#shadow.innerHTML = `
+    this.shadowRoot.innerHTML = `
       <link rel="stylesheet" href="${this.getBaseStylesheetUrl()}">
       <link rel="stylesheet" href="${new URL('./secure-table.css', import.meta.url).href}">
       <!-- Slot for server-rendered table (fallback when JS fails to load) -->
@@ -466,7 +468,7 @@ export class SecureTable extends SecureBaseComponent {
             type="search"
             class="search-input"
             placeholder="Search across all columns..."
-            value="${this.#filterTerm}"
+            value="${this.#sanitize(this.#filterTerm)}"
             id="searchInput"
           />
         </div>
@@ -484,10 +486,10 @@ export class SecureTable extends SecureBaseComponent {
    * @private
    */
   #updateTableContent(): void {
-    if (!this.#shadow) return;
+    if (!this.shadowRoot) return;
 
-    const tableContainer = this.#shadow.getElementById('tableContent');
-    const paginationContainer = this.#shadow.getElementById('paginationContent');
+    const tableContainer = this.shadowRoot.getElementById('tableContent');
+    const paginationContainer = this.shadowRoot.getElementById('paginationContent');
     if (!tableContainer) {
       // Fallback to full render if containers don't exist yet
       this.#render();
@@ -538,7 +540,7 @@ export class SecureTable extends SecureBaseComponent {
    */
   #attachEventListeners(): void {
     // Search input — only attached once on full render, preserved across partial updates
-    const searchInput = this.#shadow.getElementById('searchInput');
+    const searchInput = this.shadowRoot.getElementById('searchInput');
     if (searchInput) {
       searchInput.addEventListener('input', (e: Event) => {
         this.#applyFilter((e.target as HTMLInputElement).value);
@@ -555,17 +557,18 @@ export class SecureTable extends SecureBaseComponent {
    */
   #attachTableEventListeners(): void {
     // Column sorting
-    const headers = this.#shadow.querySelectorAll('th.sortable');
+    const headers = this.shadowRoot.querySelectorAll('th.sortable');
     headers.forEach(th => {
       th.addEventListener('click', () => {
         const column = th.getAttribute('data-column');
-        this.#applySort(column!);
+        if (!column) return;
+        this.#applySort(column);
       });
     });
 
     // Pagination
-    const prevBtn = this.#shadow.getElementById('prevBtn');
-    const nextBtn = this.#shadow.getElementById('nextBtn');
+    const prevBtn = this.shadowRoot.getElementById('prevBtn');
+    const nextBtn = this.shadowRoot.getElementById('nextBtn');
 
     if (prevBtn) {
       prevBtn.addEventListener('click', () => {
@@ -580,7 +583,7 @@ export class SecureTable extends SecureBaseComponent {
     }
 
     // Page number buttons
-    const pageButtons = this.#shadow.querySelectorAll('.pagination-button[data-page]');
+    const pageButtons = this.shadowRoot.querySelectorAll('.pagination-button[data-page]');
     pageButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         const page = parseInt(btn.getAttribute('data-page')!, 10);
@@ -592,7 +595,7 @@ export class SecureTable extends SecureBaseComponent {
     // element when any [data-action] element inside the table is clicked.
     // This allows page-level scripts to handle action buttons without needing
     // access to the closed shadow DOM.
-    const tableContent = this.#shadow.getElementById('tableContent');
+    const tableContent = this.shadowRoot.getElementById('tableContent');
     if (tableContent) {
       tableContent.addEventListener('click', (e: Event) => {
         const target = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null;

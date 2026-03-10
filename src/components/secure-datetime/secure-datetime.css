@@ -96,9 +96,13 @@ label {
   cursor: default;
 }
 
-/* Calendar Icon Indicator */
+/* Calendar Icon Indicator
+   CSS alt-text syntax (content: 'emoji' / '') marks the pseudo-element as
+   presentational (no accessible name) in browsers that support it (Chrome 94+,
+   Firefox 92+, Safari 15.4+). This prevents screen readers from reading out
+   the verbose Unicode emoji name. */
 .input-wrapper::after {
-  content: '📅';
+  content: '📅' / '';
   position: absolute;
   right: var(--secure-ui-space-3);
   top: 50%;
@@ -109,19 +113,19 @@ label {
 }
 
 .input-wrapper[data-type="time"]::after {
-  content: '🕐';
+  content: '🕐' / '';
 }
 
 .input-wrapper[data-type="datetime-local"]::after {
-  content: '📅🕐';
+  content: '📅' / '';
 }
 
 .input-wrapper[data-type="month"]::after {
-  content: '📆';
+  content: '📆' / '';
 }
 
 .input-wrapper[data-type="week"]::after {
-  content: '📅';
+  content: '📅' / '';
 }
 
 .input-wrapper .timezone-display {

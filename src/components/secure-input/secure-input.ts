@@ -180,11 +180,12 @@ export class SecureInput extends SecureBaseComponent {
     container.appendChild(inputWrapper);
 
     // Create error container
+    // role="alert" already implies aria-live="assertive" — do not override with polite
     this.#errorContainer = document.createElement('div');
     this.#errorContainer.className = 'error-container hidden';
     this.#errorContainer.setAttribute('role', 'alert');
-    this.#errorContainer.setAttribute('aria-live', 'polite');
     this.#errorContainer.setAttribute('part', 'error');
+    this.#errorContainer.id = `${this.#instanceId}-error`;
     container.appendChild(this.#errorContainer);
 
     // CRITICAL: Create hidden input in light DOM for native form submission
@@ -301,6 +302,15 @@ export class SecureInput extends SecureBaseComponent {
     if (name) {
       this.#inputElement!.name = this.sanitizeValue(name);
     }
+
+    // Accessible name fallback: when no visible label is provided, use the name
+    // attribute as aria-label so screen readers can identify the field
+    if (!this.getAttribute('label') && name) {
+      this.#inputElement!.setAttribute('aria-label', this.sanitizeValue(name));
+    }
+
+    // Link input to its error container for screen readers
+    this.#inputElement!.setAttribute('aria-describedby', `${this.#instanceId}-error`);
 
     // Type attribute
     const type = this.getAttribute('type') || 'text';
