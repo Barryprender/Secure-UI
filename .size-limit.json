@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Full bundle (dist/index.js)",
+    "path": "dist/index.js",
+    "limit": "60 kB"
+  },
+  {
+    "name": "secure-input",
+    "path": "dist/components/secure-input/secure-input.js",
+    "limit": "12 kB"
+  },
+  {
+    "name": "secure-textarea",
+    "path": "dist/components/secure-textarea/secure-textarea.js",
+    "limit": "12 kB"
+  },
+  {
+    "name": "secure-select",
+    "path": "dist/components/secure-select/secure-select.js",
+    "limit": "12 kB"
+  },
+  {
+    "name": "secure-form",
+    "path": "dist/components/secure-form/secure-form.js",
+    "limit": "15 kB"
+  },
+  {
+    "name": "secure-file-upload",
+    "path": "dist/components/secure-file-upload/secure-file-upload.js",
+    "limit": "15 kB"
+  },
+  {
+    "name": "secure-datetime",
+    "path": "dist/components/secure-datetime/secure-datetime.js",
+    "limit": "12 kB"
+  },
+  {
+    "name": "secure-table",
+    "path": "dist/components/secure-table/secure-table.js",
+    "limit": "20 kB"
+  }
+]

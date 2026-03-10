@@ -65,10 +65,14 @@
     "serve:dev": "node --watch server.js",
     "start": "npm run build && npm run serve",
     "dev": "npm run build && npm run serve:dev",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepublishOnly": "npm run build"
+    "size": "size-limit",
+    "audit:check": "npm audit --audit-level=high",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "keywords": [
     "web-components",
@@ -95,12 +99,17 @@
   },
   "homepage": "https://github.com/Barryprender/Secure-UI#readme",
   "devDependencies": {
+    "@size-limit/preset-small-lib": "^12.0.1",
     "@vitest/coverage-v8": "^4.0.18",
+    "axe-core": "^4.11.1",
     "cors": "^2.8.5",
+    "eslint-plugin-security": "^4.0.0",
     "express": "^4.18.2",
     "happy-dom": "^20.4.0",
     "jsdom": "^27.4.0",
+    "size-limit": "^12.0.1",
     "typescript": "^5.5.0",
+    "typescript-eslint": "^8.57.0",
     "vitest": "^4.0.18"
   },
   "engines": {
