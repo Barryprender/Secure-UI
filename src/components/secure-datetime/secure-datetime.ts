@@ -282,9 +282,12 @@ export class SecureDateTime extends SecureBaseComponent {
     // Basic format validation based on input type
     const type = this.#inputElement?.type || this.getAttribute('type') || 'date';
 
+    // eslint-disable-next-line security/detect-unsafe-regex
     const patterns: Record<string, RegExp> = {
       'date': /^\d{4}-\d{2}-\d{2}$/,
+      // eslint-disable-next-line security/detect-unsafe-regex
       'time': /^\d{2}:\d{2}(:\d{2})?$/,
+      // eslint-disable-next-line security/detect-unsafe-regex
       'datetime-local': /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/,
       'month': /^\d{4}-\d{2}$/,
       'week': /^\d{4}-W\d{2}$/
@@ -462,7 +465,7 @@ export class SecureDateTime extends SecureBaseComponent {
     try {
       const date = new Date(dateString);
       return date.toLocaleString();
-    } catch (e) {
+    } catch (_e) {
       return dateString;
     }
   }
@@ -579,7 +582,7 @@ export class SecureDateTime extends SecureBaseComponent {
     try {
       const date = new Date(this.#inputElement.value);
       return isNaN(date.getTime()) ? null : date;
-    } catch (e) {
+    } catch (_e) {
       return null;
     }
   }

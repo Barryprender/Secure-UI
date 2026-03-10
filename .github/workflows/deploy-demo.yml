@@ -26,8 +26,29 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # Security audit — fail on high or critical vulnerabilities
+      - name: Security audit
+        run: npm audit --audit-level=high
+
+      # Type check
+      - name: Type check
+        run: npm run typecheck
+
+      # Lint
+      - name: Lint
+        run: npm run lint
+
+      # Tests with coverage
+      - name: Test with coverage
+        run: npm run test:coverage
+
+      # Build distributable
       - run: npm run build
-      - run: npm test
+
+      # Bundle size check (runs after build so dist/ exists)
+      - name: Bundle size check
+        run: npm run size
 
       # Assemble the GitHub Pages site
       - name: Prepare pages content

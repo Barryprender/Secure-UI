@@ -295,7 +295,7 @@ export class SecureFileUpload extends SecureBaseComponent {
     container.appendChild(this.#errorContainer);
 
     // Link file input to its error container for screen readers
-    this.#fileInput!.setAttribute('aria-describedby', `${this.#instanceId}-error`);
+    this.#fileInput.setAttribute('aria-describedby', `${this.#instanceId}-error`);
 
     // Add component styles (CSP-compliant via adoptedStyleSheets)
     this.addComponentStyles(this.#getComponentStyles());
@@ -475,7 +475,7 @@ export class SecureFileUpload extends SecureBaseComponent {
   #attachEventListeners(): void {
     // File input change
     this.#fileInput!.addEventListener('change', (e: Event) => {
-      this.#handleFileSelect(e as unknown as { target: HTMLInputElement });
+      void this.#handleFileSelect(e as unknown as { target: HTMLInputElement });
     });
 
     // Drag and drop events
@@ -501,7 +501,7 @@ export class SecureFileUpload extends SecureBaseComponent {
       const files = dragEvent.dataTransfer.files;
       if (files.length > 0) {
         this.#fileInput!.files = files;
-        this.#handleFileSelect({ target: this.#fileInput! });
+        void this.#handleFileSelect({ target: this.#fileInput! });
       }
     });
   }
@@ -795,7 +795,7 @@ export class SecureFileUpload extends SecureBaseComponent {
       }
 
       return { valid: true };
-    } catch (error) {
+    } catch (_error) {
       return {
         valid: false,
         error: 'Failed to validate file content'

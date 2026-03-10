@@ -213,7 +213,7 @@ export interface SecureFormSuccessEventDetail {
 /**
  * Custom event detail for secure-audit events
  */
-export interface SecureAuditEventDetail extends AuditLogEntry {}
+export type SecureAuditEventDetail = AuditLogEntry;
 
 // ========== Table Types ==========
 

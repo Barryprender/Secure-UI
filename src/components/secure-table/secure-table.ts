@@ -141,10 +141,10 @@ export class SecureTable extends SecureBaseComponent {
       if (headers.length === 0) return null;
 
       const columns: TableColumnDefinition[] = Array.from(headers).map(th => {
-        const key = th.getAttribute('data-key') || th.textContent!.trim().toLowerCase().replace(/\s+/g, '_');
+        const key = th.getAttribute('data-key') || th.textContent.trim().toLowerCase().replace(/\s+/g, '_');
         return {
           key: key,
-          label: th.textContent!.trim().replace(/\s+$/, ''), // Remove trailing spaces/badges
+          label: th.textContent.trim().replace(/\s+$/, ''), // Remove trailing spaces/badges
           sortable: th.hasAttribute('data-sortable') ? th.getAttribute('data-sortable') !== 'false' : true,
           filterable: th.hasAttribute('data-filterable') ? th.getAttribute('data-filterable') !== 'false' : undefined,
           tier: (th.getAttribute('data-tier') || undefined) as TableColumnDefinition['tier'],
@@ -167,10 +167,10 @@ export class SecureTable extends SecureBaseComponent {
             // Store both text content and HTML if needed
             if (td.innerHTML.trim().includes('<')) {
               // Cell contains HTML (like forms, badges, etc.)
-              row[dataKey] = td.textContent!.trim();
+              row[dataKey] = td.textContent.trim();
               row[`${dataKey}_html`] = td.innerHTML.trim();
             } else {
-              row[dataKey] = td.textContent!.trim();
+              row[dataKey] = td.textContent.trim();
             }
           }
         });
@@ -250,7 +250,7 @@ export class SecureTable extends SecureBaseComponent {
       this.#filteredData = this.#data.filter(row => {
         return this.#columns.some(col => {
           if (col.filterable === false) return false;
-          const value = String(row[col.key] || '').toLowerCase();
+          const value = String(row[col.key] ?? '').toLowerCase();
           return value.includes(this.#filterTerm);
         });
       });
@@ -314,7 +314,7 @@ export class SecureTable extends SecureBaseComponent {
    * @private
    */
   #sanitize(str: unknown): string {
-    if (!str) return '';
+    if (str === null || str === undefined || str === '') return '';
     return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -328,7 +328,7 @@ export class SecureTable extends SecureBaseComponent {
    * @private
    */
   #maskValue(value: unknown, tier: string | undefined): string {
-    if (!value) return '-';
+    if (value === null || value === undefined || value === '') return '-';
 
     const strValue = String(value);
 
@@ -514,7 +514,7 @@ export class SecureTable extends SecureBaseComponent {
   #renderPageNumbers(totalPages: number): string {
     const maxButtons = 5;
     let startPage = Math.max(1, this.#pagination.currentPage - Math.floor(maxButtons / 2));
-    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    const endPage = Math.min(totalPages, startPage + maxButtons - 1);
 
     if (endPage - startPage < maxButtons - 1) {
       startPage = Math.max(1, endPage - maxButtons + 1);
@@ -598,7 +598,7 @@ export class SecureTable extends SecureBaseComponent {
     const tableContent = this.shadowRoot.getElementById('tableContent');
     if (tableContent) {
       tableContent.addEventListener('click', (e: Event) => {
-        const target = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null;
+        const target = (e.target as HTMLElement).closest('[data-action]');
         if (!target) return;
 
         const action = target.getAttribute('data-action');
@@ -607,7 +607,7 @@ export class SecureTable extends SecureBaseComponent {
         for (const attr of Array.from(target.attributes)) {
           if (attr.name.startsWith('data-') && attr.name !== 'data-action') {
             // Convert data-user-id to userId style key
-            const key = attr.name.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+            const key = attr.name.slice(5).replace(/-([a-z])/g, (_match: string, c: string) => c.toUpperCase());
             detail[key] = attr.value;
           }
         }

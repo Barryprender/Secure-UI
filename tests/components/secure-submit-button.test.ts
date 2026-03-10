@@ -612,12 +612,12 @@ describe('SecureSubmitButton', () => {
   // ===========================================================================
 
   describe('Component Styles', () => {
-    it('should apply component styles via adoptedStyleSheets', () => {
+    it('should apply component styles via <link> elements (CSP-safe, not adoptedStyleSheets)', () => {
       document.body.appendChild(button);
 
-      const sheets = button.shadowRoot?.adoptedStyleSheets;
-      expect(sheets).toBeDefined();
-      expect(sheets!.length).toBeGreaterThan(0);
+      // Project uses <link rel="stylesheet"> for CSP compliance, not adoptedStyleSheets
+      const links = button.shadowRoot?.querySelectorAll('link[rel="stylesheet"]');
+      expect(links?.length).toBeGreaterThan(0);
     });
 
     it('should have submit-container class in shadow DOM', () => {

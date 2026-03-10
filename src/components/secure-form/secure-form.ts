@@ -152,7 +152,7 @@ export class SecureForm extends HTMLElement {
 
       // Check if CSRF field already exists in the server-rendered form
       const csrfFieldName = this.getAttribute('csrf-field-name') || 'csrf_token';
-      const existingCsrf = existingForm.querySelector(`input[name="${csrfFieldName}"]`) as HTMLInputElement | null;
+      const existingCsrf = existingForm.querySelector<HTMLInputElement>(`input[name="${csrfFieldName}"]`);
       if (existingCsrf) {
         this.#csrfInput = existingCsrf;
         // Update token value from attribute if it differs
@@ -292,7 +292,7 @@ export class SecureForm extends HTMLElement {
   #attachEventListeners(): void {
     // Submit event - validate and enhance submission
     this.#formElement!.addEventListener('submit', (e: Event) => {
-      this.#handleSubmit(e);
+      void this.#handleSubmit(e);
     });
 
     // Listen for secure field events
@@ -473,7 +473,7 @@ export class SecureForm extends HTMLElement {
       });
 
       // Check if hidden input already exists
-      let hiddenInput = this.#formElement!.querySelector(`input[type="hidden"][data-secure-input="${name}"]`) as HTMLInputElement | null;
+      let hiddenInput = this.#formElement!.querySelector<HTMLInputElement>(`input[type="hidden"][data-secure-input="${name}"]`);
 
       if (!hiddenInput) {
         // Create hidden input for this secure-input
