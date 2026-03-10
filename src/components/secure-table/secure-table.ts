@@ -372,15 +372,6 @@ export class SecureTable extends SecureBaseComponent {
   }
 
   /**
-   * Get component styles - placeholder for development.
-   * The build process (css-inliner.js) replaces this with minified CSS from secure-table.css.
-   * @private
-   */
-  #getComponentStyles(): string {
-    return ``;
-  }
-
-  /**
    * Generate the table body, thead, and pagination HTML
    * @private
    */
@@ -458,16 +449,14 @@ export class SecureTable extends SecureBaseComponent {
   #render(): void {
     if (!this.#shadow) return;
 
-    // Apply styles via adoptedStyleSheets (CSP-compliant, no nonce required)
-    const baseSheet = new CSSStyleSheet();
-    baseSheet.replaceSync(this.getBaseStyles());
-    const componentSheet = new CSSStyleSheet();
-    componentSheet.replaceSync(this.#getComponentStyles());
-    this.#shadow.adoptedStyleSheets = [baseSheet, componentSheet];
-
     const { tableHtml, paginationHtml } = this.#renderTableContent();
 
+    // Styles injected as <link> elements inside innerHTML — loads from 'self' (CSP-safe).
+    // getBaseStylesheetUrl() uses import.meta.url from base-component.js so the path
+    // resolves correctly regardless of where secure-table.js is located.
     this.#shadow.innerHTML = `
+      <link rel="stylesheet" href="${this.getBaseStylesheetUrl()}">
+      <link rel="stylesheet" href="${new URL('./secure-table.css', import.meta.url).href}">
       <!-- Slot for server-rendered table (fallback when JS fails to load) -->
       <slot name="table"></slot>
 

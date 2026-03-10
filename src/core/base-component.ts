@@ -145,9 +145,14 @@ export abstract class SecureBaseComponent extends HTMLElement {
   #render(): void {
     this.#shadow.innerHTML = '';
 
-    const baseSheet = new CSSStyleSheet();
-    baseSheet.replaceSync(this.#getBaseStyles());
-    this.#shadow.adoptedStyleSheets = [baseSheet];
+    // Base styles via <link> — loads from 'self', fully CSP-safe.
+    // Using adoptedStyleSheets + replaceSync(inlineString) triggers CSP violations
+    // when style-src lacks 'unsafe-inline'. A <link> element loading from 'self'
+    // is always permitted.
+    const baseLink = document.createElement('link');
+    baseLink.rel = 'stylesheet';
+    baseLink.href = new URL('./base.css', import.meta.url).href;
+    this.#shadow.appendChild(baseLink);
 
     const content = this.render();
     if (content) {
@@ -155,61 +160,28 @@ export abstract class SecureBaseComponent extends HTMLElement {
     }
   }
 
-  #getBaseStyles(): string {
-    return this.getBaseStyles();
-  }
-
   /**
-   * Get base CSS styles shared by all components.
-   *
-   * Components that manage their own rendering can call this to include
-   * base styles in their own <style> tag or adoptedStyleSheets.
+   * Returns the URL of the shared base stylesheet.
+   * Components that manage their own rendering (e.g. secure-table) can use
+   * this to inject the base <link> themselves.
    * @protected
    */
-  protected getBaseStyles(): string {
-    return `
-      :host {
-        display: block;
-        box-sizing: border-box;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        font-size: 14px;
-        line-height: 1.5;
-      }
-
-      :host([hidden]) {
-        display: none;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      .hidden {
-        display: none;
-      }
-
-      .security-badge {
-        display: inline-block;
-        padding: 2px 6px;
-        margin-left: 8px;
-        font-size: 11px;
-        font-weight: 600;
-        border-radius: 3px;
-        text-transform: uppercase;
-        background-color: #f0f0f0;
-        color: #666;
-        border: 1px solid #ccc;
-      }
-    `;
+  protected getBaseStylesheetUrl(): string {
+    return new URL('./base.css', import.meta.url).href;
   }
 
   /**
-   * Register additional component styles via adoptedStyleSheets (CSP-compliant).
+   * Inject a component stylesheet into the shadow root via <link>.
+   * Accepts a URL (use import.meta.url to derive it, e.g.
+   *   new URL('./my-component.css', import.meta.url).href
+   * ). Loading from 'self' satisfies strict CSP without unsafe-inline.
+   * @protected
    */
-  protected addComponentStyles(cssText: string): void {
-    const sheet = new CSSStyleSheet();
-    sheet.replaceSync(cssText);
-    this.#shadow.adoptedStyleSheets = [...this.#shadow.adoptedStyleSheets, sheet];
+  protected addComponentStyles(cssUrl: string): void {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = cssUrl;
+    this.#shadow.appendChild(link);
   }
 
   /**

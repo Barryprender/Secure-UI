@@ -213,11 +213,12 @@ export class SecureForm extends HTMLElement {
    * @private
    */
   #addInlineStyles(): void {
-    // Only add styles once globally
+    // Only inject once globally — <link> in document head, loads from 'self' (CSP-safe)
     if (!SecureForm.__stylesAdded) {
-      const sheet = new CSSStyleSheet();
-      sheet.replaceSync(this.#getComponentStyles());
-      document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = new URL('./secure-form.css', import.meta.url).href;
+      document.head.appendChild(link);
       SecureForm.__stylesAdded = true;
     }
   }
@@ -663,66 +664,6 @@ export class SecureForm extends HTMLElement {
   #clearStatus(): void {
     this.#statusElement!.textContent = '';
     this.#statusElement!.className = 'form-status form-status-hidden';
-  }
-
-  /**
-   * Get component-specific styles (for light DOM, no Shadow DOM)
-   *
-   * @private
-   */
-  #getComponentStyles(): string {
-    return `
-      secure-form {
-        display: block;
-      }
-
-      secure-form .secure-form {
-        padding: 16px;
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        background-color: transparent;
-      }
-
-      secure-form[security-tier="critical"] .secure-form {
-        padding: 20px;
-      }
-
-      secure-form[security-tier="public"] .secure-form {
-        border: none;
-      }
-
-      secure-form .form-status {
-        padding: 12px;
-        margin-bottom: 16px;
-        border-radius: 4px;
-        font-size: 14px;
-      }
-
-      secure-form .form-status-hidden {
-        display: none;
-      }
-
-      secure-form .form-status-info {
-        display: block;
-        background-color: #E3F2FD;
-        color: #1976D2;
-        border: 1px solid #1976D2;
-      }
-
-      secure-form .form-status-success {
-        display: block;
-        background-color: #E8F5E9;
-        color: #388E3C;
-        border: 1px solid #388E3C;
-      }
-
-      secure-form .form-status-error {
-        display: block;
-        background-color: #FFEBEE;
-        color: #D32F2F;
-        border: 1px solid #D32F2F;
-      }
-    `;
   }
 
   /**

@@ -1,8 +1,11 @@
 /**
- * CSS Inliner Build Tool
+ * CSS Copy Build Tool
  *
- * This script reads CSS files and inlines them into component JavaScript files
- * for optimal performance in server-side rendering scenarios.
+ * Previously this script inlined CSS into component JS via replaceSync(), which
+ * triggers CSP violations when style-src lacks 'unsafe-inline'.
+ *
+ * Now it copies each component's CSS file to dist so components can load styles
+ * via <link rel="stylesheet"> using import.meta.url — fully CSP-safe.
  *
  * Usage:
  *   node build/css-inliner.js
@@ -31,130 +34,50 @@ const COMPONENTS = [
 ];
 
 /**
- * Read CSS file and return minified content
- * @param {string} cssPath - Path to CSS file
- * @returns {Promise<string>} Minified CSS content
- */
-async function readAndMinifyCSS(cssPath) {
-  try {
-    const css = await fs.readFile(cssPath, 'utf-8');
-
-    // Basic CSS minification
-    const minified = css
-      // Remove comments
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      // Remove newlines
-      .replace(/\n/g, '')
-      // Remove extra whitespace
-      .replace(/\s+/g, ' ')
-      // Remove spaces around special characters
-      .replace(/\s*([{}:;,>+~])\s*/g, '$1')
-      // Remove trailing semicolons
-      .replace(/;}/g, '}')
-      .trim();
-
-    return minified;
-  } catch (error) {
-    console.warn(`⚠️  CSS file not found: ${cssPath}`);
-    return '';
-  }
-}
-
-/**
- * Generate CSS loader code for a component
- * @param {string} css - CSS content
- * @returns {string} JavaScript code to load CSS
- */
-function generateCSSLoaderCode(css) {
-  // Escape backticks and dollar signs in CSS
-  const escapedCSS = css.replace(/`/g, '\\`').replace(/\$/g, '\\$');
-
-  return `
-  /**
-   * Get component styles
-   * @private
-   * @returns {string} Component CSS
-   */
-  #getComponentStyles() {
-    return \`${escapedCSS}\`;
-  }`;
-}
-
-/**
- * Process a single component
+ * Copy a component's CSS file from src to dist.
+ * Components reference the CSS via import.meta.url so it must sit alongside
+ * the compiled JS in dist/components/<name>/<name>.css.
  * @param {string} componentName - Name of the component
  */
 async function processComponent(componentName) {
   console.log(`📦 Processing ${componentName}...`);
 
-  // CSS is read from src (not compiled by tsc)
-  const cssPath = path.join(ROOT_DIR, 'src', 'components', componentName, `${componentName}.css`);
-  // JS is read from dist (compiled by tsc)
+  const srcCssPath = path.join(ROOT_DIR, 'src', 'components', componentName, `${componentName}.css`);
   const distDir = path.join(ROOT_DIR, 'dist', 'components', componentName);
-  const distJsPath = path.join(distDir, `${componentName}.js`);
+  const distCssPath = path.join(distDir, `${componentName}.css`);
 
-  // Read CSS file
-  const css = await readAndMinifyCSS(cssPath);
-
-  if (!css) {
-    console.log(`   ⏭️  No CSS file found, skipping...`);
-    return;
-  }
-
-  // Read compiled JavaScript file from dist
-  let jsContent;
   try {
-    jsContent = await fs.readFile(distJsPath, 'utf-8');
-  } catch (error) {
-    console.error(`   ❌ Failed to read ${distJsPath} (run tsc first)`);
+    await fs.access(srcCssPath);
+  } catch {
+    console.log(`   ⏭️  No CSS file found at ${srcCssPath}, skipping...`);
     return;
   }
 
-  // Check if component already has #getComponentStyles method
-  const hasStylesMethod = jsContent.includes('#getComponentStyles()');
+  await fs.mkdir(distDir, { recursive: true });
+  await fs.copyFile(srcCssPath, distCssPath);
 
-  if (!hasStylesMethod) {
-    console.log(`   ⚠️  Component does not have #getComponentStyles() method`);
-    console.log(`   📝 Adding method to component...`);
-
-    // Find the end of the class definition
-    const classMatch = jsContent.match(/export class \w+ extends \w+ {/);
-    if (!classMatch) {
-      console.error(`   ❌ Could not find class definition`);
-      return;
-    }
-
-    // Insert the styles method after the class opening
-    const insertPosition = classMatch.index + classMatch[0].length;
-    const cssLoaderCode = generateCSSLoaderCode(css);
-    jsContent = jsContent.slice(0, insertPosition) + cssLoaderCode + jsContent.slice(insertPosition);
-  } else {
-    // Replace existing method with inlined CSS
-    const methodRegex = /#getComponentStyles\(\)\s*{[^}]*return\s*`[^`]*`\s*;?\s*}/;
-    const cssLoaderCode = generateCSSLoaderCode(css).trim();
-    jsContent = jsContent.replace(methodRegex, cssLoaderCode);
-  }
-
-  // Write processed file back to dist
-  await fs.writeFile(distJsPath, jsContent, 'utf-8');
-
-  console.log(`   ✅ Inlined ${css.length} bytes of CSS`);
+  console.log(`   ✅ Copied ${componentName}.css to dist`);
 }
 
 /**
- * Copy design tokens to dist
+ * Copy design tokens and core CSS to dist
  */
 async function copyDesignTokens() {
-  console.log(`📋 Copying design tokens...`);
+  console.log(`📋 Copying design tokens and core CSS...`);
 
+  // tokens.css
   const tokensPath = path.join(ROOT_DIR, 'src', 'styles', 'tokens.css');
   const distStylesDir = path.join(ROOT_DIR, 'dist', 'styles');
-  const distTokensPath = path.join(distStylesDir, 'tokens.css');
-
   await fs.mkdir(distStylesDir, { recursive: true });
-  await fs.copyFile(tokensPath, distTokensPath);
+  await fs.copyFile(tokensPath, path.join(distStylesDir, 'tokens.css'));
 
-  console.log(`   ✅ Design tokens copied to dist`);
+  // base.css — shared Shadow DOM styles referenced via import.meta.url in base-component.js
+  const baseCssPath = path.join(ROOT_DIR, 'src', 'core', 'base.css');
+  const distCoreDir = path.join(ROOT_DIR, 'dist', 'core');
+  await fs.mkdir(distCoreDir, { recursive: true });
+  await fs.copyFile(baseCssPath, path.join(distCoreDir, 'base.css'));
+
+  console.log(`   ✅ Design tokens and base.css copied to dist`);
 }
 
 /**

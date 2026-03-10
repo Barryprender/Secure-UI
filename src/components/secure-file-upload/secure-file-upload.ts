@@ -885,7 +885,7 @@ export class SecureFileUpload extends SecureBaseComponent {
    * @private
    */
   #getComponentStyles(): string {
-    return `/* CSS will be inlined from secure-file-upload.css by build script */`;
+    return new URL('./secure-file-upload.css', import.meta.url).href;
   }
 
   /**
