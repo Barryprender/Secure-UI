@@ -197,7 +197,6 @@ describe('SecureSelect', () => {
     });
 
     it('should reject invalid option values on set', () => {
-      const originalValue = select.value;
       select.value = 'injected-value';
 
       // Should not accept injected value

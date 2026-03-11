@@ -1,6 +1,6 @@
 {
-  "name": "@secure-ui/components",
-  "version": "0.1.0",
+  "name": "secure-ui-components",
+  "version": "0.1.0-beta.1",
   "description": "Security-first web component library with zero dependencies",
   "type": "module",
   "main": "./dist/index.js",
@@ -88,7 +88,7 @@
     "shadow-dom",
     "custom-elements"
   ],
-  "author": "barry",
+  "author": "Barry Prendergast <barry.prendergast@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -113,6 +113,6 @@
     "vitest": "^4.0.18"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.0.0"
   }
 }

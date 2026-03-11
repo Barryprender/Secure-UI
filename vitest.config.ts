@@ -28,12 +28,11 @@ export default defineConfig({
       // Thresholds act as a ratchet: set just below current actuals to
       // prevent regressions.  Raise these as coverage improves.
       thresholds: {
-        // Global minimums — set just below current actuals (ratchet pattern).
-        // Target: 85% statements / 80% branches. Raise as coverage improves.
-        statements: 80,
-        branches: 70,
-        functions: 83,
-        lines: 82,
+        // Global minimums (ratchet). Raised after branch coverage improvements.
+        statements: 89,
+        branches: 79,
+        functions: 92,
+        lines: 90,
 
         // Per-file overrides for critical core modules
         'src/core/base-component.ts': {
@@ -48,33 +47,47 @@ export default defineConfig({
           functions: 100,
           lines: 100
         },
-        // Submit button
         'src/components/secure-submit-button/secure-submit-button.ts': {
           statements: 92,
-          branches: 76,
+          branches: 77,
           functions: 100,
           lines: 94
         },
-        // Table improved significantly with interaction tests
         'src/components/secure-table/secure-table.ts': {
           statements: 83,
-          branches: 73,
+          branches: 74,
           functions: 87,
           lines: 86
         },
-        // File upload: major improvement from 35% → 77% branches
         'src/components/secure-file-upload/secure-file-upload.ts': {
           statements: 93,
           branches: 76,
           functions: 100,
           lines: 94
         },
-        // Input: major improvement from 52% → 83% branches
         'src/components/secure-input/secure-input.ts': {
           statements: 88,
           branches: 82,
           functions: 92,
           lines: 89
+        },
+        'src/components/secure-select/secure-select.ts': {
+          statements: 93,
+          branches: 82,
+          functions: 97,
+          lines: 93
+        },
+        'src/components/secure-datetime/secure-datetime.ts': {
+          statements: 94,
+          branches: 82,
+          functions: 96,
+          lines: 94
+        },
+        'src/components/secure-form/secure-form.ts': {
+          statements: 85,
+          branches: 74,
+          functions: 82,
+          lines: 85
         }
       }
     },

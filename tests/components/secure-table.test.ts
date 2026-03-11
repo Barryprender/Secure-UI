@@ -5,7 +5,7 @@
  * sorting, filtering, pagination, and XSS prevention.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SecureTable } from '../../src/components/secure-table/secure-table.js';
 
 // Register the component if not already defined

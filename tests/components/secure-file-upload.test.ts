@@ -13,11 +13,6 @@ if (!customElements.get('secure-file-upload')) {
   customElements.define('secure-file-upload', SecureFileUpload);
 }
 
-// Helper to create mock File objects
-function createMockFile(name: string, size: number, type: string): File {
-  const content = new Array(size).fill('a').join('');
-  return new File([content], name, { type });
-}
 
 describe('SecureFileUpload', () => {
   let upload: SecureFileUpload;

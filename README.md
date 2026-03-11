@@ -1,4 +1,4 @@
-# @secure-ui/components
+# secure-ui-components
 
 Security-first web component library with zero dependencies.
 
@@ -16,23 +16,40 @@ Security-first web component library with zero dependencies.
 
 ## 📦 Installation
 
-Clone the repository and build from source:
-
 ```bash
-git clone https://github.com/Barryprender/Secure-UI.git
-cd Secure-UI/secure-ui-components
-npm install
-npm run build
+npm install secure-ui-components
 ```
 
 ## 🚀 Quick Start
+
+### Bundler (Vite, Webpack, Rollup, etc.)
+
+Import the components you need — each import auto-registers its custom element:
+
+```js
+import 'secure-ui-components/secure-input';
+import 'secure-ui-components/secure-form';
+```
+
+Then use them in your HTML:
+
+```html
+<secure-input
+  label="Email Address"
+  name="email"
+  type="email"
+  required
+  security-tier="authenticated"
+></secure-input>
+```
+
+### CDN / Vanilla HTML (no bundler)
 
 ```html
 <!DOCTYPE html>
 <html>
 <head>
-  <!-- Include design tokens (optional but recommended) -->
-  <link rel="stylesheet" href="dist/styles/tokens.css">
+  <link rel="stylesheet" href="https://unpkg.com/secure-ui-components/dist/styles/tokens.css">
 </head>
 <body>
   <secure-input
@@ -44,8 +61,7 @@ npm run build
   ></secure-input>
 
   <script type="module">
-    import { SecureInput } from './dist/components/secure-input/secure-input.js';
-    customElements.define('secure-input', SecureInput);
+    import 'https://unpkg.com/secure-ui-components/dist/index.js';
   </script>
 </body>
 </html>
@@ -186,7 +202,7 @@ secure-input::part(error) {
 }
 ```
 
-See `docs/customization.md` for complete styling guide with examples.
+See the [Customization Guide](https://github.com/Barryprender/Secure-UI/blob/main/secure-ui-components/docs/customization.md) for a complete styling guide with examples.
 
 ## 🔐 Security Tiers
 
@@ -221,51 +237,59 @@ npm run test:coverage
 
 ## 📖 Documentation
 
-- [Customization Guide](./docs/customization.md) - Complete styling guide
-- [Architecture](./docs/ARCHITECTURE.md) - Technical architecture details
-
-## 🛠️ Building
-
-```bash
-# Build for production
-npm run build
-
-# Build for development (dynamic CSS loading)
-npm run build:dev
-```
+- [Customization Guide](https://github.com/Barryprender/Secure-UI/blob/main/secure-ui-components/docs/customization.md) - Complete styling guide
+- [Architecture](https://github.com/Barryprender/Secure-UI/blob/main/secure-ui-components/docs/ARCHITECTURE.md) - Technical architecture details
 
 ## 📝 API Reference
 
-### Common Properties
+### Common Attributes
 
 All components support:
 
-- `label` - Field label text
-- `name` - Form field name
-- `required` - Boolean for required validation
-- `disabled` - Boolean for disabled state
-- `readonly` - Boolean for readonly state
-- `security-tier` - Security level (public, authenticated, sensitive, critical)
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `label` | `string` | Visible field label |
+| `name` | `string` | Form field name |
+| `required` | `boolean` | Mark field as required |
+| `disabled` | `boolean` | Disable the field |
+| `readonly` | `boolean` | Make the field read-only |
+| `security-tier` | `string` | Security level: `public`, `authenticated`, `sensitive`, `critical` (default: `critical`) |
 
-### Common Methods
+### Common Properties / Methods
 
-- `getValue()` - Get component value
-- `setValue(value)` - Set component value
-- `clear()` - Clear component value
-- `validate()` - Validate component
-- `getAuditLog()` - Get security audit logs
+```js
+const el = document.querySelector('secure-input');
+
+el.value          // get current value (unmasked)
+el.value = 'foo'  // set value programmatically
+el.valid          // boolean — passes all validation rules
+el.name           // field name string
+el.getAuditLog()  // returns array of security audit log entries
+```
+
+`secure-file-upload` also exposes:
+
+```js
+el.files          // FileList | null
+el.clear()        // clear selected files
+el.hasScanHook    // boolean
+el.scanning       // boolean — true while scan hook is running
+el.setScanHook(async (file) => { return { valid: true } })
+```
 
 ### Common Events
 
-- `secure-input` - Input value changed
-- `secure-textarea` - Textarea value changed
-- `secure-select` - Select value changed
-- `secure-datetime` - DateTime value changed
-- `secure-file-upload` - File upload completed
-- `secure-form-submit` - Form pre-submit (cancelable)
-- `secure-form-success` - Form submission succeeded
-- `secure-audit` - Security event logged (all components)
-- `table-action` - Table row action triggered
+| Event | Fired by | Detail |
+|-------|----------|--------|
+| `secure-input` | `secure-input` | `{ name, value, masked, tier }` |
+| `secure-textarea` | `secure-textarea` | `{ name, value, tier }` |
+| `secure-select` | `secure-select` | `{ name, value, tier }` |
+| `secure-datetime` | `secure-datetime` | `{ name, value, type, tier }` |
+| `secure-file-upload` | `secure-file-upload` | `{ name, files, tier }` |
+| `secure-form-submit` | `secure-form` | `{ formData, formElement, preventDefault }` |
+| `secure-form-success` | `secure-form` | `{ formData, response }` |
+| `secure-audit` | all components | `{ event, tier, timestamp, … }` |
+| `table-action` | `secure-table` | `{ action, row }` |
 
 ## 🤝 Contributing
 

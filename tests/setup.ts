@@ -4,7 +4,7 @@
  * This file runs before each test file to set up the testing environment.
  */
 
-import { vi, beforeEach, afterEach } from 'vitest';
+import { vi, afterEach } from 'vitest';
 
 // Mock window.customElements if not available
 if (typeof customElements === 'undefined') {
