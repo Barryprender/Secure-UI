@@ -8,6 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureDateTime } from '../../src/components/secure-datetime/secure-datetime.js';
+import { SecureBaseComponent } from '../../src/core/base-component.js';
 
 if (!customElements.get('secure-datetime')) {
   customElements.define('secure-datetime', SecureDateTime);
@@ -174,13 +175,15 @@ describe('SecureDateTime branch coverage', () => {
   // ── #validateAndShowErrors: rate limit exceeded ───────────────────────────
   it('shows rate-limit message when rate limit is exceeded on blur', () => {
     document.body.appendChild(dt);
-    vi.spyOn(dt, 'checkRateLimit' as never).mockReturnValue({ allowed: false, retryAfter: 3000 } as never);
+    const spy = vi.spyOn(SecureBaseComponent.prototype as unknown as { checkRateLimit: () => unknown }, 'checkRateLimit')
+      .mockReturnValue({ allowed: false, retryAfter: 3000 });
 
     const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
     input.dispatchEvent(new Event('blur'));
 
-    const shadowContent = dt.shadowRoot?.innerHTML || '';
+    const shadowContent = dt.shadowRoot?.innerHTML ?? '';
     expect(shadowContent).toContain('Too many');
+    spy.mockRestore();
   });
 
   // ── #validateAndShowErrors: required + empty ──────────────────────────────

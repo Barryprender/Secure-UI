@@ -7,6 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureSelect } from '../../src/components/secure-select/secure-select.js';
+import { SecureBaseComponent } from '../../src/core/base-component.js';
 
 if (!customElements.get('secure-select')) {
   customElements.define('secure-select', SecureSelect);
@@ -213,17 +214,16 @@ describe('SecureSelect branch coverage', () => {
     await appendAndWait(select);
     select.addOption('a', 'A');
 
-    // Exhaust rate limit
-    const checkRL = (select as unknown as { checkRateLimit: () => { allowed: boolean; retryAfter: number } }).checkRateLimit;
-    vi.spyOn(select, 'checkRateLimit' as never).mockReturnValue({ allowed: false, retryAfter: 5000 } as never);
+    const spy = vi.spyOn(SecureBaseComponent.prototype as unknown as { checkRateLimit: () => unknown }, 'checkRateLimit')
+      .mockReturnValue({ allowed: false, retryAfter: 5000 });
 
     const internalSelect = select.shadowRoot!.querySelector<HTMLSelectElement>('select')!;
     internalSelect.dispatchEvent(new Event('blur'));
 
     await new Promise(resolve => setTimeout(resolve, 20));
-    void checkRL;
-    const shadowContent = select.shadowRoot?.innerHTML || '';
+    const shadowContent = select.shadowRoot?.innerHTML ?? '';
     expect(shadowContent).toContain('Too many');
+    spy.mockRestore();
   });
 
   // ── #validateAndShowErrors: multiple required ─────────────────────────────
