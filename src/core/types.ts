@@ -51,14 +51,6 @@ export interface AuditConfig {
 }
 
 /**
- * UI configuration for a security tier
- */
-export interface UIConfig {
-  readonly labelSuffix: string;
-  readonly showSecurityBadge: boolean;
-}
-
-/**
  * Rate limiting configuration for a security tier
  */
 export interface RateLimitConfig {
@@ -77,7 +69,6 @@ export interface TierConfig {
   readonly masking: MaskingConfig;
   readonly storage: StorageConfig;
   readonly audit: AuditConfig;
-  readonly ui: UIConfig;
   readonly rateLimit: RateLimitConfig;
 }
 
@@ -252,3 +243,34 @@ export interface TablePaginationState {
  * Valid datetime input types
  */
 export type DateTimeInputType = 'date' | 'time' | 'datetime-local' | 'month' | 'week';
+
+// ========== Card Types ==========
+
+/**
+ * Detected card network type
+ */
+export type CardType =
+  | 'visa'
+  | 'mastercard'
+  | 'amex'
+  | 'discover'
+  | 'diners'
+  | 'jcb'
+  | 'unknown';
+
+/**
+ * Custom event detail for secure-card events.
+ *
+ * Security note: full PAN and CVC are intentionally absent.
+ * Use element.getCardData() to obtain raw values for SDK tokenisation.
+ */
+export interface SecureCardEventDetail {
+  name: string;
+  cardType: CardType;
+  last4: string;
+  expiryMonth: number;
+  expiryYear: number;
+  cardholderName: string;
+  valid: boolean;
+  tier: SecurityTierValue;
+}

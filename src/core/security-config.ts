@@ -22,6 +22,7 @@ import type {
   SecurityHeaders
 } from './types.js';
 
+
 /**
  * Security tier enumeration
  * These constants should be used throughout the library to reference security levels
@@ -74,10 +75,6 @@ export const TIER_CONFIG: Readonly<Record<SecurityTierValue, TierConfig>> = Obje
       logSubmission: false,
       includeMetadata: false
     }),
-    ui: Object.freeze({
-      labelSuffix: '',
-      showSecurityBadge: false
-    }),
     rateLimit: Object.freeze({
       enabled: false,
       maxAttempts: 0,
@@ -111,10 +108,6 @@ export const TIER_CONFIG: Readonly<Record<SecurityTierValue, TierConfig>> = Obje
       logSubmission: true,
       includeMetadata: true
     }),
-    ui: Object.freeze({
-      labelSuffix: '',
-      showSecurityBadge: true
-    }),
     rateLimit: Object.freeze({
       enabled: false,
       maxAttempts: 0,
@@ -133,7 +126,7 @@ export const TIER_CONFIG: Readonly<Record<SecurityTierValue, TierConfig>> = Obje
       sanitizeHtml: true
     }),
     masking: Object.freeze({
-      enabled: false,
+      enabled: true,
       character: '•',
       partial: true
     }),
@@ -147,10 +140,6 @@ export const TIER_CONFIG: Readonly<Record<SecurityTierValue, TierConfig>> = Obje
       logChanges: true,
       logSubmission: true,
       includeMetadata: true
-    }),
-    ui: Object.freeze({
-      labelSuffix: ' (Sensitive)',
-      showSecurityBadge: true
     }),
     rateLimit: Object.freeze({
       enabled: true,
@@ -184,10 +173,6 @@ export const TIER_CONFIG: Readonly<Record<SecurityTierValue, TierConfig>> = Obje
       logChanges: true,
       logSubmission: true,
       includeMetadata: true
-    }),
-    ui: Object.freeze({
-      labelSuffix: ' (Critical - Secure)',
-      showSecurityBadge: true
     }),
     rateLimit: Object.freeze({
       enabled: true,
@@ -245,20 +230,20 @@ export const CSP_RECOMMENDATIONS: Readonly<Record<SecurityTierValue, Readonly<CS
   [SecurityTier.PUBLIC]: Object.freeze({
     'default-src': ["'self'"],
     'script-src': ["'self'"],
-    'style-src': ["'self'", "'unsafe-inline'"]
+    'style-src': ["'self'"]
   }),
 
   [SecurityTier.AUTHENTICATED]: Object.freeze({
     'default-src': ["'self'"],
     'script-src': ["'self'"],
-    'style-src': ["'self'", "'unsafe-inline'"],
+    'style-src': ["'self'"],
     'form-action': ["'self'"]
   }),
 
   [SecurityTier.SENSITIVE]: Object.freeze({
     'default-src': ["'self'"],
     'script-src': ["'self'"],
-    'style-src': ["'self'", "'unsafe-inline'"],
+    'style-src': ["'self'"],
     'form-action': ["'self'"],
     'frame-ancestors': ["'none'"],
     'upgrade-insecure-requests': []
@@ -267,7 +252,7 @@ export const CSP_RECOMMENDATIONS: Readonly<Record<SecurityTierValue, Readonly<CS
   [SecurityTier.CRITICAL]: Object.freeze({
     'default-src': ["'self'"],
     'script-src': ["'self'"],
-    'style-src': ["'self'", "'unsafe-inline'"],
+    'style-src': ["'self'"],
     'form-action': ["'self'"],
     'frame-ancestors': ["'none'"],
     'upgrade-insecure-requests': [],

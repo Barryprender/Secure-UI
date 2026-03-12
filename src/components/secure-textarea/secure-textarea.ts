@@ -110,9 +110,7 @@ export class SecureTextarea extends SecureBaseComponent {
    */
   protected render(): DocumentFragment | HTMLElement | null {
     const fragment = document.createDocumentFragment();
-    const config = this.config;
 
-    // Create container
     const container = document.createElement('div');
     container.className = 'textarea-container';
 
@@ -122,22 +120,6 @@ export class SecureTextarea extends SecureBaseComponent {
       this.#labelElement = document.createElement('label');
       this.#labelElement.htmlFor = this.#instanceId;
       this.#labelElement.textContent = this.sanitizeValue(label);
-
-      // Add security tier suffix if configured
-      if (config.ui.labelSuffix) {
-        const suffix = document.createElement('span');
-        suffix.className = 'label-suffix';
-        suffix.textContent = config.ui.labelSuffix;
-        this.#labelElement.appendChild(suffix);
-      }
-
-      // Add security badge if configured
-      if (config.ui.showSecurityBadge) {
-        const badge = document.createElement('span');
-        badge.className = 'security-badge';
-        badge.textContent = config.name;
-        this.#labelElement.appendChild(badge);
-      }
 
       container.appendChild(this.#labelElement);
     }

@@ -88,6 +88,12 @@ export default defineConfig({
           branches: 74,
           functions: 82,
           lines: 85
+        },
+        'src/components/secure-card/secure-card.ts': {
+          statements: 97,
+          branches: 78,
+          functions: 97,
+          lines: 100
         }
       }
     },

@@ -6,7 +6,7 @@ Security-first Web Component library with zero dependencies.
 
 ## Features
 
-- **8 Secure Components** — Input, Textarea, Select, Form, File Upload, DateTime, Table, Submit Button
+- **9 Secure Components** — Input, Textarea, Select, Form, File Upload, DateTime, Table, Submit Button, Card
 - **4-Tier Security System** — `public`, `authenticated`, `sensitive`, `critical`
 - **Zero Dependencies** — Pure TypeScript, no runtime dependencies
 - **Progressive Enhancement** — All components render meaningful markup and work without JavaScript
@@ -425,6 +425,117 @@ table.columns = [
 
 ---
 
+### `<secure-card>`
+
+Composite credit card form with a live 3D card preview, automatic card type detection, Luhn validation, and expiry checking. All four fields (number, expiry, CVC, name) render inside a single closed Shadow DOM.
+
+**Security model:**
+- Full PAN and CVC are never included in events, audit logs, or hidden form inputs
+- CVC uses native `type="password"` masking — never visible on screen
+- Card number is masked to last-4 on blur
+- Security tier is locked to `critical` and cannot be changed
+- All sensitive state is wiped on `disconnectedCallback`
+
+> Raw card data must be passed directly to a PCI-compliant payment processor SDK (e.g. Stripe.js, Braintree). Use `getCardData()` for that handoff — never send raw card numbers or CVCs to your own server.
+
+**Attributes**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `label` | string | Legend text displayed above the fields |
+| `name` | string | Base name for hidden form inputs |
+| `show-name` | boolean | Show the optional cardholder name field |
+| `disabled` | boolean | Disable all fields |
+| `required` | boolean | Mark fields as required |
+
+**Properties & Methods**
+
+```js
+const card = document.querySelector('secure-card');
+
+card.valid          // true when all visible fields pass validation
+card.cardType       // 'visa' | 'mastercard' | 'amex' | 'discover' | 'diners' | 'jcb' | 'unknown'
+card.last4          // last 4 digits — safe to display and log
+card.name           // value of the name attribute
+
+// For payment SDK tokenisation only — returns null if form is not valid
+card.getCardData()  // { number, expiry, cvc, name } | null
+
+card.reset()        // clears all fields and state
+card.focus()        // focuses the card number input
+card.getAuditLog()
+```
+
+**Events**
+
+| Event | Detail |
+|-------|--------|
+| `secure-card` | `{ name, cardType, last4, expiryMonth, expiryYear, cardholderName, valid, tier }` |
+| `secure-audit` | `{ event, tier, timestamp, … }` |
+
+Note: the `secure-card` event detail intentionally omits the full PAN and CVC.
+
+**CSS Parts**
+
+| Part | Element |
+|------|---------|
+| `container` | Outer wrapper |
+| `label` | Legend element |
+| `wrapper` | Input wrapper (per field group) |
+| `number-input` | Card number `<input>` |
+| `expiry-input` | Expiry `<input>` |
+| `cvc-input` | CVC `<input>` |
+| `name-input` | Cardholder name `<input>` |
+| `error` | Error message container (per field) |
+
+**Card type detection**
+
+The card brand is detected automatically from the number prefix as you type. The 3D card visual updates its gradient and brand label accordingly.
+
+| Type | Detected prefix |
+|------|----------------|
+| Visa | `4` |
+| Mastercard | `51–55`, `2221–2720` |
+| Amex | `34`, `37` |
+| Discover | `6011`, `65xx` |
+| Diners | `300–305`, `36`, `38` |
+| JCB | `2131`, `1800`, `35xxx` |
+
+**Form participation**
+
+Three hidden inputs are created in the light DOM:
+- `{name}` — last 4 digits only (not full PAN)
+- `{name}-expiry` — MM/YY string
+- `{name}-holder` — cardholder name
+
+No hidden input is created for CVC.
+
+**Example**
+
+```html
+<secure-card
+  name="payment"
+  label="Card details"
+  show-name
+></secure-card>
+```
+
+```js
+card.addEventListener('secure-card', e => {
+  console.log(e.detail.cardType, e.detail.last4, e.detail.valid);
+});
+
+// When the user clicks Pay — pass directly to your payment SDK
+payButton.addEventListener('click', async () => {
+  const data = card.getCardData();
+  if (!data) return;
+  const token = await stripe.createToken({ number: data.number, exp_month: ..., cvc: data.cvc });
+  // Send token.id to your server — never data.number or data.cvc
+});
+```
+
+---
+
 ### `<secure-submit-button>`
 
 Accessible submit button with loading state and automatic form-validity gating.
@@ -488,6 +599,7 @@ el.blur()
 | `secure-file-upload` | `<secure-file-upload>` | `{ name, files, tier }` |
 | `secure-form-submit` | `<secure-form>` | `{ formData, formElement, preventDefault() }` |
 | `secure-form-success` | `<secure-form>` | `{ formData, response }` |
+| `secure-card` | `<secure-card>` | `{ name, cardType, last4, expiryMonth, expiryYear, cardholderName, valid, tier }` |
 | `secure-audit` | all components | `{ event, tier, timestamp, … }` |
 | `table-action` | `<secure-table>` | `{ action, row }` |
 
@@ -527,7 +639,7 @@ secure-input::part(error) {
 }
 ```
 
-**Available parts on all components:** `container`, `label`, `wrapper`, `input` / `textarea` / `select`, `error`, `security-badge`
+**Available parts on all components:** `container`, `label`, `wrapper`, `input` / `textarea` / `select`, `error`
 
 See the [Customization Guide](https://github.com/Barryprender/Secure-UI/blob/main/secure-ui-components/docs/customization.md) for a full token reference.
 
@@ -545,6 +657,7 @@ import 'secure-ui-components/secure-form';
 import 'secure-ui-components/secure-file-upload';
 import 'secure-ui-components/secure-datetime';
 import 'secure-ui-components/secure-table';
+import 'secure-ui-components/secure-card';
 ```
 
 Or import everything at once:

@@ -166,11 +166,6 @@ describe('TIER_CONFIG', () => {
     it('should have shorter max length for validation', () => {
       expect(config.validation.maxLength).toBe(256);
     });
-
-    it('should show security badge in UI', () => {
-      expect(config.ui.showSecurityBadge).toBe(true);
-      expect(config.ui.labelSuffix).toContain('Critical');
-    });
   });
 });
 

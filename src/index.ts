@@ -18,6 +18,7 @@ export { SecureFileUpload } from './components/secure-file-upload/secure-file-up
 export { SecureDateTime } from './components/secure-datetime/secure-datetime.js';
 export { SecureTable } from './components/secure-table/secure-table.js';
 export { SecureSubmitButton } from './components/secure-submit-button/secure-submit-button.js';
+export { SecureCard } from './components/secure-card/secure-card.js';
 
 // Types
 export type {
@@ -27,7 +28,6 @@ export type {
   MaskingConfig,
   StorageConfig,
   AuditConfig,
-  UIConfig,
   RateLimitConfig,
   ValidationResult,
   ValidationOptions,
@@ -47,5 +47,7 @@ export type {
   TableColumnDefinition,
   TableSortConfig,
   TablePaginationState,
-  DateTimeInputType
+  DateTimeInputType,
+  CardType,
+  SecureCardEventDetail
 } from './core/types.js';

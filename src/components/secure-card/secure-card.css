@@ -1,0 +1,427 @@
+/* ── Design tokens (card-specific) ──────────────────────────────────────── */
+:host {
+  --secure-card-width: 340px;
+  --secure-card-radius: 16px;
+  --secure-card-font: var(--secure-ui-font-family-mono, 'Courier New', monospace);
+  --secure-card-transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Default gradient — overridden per card type */
+  --secure-card-gradient: linear-gradient(135deg, #1e2a4a 0%, #2d4a8a 100%);
+
+  display: block;
+}
+
+/* ── Container ───────────────────────────────────────────────────────────── */
+.card-container {
+  width: 100%;
+  max-width: 480px;
+  font-family: var(--secure-ui-font-family-sans, system-ui, sans-serif);
+}
+
+/* ── Card scene — 3D perspective wrapper ─────────────────────────────────── */
+.card-scene {
+  width: var(--secure-card-width);
+  max-width: 100%;
+  aspect-ratio: 85.6 / 54;
+  perspective: 1000px;
+  margin-inline: auto;
+  margin-block-end: var(--secure-ui-space-6, 1.5rem);
+  user-select: none;
+}
+
+.card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: var(--secure-card-transition);
+  border-radius: var(--secure-card-radius);
+  /* Subtle lift shadow */
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.35));
+}
+
+.card.is-flipped {
+  transform: rotateY(180deg);
+}
+
+/* ── Card faces ──────────────────────────────────────────────────────────── */
+.card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--secure-card-radius);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: var(--secure-card-gradient);
+  color: #fff;
+  overflow: hidden;
+}
+
+/* Subtle gloss overlay */
+.card-face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0) 60%
+  );
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.card-back {
+  transform: rotateY(180deg);
+}
+
+/* ── Card type gradients ─────────────────────────────────────────────────── */
+.card--visa {
+  --secure-card-gradient: linear-gradient(135deg, #1a1f71 0%, #2563eb 100%);
+}
+
+.card--mastercard {
+  --secure-card-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #e63946 100%);
+}
+
+.card--amex {
+  --secure-card-gradient: linear-gradient(135deg, #007b5e 0%, #00b894 100%);
+}
+
+.card--discover {
+  --secure-card-gradient: linear-gradient(135deg, #b34700 0%, #e65c00 50%, #f9a825 100%);
+}
+
+.card--diners {
+  --secure-card-gradient: linear-gradient(135deg, #005c97 0%, #363795 100%);
+}
+
+.card--jcb {
+  --secure-card-gradient: linear-gradient(135deg, #0e4c96 0%, #e63946 100%);
+}
+
+/* ── Card front layout ───────────────────────────────────────────────────── */
+.card-front {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 24px 18px;
+}
+
+.card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* EMV chip */
+.card-chip {
+  width: 42px;
+  height: 32px;
+  background: linear-gradient(135deg, #c8a84b 0%, #f0d060 40%, #c8a84b 100%);
+  border-radius: 5px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.card-chip::before {
+  content: '';
+  position: absolute;
+  inset: 9px 0;
+  border-top: 1.5px solid rgba(0, 0, 0, 0.25);
+  border-bottom: 1.5px solid rgba(0, 0, 0, 0.25);
+}
+
+.card-chip::after {
+  content: '';
+  position: absolute;
+  inset: 0 13px;
+  border-left: 1.5px solid rgba(0, 0, 0, 0.2);
+  border-right: 1.5px solid rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+/* Card brand label (top-right) */
+.card-type-label {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-style: italic;
+  opacity: 0.95;
+  min-width: 52px;
+  text-align: end;
+  text-transform: uppercase;
+}
+
+/* Mastercard two-circles via pseudo-elements */
+.card--mastercard .card-type-label {
+  position: relative;
+  width: 52px;
+  height: 32px;
+  font-size: 0; /* hide text, show circles only */
+}
+
+.card--mastercard .card-type-label::before,
+.card--mastercard .card-type-label::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.card--mastercard .card-type-label::before {
+  background: #eb001b;
+  inset-inline-start: 0;
+}
+
+.card--mastercard .card-type-label::after {
+  background: #f79e1b;
+  inset-inline-start: 16px;
+  mix-blend-mode: multiply;
+}
+
+/* Card number */
+.card-number-display {
+  font-family: var(--secure-card-font);
+  font-size: clamp(0.85rem, 2.5vw, 1.1rem);
+  letter-spacing: 0.18em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Bottom row */
+.card-bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--secure-ui-space-3, 0.75rem);
+}
+
+.card-field-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.7;
+  margin-block-end: 2px;
+}
+
+.card-name-display {
+  font-size: clamp(0.7rem, 2vw, 0.85rem);
+  letter-spacing: 0.06em;
+  font-weight: 500;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.card-expiry-display {
+  font-family: var(--secure-card-font);
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+/* ── Card back layout ────────────────────────────────────────────────────── */
+.card-back {
+  display: flex;
+  flex-direction: column;
+  gap: var(--secure-ui-space-3, 0.75rem);
+}
+
+/* Magnetic strip */
+.card-strip {
+  width: 100%;
+  height: 40px;
+  background: #1a1a1a;
+  margin-block-start: 28px;
+  flex-shrink: 0;
+}
+
+/* CVC area */
+.card-cvc-area {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding-inline-end: 24px;
+  gap: 4px;
+}
+
+.card-cvc-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+}
+
+.card-cvc-display {
+  background: #fff;
+  color: #1a1a1a;
+  font-family: var(--secure-card-font);
+  font-size: 0.85rem;
+  letter-spacing: 0.2em;
+  padding: 4px 10px;
+  border-radius: 3px;
+  min-width: 52px;
+  text-align: center;
+}
+
+/* ── Input fields area ───────────────────────────────────────────────────── */
+.card-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--secure-ui-space-4, 1rem);
+}
+
+.card-legend {
+  font-size: var(--secure-ui-font-size-sm, 0.875rem);
+  font-weight: var(--secure-ui-font-weight-semibold, 600);
+  color: var(--secure-ui-color-neutral-700, #374151);
+  margin-block-end: var(--secure-ui-space-1, 0.25rem);
+}
+
+/* Expiry + CVC row */
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--secure-ui-space-4, 1rem);
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--secure-ui-space-1, 0.25rem);
+  position: relative;
+}
+
+.field-label {
+  font-size: var(--secure-ui-font-size-sm, 0.875rem);
+  font-weight: var(--secure-ui-font-weight-medium, 500);
+  color: var(--secure-ui-color-neutral-700, #374151);
+  line-height: var(--secure-ui-line-height-tight, 1.25);
+}
+
+.input-wrapper {
+  position: relative;
+}
+
+/* ── Card inputs ─────────────────────────────────────────────────────────── */
+.card-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--secure-ui-input-padding-y, 0.625rem) var(--secure-ui-input-padding-x, 0.75rem);
+  font-family: var(--secure-ui-font-family-sans, system-ui, sans-serif);
+  font-size: var(--secure-ui-font-size-base, 1rem);
+  line-height: var(--secure-ui-line-height-normal, 1.5);
+  color: var(--secure-ui-input-color, #111827);
+  background: var(--secure-ui-input-bg, #fff);
+  border: var(--secure-ui-border-width, 1px) solid var(--secure-ui-input-border-color, #d1d5db);
+  border-radius: var(--secure-ui-input-border-radius, 6px);
+  outline: none;
+  transition:
+    border-color var(--secure-ui-transition-fast, 150ms) ease,
+    box-shadow var(--secure-ui-transition-fast, 150ms) ease;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.card-input:focus {
+  border-color: var(--secure-ui-color-primary-500, #6366f1);
+  box-shadow: 0 0 0 3px var(--secure-ui-color-primary-100, rgba(99, 102, 241, 0.2));
+}
+
+.card-input[aria-invalid='true'] {
+  border-color: var(--secure-ui-color-error-500, #ef4444) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.card-input:disabled {
+  background: var(--secure-ui-input-disabled-bg, #f3f4f6);
+  color: var(--secure-ui-color-neutral-400, #9ca3af);
+  cursor: not-allowed;
+}
+
+/* Monospace for card number and expiry — aids digit alignment */
+.card-number-input {
+  font-family: var(--secure-card-font);
+  letter-spacing: 0.06em;
+}
+
+/* Password reveal button removed for CVC — keeps dots */
+.cvc-input::-ms-reveal,
+.cvc-input::-ms-clear {
+  display: none;
+}
+
+/* ── Error messages ──────────────────────────────────────────────────────── */
+.error-container {
+  font-size: var(--secure-ui-font-size-xs, 0.75rem);
+  color: var(--secure-ui-color-error-600, #dc2626);
+  line-height: var(--secure-ui-line-height-tight, 1.25);
+  min-height: 0;
+  max-height: 3rem;
+  overflow: hidden;
+  transition:
+    max-height var(--secure-ui-transition-normal, 250ms) ease,
+    opacity var(--secure-ui-transition-fast, 150ms) ease;
+  opacity: 1;
+}
+
+.error-container.hidden {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* ── Dark mode ───────────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  .card-legend {
+    color: var(--secure-ui-color-neutral-200, #e5e7eb);
+  }
+
+  .field-label {
+    color: var(--secure-ui-color-neutral-200, #e5e7eb);
+  }
+
+  .card-input {
+    color: var(--secure-ui-input-color, #f9fafb);
+    background: var(--secure-ui-input-bg, #1f2937);
+    border-color: var(--secure-ui-input-border-color, #374151);
+  }
+
+  .card-input:disabled {
+    background: #111827;
+    color: #6b7280;
+  }
+
+  .card-cvc-display {
+    background: #f9fafb;
+    color: #111827;
+  }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+
+  .card-input {
+    transition: none;
+  }
+
+  .error-container {
+    transition: none;
+  }
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 400px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}
