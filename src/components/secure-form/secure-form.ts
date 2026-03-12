@@ -33,7 +33,12 @@
  */
 
 import { SecurityTier } from '../../core/security-config.js';
-import type { SecurityTierValue } from '../../core/types.js';
+import type {
+  SecurityTierValue,
+  FieldTelemetry,
+  FieldTelemetrySnapshot,
+  SessionTelemetry
+} from '../../core/types.js';
 
 /**
  * Secure Form Web Component
@@ -75,6 +80,13 @@ export class SecureForm extends HTMLElement {
    * @private
    */
   #isSubmitting: boolean = false;
+
+  /**
+   * Timestamp when the form was connected to the DOM.
+   * Used to compute session duration for telemetry.
+   * @private
+   */
+  #sessionStart: number = Date.now();
 
   /**
    * Unique ID for this form instance
@@ -128,6 +140,7 @@ export class SecureForm extends HTMLElement {
     if (this.#formElement) {
       return;
     }
+    this.#sessionStart = Date.now();
 
     // Read security tier from attribute before anything else.
     // attributeChangedCallback fires before connectedCallback but early-returns
@@ -399,12 +412,17 @@ export class SecureForm extends HTMLElement {
     // Collect form data securely
     const formData = this.#collectFormData();
 
-    // Audit log submission
+    // Collect behavioral telemetry from all secure fields
+    const telemetry = this.#collectTelemetry();
+
+    // Audit log submission (include risk score for server-side correlation)
     this.audit('form_submitted_enhanced', {
       formId: this.#instanceId,
       action: this.#formElement!.action,
       method: this.#formElement!.method,
-      fieldCount: Object.keys(formData).length
+      fieldCount: Object.keys(formData).length,
+      riskScore: telemetry.riskScore,
+      riskSignals: telemetry.riskSignals
     });
 
     // Dispatch pre-submit event for custom handling
@@ -412,6 +430,7 @@ export class SecureForm extends HTMLElement {
       detail: {
         formData,
         formElement: this.#formElement,
+        telemetry,
         preventDefault: () => {
           this.#isSubmitting = false;
           this.#enableForm();
@@ -433,7 +452,7 @@ export class SecureForm extends HTMLElement {
 
     // Perform secure submission via Fetch
     try {
-      await this.#submitForm(formData);
+      await this.#submitForm(formData, telemetry);
     } catch (error) {
       this.#showStatus('Submission failed. Please try again.', 'error');
       this.audit('form_submission_error', {
@@ -560,7 +579,10 @@ export class SecureForm extends HTMLElement {
    *
    * @private
    */
-  async #submitForm(formData: Record<string, string>): Promise<Response> {
+  async #submitForm(
+    formData: Record<string, string>,
+    telemetry: SessionTelemetry
+  ): Promise<Response> {
     const action = this.#formElement!.action;
     const method = this.#formElement!.method;
 
@@ -575,11 +597,17 @@ export class SecureForm extends HTMLElement {
       headers[csrfHeaderName] = this.#csrfInput.value;
     }
 
+    // Bundle telemetry alongside form data in a single request.
+    // The server receives both the user's input and behavioral context in one
+    // atomic payload, enabling server-side risk evaluation without a second round-trip.
+    // Using a prefixed key (_telemetry) avoids collisions with form field names.
+    const payload: Record<string, unknown> = { ...formData, _telemetry: telemetry };
+
     // Perform fetch
     const response = await fetch(action, {
       method: method,
       headers: headers,
-      body: JSON.stringify(formData),
+      body: JSON.stringify(payload),
       credentials: 'same-origin', // Include cookies for CSRF validation
       mode: 'cors',
       cache: 'no-cache',
@@ -598,7 +626,8 @@ export class SecureForm extends HTMLElement {
       new CustomEvent('secure-form-success', {
         detail: {
           formData,
-          response
+          response,
+          telemetry
         },
         bubbles: true,
         composed: true
@@ -664,6 +693,126 @@ export class SecureForm extends HTMLElement {
   #clearStatus(): void {
     this.#statusElement!.textContent = '';
     this.#statusElement!.className = 'form-status form-status-hidden';
+  }
+
+  // ── Telemetry ──────────────────────────────────────────────────────────────
+
+  /**
+   * Collect behavioral telemetry from all secure child fields and compute
+   * a session-level risk score.
+   *
+   * @private
+   */
+  #collectTelemetry(): SessionTelemetry {
+    const selector = 'secure-input, secure-textarea, secure-select, secure-datetime, secure-card';
+    const secureFields = this.querySelectorAll(selector);
+
+    const fields: FieldTelemetrySnapshot[] = [];
+
+    secureFields.forEach((field) => {
+      const typedField = field as HTMLElement & { getFieldTelemetry?: () => FieldTelemetry };
+      if (typeof typedField.getFieldTelemetry !== 'function') return;
+
+      const fieldName = field.getAttribute('name') ?? field.tagName.toLowerCase();
+      const snapshot: FieldTelemetrySnapshot = {
+        ...typedField.getFieldTelemetry(),
+        fieldName,
+        fieldType: field.tagName.toLowerCase(),
+      };
+      fields.push(snapshot);
+    });
+
+    const sessionDuration = Date.now() - this.#sessionStart;
+    const { riskScore, riskSignals } = this.#computeRiskScore(fields, sessionDuration);
+
+    return {
+      sessionDuration,
+      fieldCount: fields.length,
+      fields,
+      riskScore,
+      riskSignals,
+      submittedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Compute a composite risk score 0–100 and list of contributing signals.
+   *
+   * Signal weights (additive, capped at 100):
+   * - Session completed in under 3 s:             +30  (inhuman speed)
+   * - Session completed in under 8 s:             +10  (very fast)
+   * - All fields pasted (no keystrokes anywhere): +25  (credential stuffing / scripted fill)
+   * - Any field has typing velocity > 15 ks/s:    +15  (bot-like keyboard simulation)
+   * - Any field never focused (focusCount = 0):   +15  (field was filled without user interaction)
+   * - Multiple fields probed without entry:        +10  (focusCount > 1 but blurWithoutChange > 1)
+   * - High correction count on any field (> 5):   +5   (deliberate obfuscation / hesitation)
+   * - Autofill on all non-empty fields:           -10  (genuine browser autofill is low-risk)
+   *
+   * @private
+   */
+  #computeRiskScore(
+    fields: FieldTelemetrySnapshot[],
+    sessionDuration: number
+  ): { riskScore: number; riskSignals: string[] } {
+    const signals: string[] = [];
+    let score = 0;
+
+    // Session speed
+    if (sessionDuration < 3000) {
+      score += 30;
+      signals.push('session_too_fast');
+    } else if (sessionDuration < 8000) {
+      score += 10;
+      signals.push('session_fast');
+    }
+
+    if (fields.length === 0) {
+      return { riskScore: Math.min(score, 100), riskSignals: signals };
+    }
+
+    // All fields pasted with zero keystrokes — scripted fill
+    const allPasted = fields.every(f => f.pasteDetected && f.velocity === 0);
+    if (allPasted) {
+      score += 25;
+      signals.push('all_fields_pasted');
+    }
+
+    // Any field with superhuman typing speed
+    const hasHighVelocity = fields.some(f => f.velocity > 15);
+    if (hasHighVelocity) {
+      score += 15;
+      signals.push('high_velocity_typing');
+    }
+
+    // Any field never touched (focusCount === 0) — programmatic fill
+    const hasUnfocusedField = fields.some(f => f.focusCount === 0);
+    if (hasUnfocusedField) {
+      score += 15;
+      signals.push('field_filled_without_focus');
+    }
+
+    // Form probing: multiple focus/blur cycles with no value entry
+    const hasProbing = fields.some(f => f.focusCount > 1 && f.blurWithoutChange > 1);
+    if (hasProbing) {
+      score += 10;
+      signals.push('form_probing');
+    }
+
+    // Excessive corrections on any field
+    const hasHighCorrections = fields.some(f => f.corrections > 5);
+    if (hasHighCorrections) {
+      score += 5;
+      signals.push('high_correction_count');
+    }
+
+    // Genuine autofill on all non-empty fields is a trust signal — reduce score
+    const autofillFields = fields.filter(f => f.autofillDetected);
+    if (autofillFields.length > 0 && autofillFields.length === fields.length) {
+      score -= 10;
+      signals.push('autofill_detected');
+    }
+
+    return { riskScore: Math.max(0, Math.min(score, 100)), riskSignals: signals };
   }
 
   /**

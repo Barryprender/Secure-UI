@@ -19,6 +19,7 @@ export { SecureDateTime } from './components/secure-datetime/secure-datetime.js'
 export { SecureTable } from './components/secure-table/secure-table.js';
 export { SecureSubmitButton } from './components/secure-submit-button/secure-submit-button.js';
 export { SecureCard } from './components/secure-card/secure-card.js';
+export { SecureTelemetryProvider } from './components/secure-telemetry-provider/secure-telemetry-provider.js';
 
 // Types
 export type {
@@ -49,5 +50,11 @@ export type {
   TablePaginationState,
   DateTimeInputType,
   CardType,
-  SecureCardEventDetail
+  SecureCardEventDetail,
+  FieldTelemetry,
+  FieldTelemetryState,
+  FieldTelemetrySnapshot,
+  SessionTelemetry,
+  EnvironmentalSignals,
+  SignedTelemetryEnvelope
 } from './core/types.js';

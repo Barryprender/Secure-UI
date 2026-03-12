@@ -412,21 +412,23 @@ export class SecureCard extends SecureBaseComponent {
     this.addComponentStyles(new URL('./secure-card.css', import.meta.url).href);
 
     // ── Event listeners ───────────────────────────────────────────────────────
-    this.#numberInput.addEventListener('input', this.#handleNumberInput.bind(this));
-    this.#numberInput.addEventListener('focus', this.#handleNumberFocus.bind(this));
-    this.#numberInput.addEventListener('blur', this.#handleNumberBlur.bind(this));
+    // Telemetry hooks aggregate signals across all card inputs into one
+    // composite behavioral fingerprint for the overall card interaction.
+    this.#numberInput.addEventListener('input', (e) => { this.recordTelemetryInput(e); this.#handleNumberInput(e); });
+    this.#numberInput.addEventListener('focus', () => { this.recordTelemetryFocus(); this.#handleNumberFocus(); });
+    this.#numberInput.addEventListener('blur', () => { this.recordTelemetryBlur(); this.#handleNumberBlur(); });
 
-    this.#expiryInput.addEventListener('input', this.#handleExpiryInput.bind(this));
-    this.#expiryInput.addEventListener('focus', () => this.#flipCard(false));
-    this.#expiryInput.addEventListener('blur', this.#handleExpiryBlur.bind(this));
+    this.#expiryInput.addEventListener('input', (e) => { this.recordTelemetryInput(e); this.#handleExpiryInput(e); });
+    this.#expiryInput.addEventListener('focus', () => { this.recordTelemetryFocus(); this.#flipCard(false); });
+    this.#expiryInput.addEventListener('blur', () => { this.recordTelemetryBlur(); this.#handleExpiryBlur(); });
 
-    this.#cvcInput.addEventListener('input', this.#handleCvcInput.bind(this));
-    this.#cvcInput.addEventListener('focus', () => this.#flipCard(true));
-    this.#cvcInput.addEventListener('blur', this.#handleCvcBlur.bind(this));
+    this.#cvcInput.addEventListener('input', (e) => { this.recordTelemetryInput(e); this.#handleCvcInput(e); });
+    this.#cvcInput.addEventListener('focus', () => { this.recordTelemetryFocus(); this.#flipCard(true); });
+    this.#cvcInput.addEventListener('blur', () => { this.recordTelemetryBlur(); this.#handleCvcBlur(); });
 
-    this.#nameInput.addEventListener('input', this.#handleNameInput.bind(this));
-    this.#nameInput.addEventListener('focus', () => this.#flipCard(false));
-    this.#nameInput.addEventListener('blur', this.#handleNameBlur.bind(this));
+    this.#nameInput.addEventListener('input', (e) => { this.recordTelemetryInput(e); this.#handleNameInput(e); });
+    this.#nameInput.addEventListener('focus', () => { this.recordTelemetryFocus(); this.#flipCard(false); });
+    this.#nameInput.addEventListener('blur', () => { this.recordTelemetryBlur(); this.#handleNameBlur(); });
 
     fragment.appendChild(container);
     return fragment;

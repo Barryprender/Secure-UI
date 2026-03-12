@@ -36,10 +36,10 @@ export default defineConfig({
 
         // Per-file overrides for critical core modules
         'src/core/base-component.ts': {
-          statements: 92,
-          branches: 91,
+          statements: 96,
+          branches: 93,
           functions: 95,
-          lines: 92
+          lines: 96
         },
         'src/core/security-config.ts': {
           statements: 100,
@@ -94,6 +94,18 @@ export default defineConfig({
           branches: 78,
           functions: 97,
           lines: 100
+        },
+        'src/components/secure-telemetry-provider/secure-telemetry-provider.ts': {
+          statements: 94,
+          branches: 78,
+          functions: 94,
+          lines: 97
+        },
+        'src/components/secure-form/secure-form.ts': {
+          statements: 88,
+          branches: 77,
+          functions: 87,
+          lines: 88
         }
       }
     },

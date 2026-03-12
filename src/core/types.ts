@@ -191,6 +191,8 @@ export interface SecureFormSubmitEventDetail {
   formData: Record<string, string>;
   formElement: HTMLFormElement;
   preventDefault: () => void;
+  /** Behavioral telemetry collected from all secure fields */
+  telemetry: SessionTelemetry;
 }
 
 /**
@@ -199,6 +201,8 @@ export interface SecureFormSubmitEventDetail {
 export interface SecureFormSuccessEventDetail {
   formData: Record<string, string>;
   response: Response;
+  /** Behavioral telemetry collected from all secure fields */
+  telemetry: SessionTelemetry;
 }
 
 /**
@@ -243,6 +247,119 @@ export interface TablePaginationState {
  * Valid datetime input types
  */
 export type DateTimeInputType = 'date' | 'time' | 'datetime-local' | 'month' | 'week';
+
+// ========== Telemetry Types ==========
+
+/**
+ * Internal mutable state tracked per field interaction session.
+ * Accumulated in SecureBaseComponent; consumed by getFieldTelemetry().
+ */
+export interface FieldTelemetryState {
+  focusAt: number | null;
+  firstKeystrokeAt: number | null;
+  blurAt: number | null;
+  keyCount: number;
+  correctionCount: number;
+  pasteDetected: boolean;
+  autofillDetected: boolean;
+  focusCount: number;
+  blurWithoutChange: number;
+  lastInputLength: number;
+}
+
+/**
+ * Computed behavioral signals returned via getFieldTelemetry().
+ * Safe to include in server payloads — no PII, no raw values.
+ */
+export interface FieldTelemetry {
+  /** ms from focus to first keystroke (0 if field was pasted/autofilled without typing) */
+  dwell: number;
+  /** ms from first input event to blur (0 if field is still focused or never had input) */
+  completionTime: number;
+  /** keystrokes per second during active typing (0 if no keystrokes recorded) */
+  velocity: number;
+  /** number of deletion/correction input events */
+  corrections: number;
+  /** true if a paste event was detected */
+  pasteDetected: boolean;
+  /** true if browser autofill was detected */
+  autofillDetected: boolean;
+  /** number of times the field received focus */
+  focusCount: number;
+  /** number of times field was blurred without any value change */
+  blurWithoutChange: number;
+}
+
+/**
+ * Per-field telemetry snapshot captured at form submission.
+ * Extends FieldTelemetry with identifying metadata.
+ */
+export interface FieldTelemetrySnapshot extends FieldTelemetry {
+  /** The field's name attribute */
+  fieldName: string;
+  /** The element tag name (e.g. "secure-input") */
+  fieldType: string;
+}
+
+/**
+ * Session-level telemetry aggregated by <secure-form> at submission time.
+ * Contains per-field snapshots plus computed risk signals.
+ * Safe to send to the server alongside form data.
+ */
+export interface SessionTelemetry {
+  /** ms from form connectedCallback to submission */
+  sessionDuration: number;
+  /** number of secure fields discovered in the form */
+  fieldCount: number;
+  /** per-field behavioral snapshots */
+  fields: FieldTelemetrySnapshot[];
+  /** composite risk score 0–100 (higher = more suspicious) */
+  riskScore: number;
+  /** human-readable labels for signals that contributed to the risk score */
+  riskSignals: string[];
+  /** ISO 8601 timestamp of submission */
+  submittedAt: string;
+}
+
+/**
+ * Environmental integrity signals collected by <secure-telemetry-provider>.
+ * Detects automation, DOM tampering, and headless browser characteristics.
+ */
+export interface EnvironmentalSignals {
+  /** true if WebDriver / automation flags detected on navigator */
+  webdriverDetected: boolean;
+  /** true if headless Chrome fingerprints detected */
+  headlessDetected: boolean;
+  /** true if the document was tampered with via MutationObserver during session */
+  domMutationDetected: boolean;
+  /** count of unexpected script elements injected after page load */
+  injectedScriptCount: number;
+  /** true if devtools appears to be open (timing-based heuristic) */
+  devtoolsOpen: boolean;
+  /** screen dimensions appear to be non-human (very small or zero) */
+  suspiciousScreenSize: boolean;
+  /** pointer type detected: 'mouse' | 'touch' | 'pen' | 'none' */
+  pointerType: 'mouse' | 'touch' | 'pen' | 'none';
+  /** true if any pointer/mouse movement was detected before submission */
+  mouseMovementDetected: boolean;
+  /** true if keyboard events were detected on the page outside secure fields */
+  keyboardActivityDetected: boolean;
+}
+
+/**
+ * A signed telemetry envelope produced by <secure-telemetry-provider>.
+ * The nonce + timestamp allow the server to detect replay attacks.
+ */
+export interface SignedTelemetryEnvelope {
+  /** one-time nonce (random hex, 32 chars) */
+  nonce: string;
+  /** ISO timestamp when the envelope was created */
+  issuedAt: string;
+  /** environmental signals snapshot */
+  environment: EnvironmentalSignals;
+  /** HMAC-like integrity hash over nonce + issuedAt + environment (SHA-256 hex) */
+  signature: string;
+}
 
 // ========== Card Types ==========
 

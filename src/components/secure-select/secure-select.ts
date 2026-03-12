@@ -299,20 +299,23 @@ export class SecureSelect extends SecureBaseComponent {
    * @private
    */
   #attachEventListeners(): void {
-    // Focus event - audit logging
+    // Focus event - audit logging + telemetry
     this.#selectElement!.addEventListener('focus', () => {
+      this.recordTelemetryFocus();
       this.audit('select_focused', {
         name: this.#selectElement!.name
       });
     });
 
-    // Change event - validation and audit logging
+    // Change event - validation, audit logging + telemetry
     this.#selectElement!.addEventListener('change', (e: Event) => {
+      this.recordTelemetryInput(e);
       this.#handleChange(e);
     });
 
-    // Blur event - final validation
+    // Blur event - final validation + telemetry
     this.#selectElement!.addEventListener('blur', () => {
+      this.recordTelemetryBlur();
       this.#validateAndShowErrors();
       this.audit('select_blurred', {
         name: this.#selectElement!.name,

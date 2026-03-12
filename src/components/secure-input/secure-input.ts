@@ -369,20 +369,23 @@ export class SecureInput extends SecureBaseComponent {
    * @private
    */
   #attachEventListeners(): void {
-    // Focus event - audit logging
+    // Focus event - audit logging + telemetry
     this.#inputElement!.addEventListener('focus', () => {
+      this.recordTelemetryFocus();
       this.audit('input_focused', {
         name: this.#inputElement!.name
       });
     });
 
-    // Input event - real-time validation and change tracking
+    // Input event - real-time validation, change tracking + telemetry
     this.#inputElement!.addEventListener('input', (e: Event) => {
+      this.recordTelemetryInput(e);
       this.#handleInput(e);
     });
 
-    // Blur event - final validation
+    // Blur event - final validation + telemetry
     this.#inputElement!.addEventListener('blur', () => {
+      this.recordTelemetryBlur();
       this.#validateAndShowErrors();
       this.audit('input_blurred', {
         name: this.#inputElement!.name,

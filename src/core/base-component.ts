@@ -30,7 +30,9 @@ import type {
   ValidationOptions,
   RateLimitResult,
   RateLimitState,
-  AuditLogEntry
+  AuditLogEntry,
+  FieldTelemetry,
+  FieldTelemetryState
 } from './types.js';
 
 /**
@@ -55,6 +57,18 @@ export abstract class SecureBaseComponent extends HTMLElement {
     windowStart: Date.now()
   };
   #initialized: boolean = false;
+  #telemetryState: FieldTelemetryState = {
+    focusAt: null,
+    firstKeystrokeAt: null,
+    blurAt: null,
+    keyCount: 0,
+    correctionCount: 0,
+    pasteDetected: false,
+    autofillDetected: false,
+    focusCount: 0,
+    blurWithoutChange: 0,
+    lastInputLength: 0,
+  };
 
   /**
    * Constructor
@@ -358,11 +372,125 @@ export abstract class SecureBaseComponent extends HTMLElement {
     this.#render();
   }
 
+  // ── Telemetry collection ────────────────────────────────────────────────────
+
+  /**
+   * Call from the field's `focus` event handler to start a telemetry session.
+   * @protected
+   */
+  protected recordTelemetryFocus(): void {
+    const t = this.#telemetryState;
+    t.focusAt = Date.now();
+    t.blurAt = null;
+    t.focusCount++;
+    // snapshot input length at focus so we can detect blur-without-change
+    const el = this.shadowRoot.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+      'input:not([type="hidden"]), textarea, select'
+    );
+    t.lastInputLength = el ? el.value.length : 0;
+  }
+
+  /**
+   * Call from the field's `input` event handler.
+   * Pass the native `InputEvent` so inputType can be inspected.
+   * @protected
+   */
+  protected recordTelemetryInput(event: Event): void {
+    const t = this.#telemetryState;
+    const now = Date.now();
+
+    if (t.firstKeystrokeAt === null) {
+      t.firstKeystrokeAt = now;
+    }
+
+    const inputEvent = event as InputEvent;
+    const inputType = inputEvent.inputType ?? '';
+
+    if (inputType === 'insertFromPaste' || inputType === 'insertFromPasteAsQuotation') {
+      t.pasteDetected = true;
+    } else if (inputType === 'insertReplacementText') {
+      // Browser autofill triggers this type
+      t.autofillDetected = true;
+    } else if (
+      inputType.startsWith('delete') ||
+      inputType === 'historyUndo' ||
+      inputType === 'historyRedo'
+    ) {
+      t.correctionCount++;
+    } else {
+      t.keyCount++;
+    }
+
+    const el = event.target as HTMLInputElement | null;
+    if (el) t.lastInputLength = el.value.length;
+  }
+
+  /**
+   * Call from the field's `blur` event handler to finalise the telemetry session.
+   * @protected
+   */
+  protected recordTelemetryBlur(): void {
+    const t = this.#telemetryState;
+    t.blurAt = Date.now();
+
+    const el = this.shadowRoot.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+      'input:not([type="hidden"]), textarea, select'
+    );
+    const currentLength = el ? el.value.length : 0;
+    if (currentLength === t.lastInputLength && t.keyCount === 0 && !t.pasteDetected) {
+      t.blurWithoutChange++;
+    }
+  }
+
+  /**
+   * Returns computed behavioral signals for the current (or last completed)
+   * interaction session. Safe to include in server payloads — contains no
+   * raw field values or PII.
+   */
+  getFieldTelemetry(): FieldTelemetry {
+    const t = this.#telemetryState;
+    const focusAt = t.focusAt ?? Date.now();
+    const firstKeystrokeAt = t.firstKeystrokeAt;
+    const blurAt = t.blurAt ?? Date.now();
+
+    const dwell = firstKeystrokeAt !== null ? firstKeystrokeAt - focusAt : 0;
+    const completionTime = firstKeystrokeAt !== null ? blurAt - firstKeystrokeAt : 0;
+    const durationSec = completionTime / 1000;
+    const velocity = durationSec > 0 ? t.keyCount / durationSec : 0;
+
+    return {
+      dwell,
+      completionTime,
+      velocity: Math.round(velocity * 100) / 100,
+      corrections: t.correctionCount,
+      pasteDetected: t.pasteDetected,
+      autofillDetected: t.autofillDetected,
+      focusCount: t.focusCount,
+      blurWithoutChange: t.blurWithoutChange,
+    };
+  }
+
+  #resetTelemetryState(): void {
+    this.#telemetryState = {
+      focusAt: null,
+      firstKeystrokeAt: null,
+      blurAt: null,
+      keyCount: 0,
+      correctionCount: 0,
+      pasteDetected: false,
+      autofillDetected: false,
+      focusCount: 0,
+      blurWithoutChange: 0,
+      lastInputLength: 0,
+    };
+  }
+
   /**
    * Clean up when component is removed from DOM
    */
   disconnectedCallback(): void {
     this.#rateLimitState = { attempts: 0, windowStart: Date.now() };
+    this.#resetTelemetryState();
 
     if (this.#config.audit.logAccess) {
       this.#audit('component_disconnected', {

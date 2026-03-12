@@ -305,16 +305,18 @@ export class SecureDateTime extends SecureBaseComponent {
    * @private
    */
   #attachEventListeners(): void {
-    // Focus event - audit logging
+    // Focus event - audit logging + telemetry
     this.#inputElement!.addEventListener('focus', () => {
+      this.recordTelemetryFocus();
       this.audit('datetime_focused', {
         name: this.#inputElement!.name,
         type: this.#inputElement!.type
       });
     });
 
-    // Input event - real-time validation
+    // Input event - real-time validation + telemetry
     this.#inputElement!.addEventListener('input', (e: Event) => {
+      this.recordTelemetryInput(e);
       this.#handleInput(e);
     });
 
@@ -323,8 +325,9 @@ export class SecureDateTime extends SecureBaseComponent {
       this.#handleChange(e);
     });
 
-    // Blur event - final validation
+    // Blur event - final validation + telemetry
     this.#inputElement!.addEventListener('blur', () => {
+      this.recordTelemetryBlur();
       this.#validateAndShowErrors();
       this.audit('datetime_blurred', {
         name: this.#inputElement!.name,

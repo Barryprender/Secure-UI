@@ -258,20 +258,23 @@ export class SecureTextarea extends SecureBaseComponent {
    * @private
    */
   #attachEventListeners(): void {
-    // Focus event - audit logging
+    // Focus event - audit logging + telemetry
     this.#textareaElement!.addEventListener('focus', () => {
+      this.recordTelemetryFocus();
       this.audit('textarea_focused', {
         name: this.#textareaElement!.name
       });
     });
 
-    // Input event - real-time validation and character counting
+    // Input event - real-time validation and character counting + telemetry
     this.#textareaElement!.addEventListener('input', (e: Event) => {
+      this.recordTelemetryInput(e);
       this.#handleInput(e);
     });
 
-    // Blur event - final validation
+    // Blur event - final validation + telemetry
     this.#textareaElement!.addEventListener('blur', () => {
+      this.recordTelemetryBlur();
       this.#validateAndShowErrors();
       this.audit('textarea_blurred', {
         name: this.#textareaElement!.name,
