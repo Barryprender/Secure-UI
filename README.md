@@ -1,19 +1,96 @@
 # secure-ui-components
 
-Security-first Web Component library with zero dependencies.
+Security-first Web Component library with built-in behavioral telemetry. Zero dependencies.
 
 **[Live Demo](https://barryprender.github.io/Secure-UI/)** — Try all components in your browser.
 
 ## Features
 
-- **9 Secure Components** — Input, Textarea, Select, Form, File Upload, DateTime, Table, Submit Button, Card
+- **10 Secure Components** — Input, Textarea, Select, Form, File Upload, DateTime, Table, Submit Button, Card, Telemetry Provider
 - **4-Tier Security System** — `public`, `authenticated`, `sensitive`, `critical`
+- **Behavioral Telemetry** — Every field collects typing patterns, paste detection, dwell time, and correction signals automatically
+- **Risk Scoring** — `<secure-form>` aggregates field signals into a session-level risk score at submission
+- **Signed Envelopes** — `<secure-telemetry-provider>` detects automation/headless browsers and signs every submission with HMAC-SHA-256
 - **Zero Dependencies** — Pure TypeScript, no runtime dependencies
 - **Progressive Enhancement** — All components render meaningful markup and work without JavaScript
 - **CSP-Safe** — Styles loaded via `<link>` from `'self'`; no `unsafe-inline` required
 - **SSR Friendly** — Adopts server-rendered markup on upgrade; no document access in constructors
 - **Fully Customisable** — CSS Design Tokens + `::part()` API
-- **Comprehensive Testing** — 689 tests, 80%+ branch coverage
+- **Comprehensive Testing** — 869 tests, 80%+ branch coverage
+
+---
+
+## Philosophy: Security Telemetry as a First-Class Primitive
+
+Traditional form security stops at validation and CSRF protection. Secure-UI goes further — every form submission carries a behavioral fingerprint that travels alongside the user's data, giving the server the context it needs to distinguish real users from bots and credential stuffers in a single atomic request.
+
+```
+Field interaction  →  Behavioral signals  →  Risk score  →  Signed envelope
+(SecureBaseComponent)  (SecureForm)           (SecureForm)    (SecureTelemetryProvider)
+```
+
+**Layer 1 — Field-level signals** (`SecureBaseComponent`)
+Every secure field silently records: dwell time from focus to first keystroke, typing velocity, correction count (backspace/delete), paste detection, autofill detection, focus count, and blur-without-change patterns.
+
+**Layer 2 — Session aggregation** (`<secure-form>`)
+At submission, the form queries `getFieldTelemetry()` from every child field, produces per-field snapshots, and computes a composite risk score from 0–100. The telemetry payload travels alongside form data in a single `fetch` request as `_telemetry`.
+
+**Layer 3 — Environmental signals** (`<secure-telemetry-provider>`)
+An optional overlay that wraps `<secure-form>`. Monitors for WebDriver/headless flags, DOM script injection (via `MutationObserver`), devtools, suspicious screen dimensions, and pointer/keyboard activity. Signs the final envelope with HMAC-SHA-256 so the server can detect replay attacks.
+
+**What the server receives (enhanced submission):**
+
+```json
+{
+  "email": "user@example.com",
+  "password": "...",
+  "_telemetry": {
+    "sessionDuration": 14320,
+    "fieldCount": 2,
+    "riskScore": 5,
+    "riskSignals": [],
+    "submittedAt": "2026-03-12T18:30:00.000Z",
+    "fields": [
+      {
+        "fieldName": "email",
+        "fieldType": "secure-input",
+        "dwell": 420,
+        "completionTime": 3100,
+        "velocity": 4.2,
+        "corrections": 1,
+        "pasteDetected": false,
+        "autofillDetected": false,
+        "focusCount": 1,
+        "blurWithoutChange": 0
+      }
+    ],
+    "_env": {
+      "nonce": "a3f9...",
+      "issuedAt": "2026-03-12T18:30:00.000Z",
+      "environment": {
+        "webdriverDetected": false,
+        "headlessDetected": false,
+        "mouseMovementDetected": true,
+        "pointerType": "mouse"
+      },
+      "signature": "7d3a..."
+    }
+  }
+}
+```
+
+**Risk signals**
+
+| Signal | Condition | Score |
+|--------|-----------|-------|
+| `session_too_fast` | Submitted in under 3 s | +30 |
+| `session_fast` | Submitted in under 8 s | +10 |
+| `all_fields_pasted` | All fields pasted, no keystrokes | +25 |
+| `field_filled_without_focus` | Any field has `focusCount = 0` | +15 |
+| `high_velocity_typing` | Any field velocity > 15 ks/s | +15 |
+| `form_probing` | Field focused/blurred > 1× with no input | +10 |
+| `high_correction_count` | Any field with > 5 corrections | +5 |
+| `autofill_detected` | All fields autofilled (trust signal) | −10 |
 
 ---
 
@@ -27,21 +104,32 @@ npm install secure-ui-components
 
 ## Quick Start
 
+### With telemetry (recommended)
+
+```html
+<secure-telemetry-provider signing-key="your-per-session-secret">
+  <secure-form action="/api/login" method="POST" csrf-token="..." enhance>
+    <secure-input label="Email" name="email" type="email" required security-tier="authenticated"></secure-input>
+    <secure-input label="Password" name="password" type="password" required security-tier="critical"></secure-input>
+    <secure-submit-button label="Sign in" loading-label="Signing in…"></secure-submit-button>
+  </secure-form>
+</secure-telemetry-provider>
+```
+
+```js
+document.querySelector('secure-form').addEventListener('secure-form-submit', (e) => {
+  const { formData, telemetry } = e.detail;
+  console.log('Risk score:', telemetry.riskScore);
+  console.log('Risk signals:', telemetry.riskSignals);
+});
+```
+
 ### Bundler (Vite, Webpack, Rollup)
 
 ```js
 import 'secure-ui-components/secure-input';
 import 'secure-ui-components/secure-form';
-```
-
-```html
-<secure-input
-  label="Email"
-  name="email"
-  type="email"
-  required
-  security-tier="authenticated"
-></secure-input>
+import 'secure-ui-components/secure-telemetry-provider';
 ```
 
 ### CDN / Vanilla HTML
@@ -89,7 +177,7 @@ The `security-tier` attribute is **immutable after connection** — changes afte
 
 ### `<secure-input>`
 
-Text input with XSS prevention, masking, password strength validation, and rate limiting.
+Text input with XSS prevention, masking, password strength validation, rate limiting, and automatic telemetry collection.
 
 **Attributes**
 
@@ -114,12 +202,13 @@ Text input with XSS prevention, masking, password strength validation, and rate 
 ```js
 const el = document.querySelector('secure-input');
 
-el.value          // get current value (unmasked)
-el.value = 'foo'  // set value programmatically
-el.valid          // boolean — passes all validation rules
-el.name           // field name string
-el.getAuditLog()  // array of audit log entries
+el.value              // get current value (unmasked)
+el.value = 'foo'      // set value programmatically
+el.valid              // boolean — passes all validation rules
+el.name               // field name string
+el.getAuditLog()      // AuditLogEntry[]
 el.clearAuditLog()
+el.getFieldTelemetry() // FieldTelemetry — behavioral signals for this field
 el.focus()
 el.blur()
 ```
@@ -147,11 +236,11 @@ el.blur()
 
 ### `<secure-textarea>`
 
-Multi-line input with real-time character counter and rate limiting.
+Multi-line input with real-time character counter, rate limiting, and automatic telemetry collection.
 
 **Attributes:** `label`, `name`, `placeholder`, `required`, `disabled`, `readonly`, `minlength`, `maxlength`, `rows`, `cols`, `wrap`, `value`, `security-tier`
 
-**Properties & Methods:** `value`, `name`, `valid`, `getAuditLog()`, `clearAuditLog()`, `focus()`, `blur()`
+**Properties & Methods:** `value`, `name`, `valid`, `getAuditLog()`, `clearAuditLog()`, `getFieldTelemetry()`, `focus()`, `blur()`
 
 **Events:** `secure-textarea` → `{ name, value, tier }`
 
@@ -168,7 +257,7 @@ Multi-line input with real-time character counter and rate limiting.
 
 ### `<secure-select>`
 
-Dropdown with option whitelist validation — prevents value injection.
+Dropdown with option whitelist validation — prevents value injection. Telemetry collected on `change` events.
 
 **Attributes:** `label`, `name`, `required`, `disabled`, `multiple`, `size`, `value`, `security-tier`
 
@@ -183,6 +272,7 @@ el.addOption(value, text, selected?)
 el.removeOption(value)
 el.clearOptions()
 el.getAuditLog()
+el.getFieldTelemetry()
 el.focus()
 el.blur()
 ```
@@ -197,13 +287,13 @@ el.blur()
 </secure-select>
 ```
 
-Light DOM `<option>` children are transferred to the shadow DOM automatically. Only values added via `<option>` or `addOption()` are accepted — attempts to set an arbitrary value are rejected.
+Light DOM `<option>` children are transferred to the shadow DOM automatically. Only values added via `<option>` or `addOption()` are accepted.
 
 ---
 
 ### `<secure-form>`
 
-Form container with CSRF protection, field validation, and optional fetch-enhanced submission.
+Form container with CSRF protection, field validation, behavioral telemetry aggregation, and optional fetch-enhanced submission.
 
 > `<secure-form>` uses **light DOM** (no Shadow DOM) for native form submission compatibility.
 
@@ -228,20 +318,33 @@ el.valid          // true if all secure child fields pass validation
 el.securityTier
 el.getData()      // { fieldName: value, … } including CSRF token
 el.reset()
-el.submit()       // programmatic submit (triggers validation)
+el.submit()       // programmatic submit (triggers validation + telemetry)
 ```
 
 **Events**
 
 | Event | Detail |
 |-------|--------|
-| `secure-form-submit` | `{ formData, formElement, preventDefault() }` — cancelable |
-| `secure-form-success` | `{ formData, response }` — only fired when `enhance` is set |
+| `secure-form-submit` | `{ formData, formElement, telemetry, preventDefault() }` — cancelable |
+| `secure-form-success` | `{ formData, response, telemetry }` — only when `enhance` is set |
+
+**`telemetry` shape** (`SessionTelemetry`):
+
+```ts
+{
+  sessionDuration: number;      // ms from form mount to submission
+  fieldCount: number;
+  fields: FieldTelemetrySnapshot[];
+  riskScore: number;            // 0–100
+  riskSignals: string[];        // e.g. ['session_too_fast', 'all_fields_pasted']
+  submittedAt: string;          // ISO 8601
+}
+```
 
 **Submission modes**
 
-- **Without `enhance`** — native browser form submission. Values from shadow DOM inputs are synced to hidden `<input type="hidden">` fields automatically.
-- **With `enhance`** — intercepts submit, validates all fields, sends JSON via `fetch`. Dispatches `secure-form-submit` (cancelable) then `secure-form-success` on success.
+- **Without `enhance`** — native browser form submission. Values from shadow DOM inputs are synced to hidden `<input type="hidden">` fields automatically. Telemetry is available in `secure-form-submit` but not sent to the server.
+- **With `enhance`** — intercepts submit, validates all fields, sends `{ ...formData, _telemetry }` as JSON via `fetch`. Full telemetry payload travels to the server in the same request.
 
 **Example**
 
@@ -251,6 +354,111 @@ el.submit()       // programmatic submit (triggers validation)
   <secure-input label="Password" name="password" type="password" required security-tier="critical"></secure-input>
   <secure-submit-button label="Register"></secure-submit-button>
 </secure-form>
+```
+
+```js
+form.addEventListener('secure-form-submit', (e) => {
+  const { formData, telemetry } = e.detail;
+
+  // Block high-risk submissions before they reach your server
+  if (telemetry.riskScore >= 50) {
+    e.detail.preventDefault();
+    showChallenge();
+    return;
+  }
+
+  // Log signals for your fraud pipeline
+  analytics.track('form_submit', {
+    risk: telemetry.riskScore,
+    signals: telemetry.riskSignals,
+  });
+});
+```
+
+---
+
+### `<secure-telemetry-provider>`
+
+Optional overlay that wraps `<secure-form>` to add environmental signals and HMAC-SHA-256 signing to every submission envelope.
+
+> Place this as the outer wrapper. It monitors the entire document for automation markers and DOM tampering during the session.
+
+**Attributes**
+
+| Attribute | Description |
+|-----------|-------------|
+| `signing-key` | HMAC-SHA-256 key — must also be known server-side to verify the signature |
+
+**Properties & Methods**
+
+```js
+const provider = document.querySelector('secure-telemetry-provider');
+
+provider.collectSignals()        // EnvironmentalSignals — point-in-time snapshot
+provider.getEnvironmentalSignals() // alias for collectSignals()
+provider.sign(signals)           // Promise<SignedTelemetryEnvelope>
+```
+
+**What it detects**
+
+| Signal | Description |
+|--------|-------------|
+| `webdriverDetected` | `navigator.webdriver` present or truthy |
+| `headlessDetected` | `HeadlessChrome` in userAgent or missing `window.chrome` |
+| `domMutationDetected` | New `<script>` element injected after page load |
+| `injectedScriptCount` | Count of dynamically added `<script>` elements |
+| `devtoolsOpen` | `outerWidth − innerWidth > 160` or `outerHeight − innerHeight > 160` |
+| `suspiciousScreenSize` | Screen width or height is zero or < 100px |
+| `pointerType` | Last pointer event type: `mouse` \| `touch` \| `pen` \| `none` |
+| `mouseMovementDetected` | Any `mousemove` event fired during session |
+| `keyboardActivityDetected` | Any `keydown` event fired during session |
+
+**How the envelope is injected**
+
+The provider listens for `secure-form-submit` on itself (bubbles from the nested form). It calls `sign()` asynchronously and attaches the result as `detail.telemetry._env`. Since it mutates the same object reference, any handler that awaits a microtask after the event fires will see `_env` populated.
+
+**Signed envelope shape** (`SignedTelemetryEnvelope`):
+
+```ts
+{
+  nonce: string;                   // 32-char random hex — detect replays
+  issuedAt: string;                // ISO 8601
+  environment: EnvironmentalSignals;
+  signature: string;               // HMAC-SHA-256 hex over nonce.issuedAt.JSON(environment)
+}
+```
+
+**Security notes**
+
+- The `signing-key` is a *symmetric* secret. For strong guarantees, rotate it per-session via a server nonce endpoint rather than hardcoding it as an attribute.
+- All signals are heuristic — a determined attacker can spoof them. The value is raising the cost of scripted attacks.
+- In non-secure contexts (`http://`) `SubtleCrypto` is unavailable; the signature will be an empty string. The server should treat unsigned envelopes with reduced trust.
+
+**Example**
+
+```html
+<secure-telemetry-provider signing-key="per-session-server-issued-key">
+  <secure-form action="/api/login" enhance csrf-token="...">
+    <secure-input label="Email" name="email" type="email" required></secure-input>
+    <secure-input label="Password" name="password" type="password" required security-tier="critical"></secure-input>
+    <secure-submit-button label="Sign in"></secure-submit-button>
+  </secure-form>
+</secure-telemetry-provider>
+```
+
+```js
+document.querySelector('secure-form').addEventListener('secure-form-submit', async (e) => {
+  const { telemetry } = e.detail;
+
+  // _env is populated async by the provider — wait a microtask
+  await Promise.resolve();
+
+  if (telemetry._env) {
+    console.log('Nonce:', telemetry._env.nonce);
+    console.log('Signature:', telemetry._env.signature);
+    // Verify signature server-side with the same key
+  }
+});
 ```
 
 ---
@@ -352,6 +560,7 @@ el.name
 el.getValueAsDate()          // Date | null
 el.setValueFromDate(date)    // accepts Date object, sets formatted value
 el.getAuditLog()
+el.getFieldTelemetry()
 el.focus()
 el.blur()
 ```
@@ -427,7 +636,7 @@ table.columns = [
 
 ### `<secure-card>`
 
-Composite credit card form with a live 3D card preview, automatic card type detection, Luhn validation, and expiry checking. All four fields (number, expiry, CVC, name) render inside a single closed Shadow DOM.
+Composite credit card form with a live 3D card preview, automatic card type detection, Luhn validation, expiry checking, and aggregate telemetry across all four fields. All inputs render inside a single closed Shadow DOM.
 
 **Security model:**
 - Full PAN and CVC are never included in events, audit logs, or hidden form inputs
@@ -435,6 +644,7 @@ Composite credit card form with a live 3D card preview, automatic card type dete
 - Card number is masked to last-4 on blur
 - Security tier is locked to `critical` and cannot be changed
 - All sensitive state is wiped on `disconnectedCallback`
+- Telemetry from all four inputs (number, expiry, CVC, name) is aggregated into one composite behavioral fingerprint
 
 > Raw card data must be passed directly to a PCI-compliant payment processor SDK (e.g. Stripe.js, Braintree). Use `getCardData()` for that handoff — never send raw card numbers or CVCs to your own server.
 
@@ -453,16 +663,14 @@ Composite credit card form with a live 3D card preview, automatic card type dete
 ```js
 const card = document.querySelector('secure-card');
 
-card.valid          // true when all visible fields pass validation
-card.cardType       // 'visa' | 'mastercard' | 'amex' | 'discover' | 'diners' | 'jcb' | 'unknown'
-card.last4          // last 4 digits — safe to display and log
-card.name           // value of the name attribute
-
-// For payment SDK tokenisation only — returns null if form is not valid
-card.getCardData()  // { number, expiry, cvc, name } | null
-
-card.reset()        // clears all fields and state
-card.focus()        // focuses the card number input
+card.valid              // true when all visible fields pass validation
+card.cardType           // 'visa' | 'mastercard' | 'amex' | 'discover' | 'diners' | 'jcb' | 'unknown'
+card.last4              // last 4 digits — safe to display and log
+card.name               // value of the name attribute
+card.getCardData()      // { number, expiry, cvc, name } | null — for payment SDK only
+card.getFieldTelemetry() // composite behavioral signals across all 4 card inputs
+card.reset()
+card.focus()
 card.getAuditLog()
 ```
 
@@ -490,8 +698,6 @@ Note: the `secure-card` event detail intentionally omits the full PAN and CVC.
 
 **Card type detection**
 
-The card brand is detected automatically from the number prefix as you type. The 3D card visual updates its gradient and brand label accordingly.
-
 | Type | Detected prefix |
 |------|----------------|
 | Visa | `4` |
@@ -513,18 +719,10 @@ No hidden input is created for CVC.
 **Example**
 
 ```html
-<secure-card
-  name="payment"
-  label="Card details"
-  show-name
-></secure-card>
+<secure-card name="payment" label="Card details" show-name></secure-card>
 ```
 
 ```js
-card.addEventListener('secure-card', e => {
-  console.log(e.detail.cardType, e.detail.last4, e.detail.valid);
-});
-
 // When the user clicks Pay — pass directly to your payment SDK
 payButton.addEventListener('click', async () => {
   const data = card.getCardData();
@@ -564,7 +762,7 @@ el.getAuditLog()
 
 ## Common Attributes
 
-All components support:
+All field components support:
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
@@ -577,15 +775,33 @@ All components support:
 
 ## Common Properties & Methods
 
+All field components expose these in addition to component-specific methods:
+
 ```js
-el.value          // get/set current value
-el.valid          // boolean — passes all validation rules
-el.name           // field name string
-el.securityTier   // current security tier
-el.getAuditLog()  // AuditLogEntry[]
+el.value             // get/set current value
+el.valid             // boolean — passes all validation rules
+el.name              // field name string
+el.securityTier      // current security tier
+el.getAuditLog()     // AuditLogEntry[]
 el.clearAuditLog()
+el.getFieldTelemetry() // FieldTelemetry — behavioral signals (no raw values)
 el.focus()
 el.blur()
+```
+
+**`FieldTelemetry` shape:**
+
+```ts
+{
+  dwell: number;              // ms from focus to first keystroke
+  completionTime: number;     // ms from first keystroke to blur
+  velocity: number;           // keystrokes per second
+  corrections: number;        // backspace / delete event count
+  pasteDetected: boolean;
+  autofillDetected: boolean;
+  focusCount: number;
+  blurWithoutChange: number;  // focused but left without typing
+}
 ```
 
 ## Common Events
@@ -597,8 +813,8 @@ el.blur()
 | `secure-select` | `<secure-select>` | `{ name, value, tier }` |
 | `secure-datetime` | `<secure-datetime>` | `{ name, value, type, tier }` |
 | `secure-file-upload` | `<secure-file-upload>` | `{ name, files, tier }` |
-| `secure-form-submit` | `<secure-form>` | `{ formData, formElement, preventDefault() }` |
-| `secure-form-success` | `<secure-form>` | `{ formData, response }` |
+| `secure-form-submit` | `<secure-form>` | `{ formData, formElement, telemetry, preventDefault() }` |
+| `secure-form-success` | `<secure-form>` | `{ formData, response, telemetry }` |
 | `secure-card` | `<secure-card>` | `{ name, cardType, last4, expiryMonth, expiryYear, cardholderName, valid, tier }` |
 | `secure-audit` | all components | `{ event, tier, timestamp, … }` |
 | `table-action` | `<secure-table>` | `{ action, row }` |
@@ -658,6 +874,7 @@ import 'secure-ui-components/secure-file-upload';
 import 'secure-ui-components/secure-datetime';
 import 'secure-ui-components/secure-table';
 import 'secure-ui-components/secure-card';
+import 'secure-ui-components/secure-telemetry-provider';
 ```
 
 Or import everything at once:
