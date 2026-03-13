@@ -30,7 +30,9 @@ const COMPONENTS = [
   'secure-file-upload',
   'secure-datetime',
   'secure-table',
-  'secure-submit-button'
+  'secure-submit-button',
+  'secure-card',
+  'secure-telemetry-provider'
 ];
 
 /**
@@ -109,7 +111,7 @@ async function generateDistPackageJson() {
 
   distPackageJson.exports['./base-component'] = './core/base-component.js';
   distPackageJson.exports['./security-config'] = './core/security-config.js';
-  distPackageJson.exports['./tokens'] = './styles/tokens.css';
+  distPackageJson.exports['./tokens.css'] = './styles/tokens.css';
 
   await fs.writeFile(distPackageJsonPath, JSON.stringify(distPackageJson, null, 2), 'utf-8');
 

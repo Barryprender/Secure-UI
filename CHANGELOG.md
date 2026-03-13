@@ -7,6 +7,38 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.1.1] — 2026-03-13
+
+### Added
+
+#### New Components
+- **SecureCard** — Payment card input with PAN masking, Luhn validation, card brand detection (Visa, Mastercard, Amex, Discover), expiry/CVC fields, and critical-tier defaults.
+- **SecureTelemetryProvider** — Optional wrapper component that enriches form submissions with a signed environmental signals envelope. Detects automation/headless browsers, DOM script injection, devtools open state, suspicious screen sizes, pointer type, mouse movement, and keyboard activity.
+
+#### Behavioral Telemetry System
+- **Field-level telemetry** (`SecureBaseComponent`) — All input components now track: dwell time, completion time, typing velocity (keystrokes/sec), correction count, paste detection (`insertFromPaste`), autofill detection (`insertReplacementText`), focus count, and blur-without-change.
+- **Session-level aggregation** (`SecureForm`) — `secure-form-submit` and `secure-form-success` events now include a `telemetry: SessionTelemetry` payload with per-field snapshots and a computed risk score (0–100).
+- **Risk scoring engine** — 7 additive signals: `session_too_fast` (+30), `session_fast` (+10), `all_fields_pasted` (+25), `high_velocity_typing` (+15), `field_filled_without_focus` (+15), `form_probing` (+10), `high_correction_count` (+5); autofill bonus (−10). Capped at 100.
+- **Environmental signals** (`SecureTelemetryProvider`) — On `secure-form-submit`, collects a point-in-time snapshot of browser environment signals and attaches a HMAC-SHA-256 signed envelope (`_env`) to `detail.telemetry`.
+- **Submission payload** — Form submissions now send `{ ...formData, _telemetry: SessionTelemetry }` as a single JSON body.
+
+#### New Types (`src/core/types.ts`)
+- `FieldTelemetryState`, `FieldTelemetry`, `FieldTelemetrySnapshot`, `SessionTelemetry`
+- `EnvironmentalSignals`, `SignedTelemetryEnvelope`
+- `SecureFormSubmitEventDetail` and `SecureFormSuccessEventDetail` updated to include `telemetry: SessionTelemetry`
+
+### Fixed
+- Corrected `package.json` exports map — `secure-card`, `secure-submit-button`, and `secure-telemetry-provider` were missing per-component named exports.
+- Build script now copies `secure-card.css` and `secure-telemetry-provider` to `dist/` (previously `secure-card.css` was not copied, breaking production styles).
+- `dist/package.json` export key `./tokens` corrected to `./tokens.css` to match `package.json`.
+
+### Tests
+- 869 tests across 23 test files, all passing.
+- New test files: `tests/core/telemetry.test.ts` (19 tests), `tests/components/secure-form-telemetry.test.ts` (16 tests), `tests/components/secure-telemetry-provider.test.ts` (20 tests).
+- Global coverage: 92.58% statements, 80.37% branches, 94.04% functions, 93.63% lines.
+
+---
+
 ## [0.1.0-beta.1] — 2026-03-10
 
 Initial public beta release.

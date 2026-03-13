@@ -39,6 +39,18 @@
       "types": "./dist/components/secure-table/secure-table.d.ts",
       "import": "./dist/components/secure-table/secure-table.js"
     },
+    "./secure-submit-button": {
+      "types": "./dist/components/secure-submit-button/secure-submit-button.d.ts",
+      "import": "./dist/components/secure-submit-button/secure-submit-button.js"
+    },
+    "./secure-card": {
+      "types": "./dist/components/secure-card/secure-card.d.ts",
+      "import": "./dist/components/secure-card/secure-card.js"
+    },
+    "./secure-telemetry-provider": {
+      "types": "./dist/components/secure-telemetry-provider/secure-telemetry-provider.d.ts",
+      "import": "./dist/components/secure-telemetry-provider/secure-telemetry-provider.js"
+    },
     "./base-component": {
       "types": "./dist/core/base-component.d.ts",
       "import": "./dist/core/base-component.js"
