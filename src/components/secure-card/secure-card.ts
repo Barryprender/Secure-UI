@@ -22,7 +22,7 @@
  */
 
 import { SecureBaseComponent } from '../../core/base-component.js';
-import type { SecurityTierValue, CardType } from '../../core/types.js';
+import type { CardType } from '../../core/types.js';
 
 export type { CardType };
 
@@ -98,11 +98,11 @@ function formatDigits(digits: string, format: readonly number[]): string {
   let result = '';
   let pos = 0;
   for (let i = 0; i < format.length; i++) {
-    const chunk = digits.slice(pos, pos + format[i]!);
+    const chunk = digits.slice(pos, pos + format[i]);
     if (!chunk) break;
     if (i > 0) result += ' ';
     result += chunk;
-    pos += format[i]!;
+    pos += format[i];
   }
   return result;
 }
@@ -758,7 +758,7 @@ export class SecureCard extends SecureBaseComponent {
           expiryYear: parseInt(rawYear ?? '0', 10) || 0,
           cardholderName: this.#cardholderName,
           valid: this.valid,
-          tier: this.securityTier as SecurityTierValue,
+          tier: this.securityTier,
           // Full PAN and CVC are intentionally absent — use getCardData() for SDK calls
         },
       })

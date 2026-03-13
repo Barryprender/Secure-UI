@@ -12,7 +12,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureForm } from '../../src/components/secure-form/secure-form.js';
 import { SecureInput } from '../../src/components/secure-input/secure-input.js';
-import type { SessionTelemetry, FieldTelemetry } from '../../src/core/types.js';
+import type { SessionTelemetry } from '../../src/core/types.js';
 
 // ── Custom element registration ───────────────────────────────────────────────
 

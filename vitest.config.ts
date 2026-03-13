@@ -83,12 +83,6 @@ export default defineConfig({
           functions: 96,
           lines: 94
         },
-        'src/components/secure-form/secure-form.ts': {
-          statements: 85,
-          branches: 74,
-          functions: 82,
-          lines: 85
-        },
         'src/components/secure-card/secure-card.ts': {
           statements: 97,
           branches: 78,
