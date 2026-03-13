@@ -30,7 +30,9 @@ const COMPONENTS = [
   'secure-file-upload',
   'secure-datetime',
   'secure-table',
-  'secure-submit-button'
+  'secure-submit-button',
+  'secure-card',
+  'secure-telemetry-provider'
 ];
 
 /**
