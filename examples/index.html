@@ -3,12 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Secure-UI Components — Examples</title>
+  <title>Secure-UI — Component Gallery</title>
 
-  <!-- Design Tokens -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="/latest/styles/tokens.css">
 
-  <!-- All Components -->
   <script type="module" src="/latest/components/secure-input/secure-input.js"></script>
   <script type="module" src="/latest/components/secure-textarea/secure-textarea.js"></script>
   <script type="module" src="/latest/components/secure-select/secure-select.js"></script>
@@ -17,112 +19,533 @@
   <script type="module" src="/latest/components/secure-datetime/secure-datetime.js"></script>
   <script type="module" src="/latest/components/secure-table/secure-table.js"></script>
   <script type="module" src="/latest/components/secure-submit-button/secure-submit-button.js"></script>
+  <script type="module" src="/latest/components/secure-card/secure-card.js"></script>
+  <script type="module" src="/latest/components/secure-telemetry-provider/secure-telemetry-provider.js"></script>
 
-  <!-- <link rel="stylesheet" href="styles.css"> -->
-   <style>
-     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  <style>
+    /* ============================================
+       RESET
+       ============================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ============================================
+       PAGE TOKENS
+       ============================================ */
+    :root {
+      /* Page palette */
+      --bg:          #0d1117;
+      --surface:     #161b22;
+      --surface-2:   #21262d;
+      --border:      #30363d;
+      --border-sub:  #21262d;
+      --text:        #e6edf3;
+      --text-2:      #8b949e;
+      --text-3:      #484f58;
+
+      /* Tier accent system */
+      --tier-public-color:    #6e7681;
+      --tier-public-bg:       #1c2128;
+      --tier-auth-color:      #58a6ff;
+      --tier-auth-bg:         #0d2044;
+      --tier-sensitive-color: #e3b341;
+      --tier-sensitive-bg:    #2d2010;
+      --tier-critical-color:  #f85149;
+      --tier-critical-bg:     #2d1010;
+
+      /* Typography */
+      --font:      'IBM Plex Sans', system-ui, sans-serif;
+      --font-mono: 'IBM Plex Mono', 'Cascadia Code', monospace;
+
+      /* Layout */
+      --nav-w: 248px;
+
+      /* Override secure-ui component tokens for dark page */
+      --secure-ui-font-family-base:    'IBM Plex Sans', system-ui, sans-serif;
+      --secure-ui-font-family-mono:    'IBM Plex Mono', monospace;
+      --secure-ui-color-text-primary:   #e6edf3;
+      --secure-ui-color-text-secondary: #8b949e;
+      --secure-ui-color-text-disabled:  #484f58;
+      --secure-ui-color-text-inverse:   #0d1117;
+      --secure-ui-color-bg-primary:     #161b22;
+      --secure-ui-color-bg-secondary:   #0d1117;
+      --secure-ui-color-bg-tertiary:    #21262d;
+      --secure-ui-color-bg-disabled:    #21262d;
+      --secure-ui-color-border:         #30363d;
+      --secure-ui-color-border-hover:   #484f58;
+      --secure-ui-color-border-focus:   #58a6ff;
+      --secure-ui-input-bg:             #161b22;
+      --secure-ui-input-disabled-bg:    #21262d;
+    }
+
+    /* ============================================
+       BASE
+       ============================================ */
+    html { font-size: 14px; -webkit-font-smoothing: antialiased; }
 
     body {
-      font-family: var(--secure-ui-font-family-base);
-      color: var(--secure-ui-color-text-primary);
-      background: var(--secure-ui-color-bg-secondary);
-      line-height: var(--secure-ui-line-height-normal);
-      padding: 2rem;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: var(--nav-w) 1fr;
     }
 
-    h1 {
-      font-size: var(--secure-ui-font-size-3xl);
-      font-weight: var(--secure-ui-font-weight-bold);
-      margin-bottom: 0.5rem;
+    /* ============================================
+       NAV
+       ============================================ */
+    .nav {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
     }
 
-    .subtitle {
-      color: var(--secure-ui-color-text-secondary);
-      font-size: var(--secure-ui-font-size-base);
-      margin-bottom: 2.5rem;
+    .nav-brand {
+      padding: 1.375rem 1.25rem 1.125rem;
+      border-bottom: 1px solid var(--border-sub);
     }
 
-    .component-section {
-      background: var(--secure-ui-color-bg-primary);
-      border: 1px solid var(--secure-ui-color-border);
-      border-radius: var(--secure-ui-border-radius-lg);
-      padding: 2rem;
-      margin-bottom: 2rem;
-    }
-
-    .component-section h2 {
-      font-size: var(--secure-ui-font-size-xl);
-      font-weight: var(--secure-ui-font-weight-semibold);
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
       margin-bottom: 0.25rem;
     }
 
-    .component-section .tag {
-      display: inline-block;
-      font-family: var(--secure-ui-font-family-mono);
-      font-size: var(--secure-ui-font-size-xs);
-      color: var(--secure-ui-color-text-secondary);
-      background: var(--secure-ui-color-bg-tertiary);
-      padding: 0.125rem 0.5rem;
-      border-radius: var(--secure-ui-border-radius-sm);
-      margin-bottom: 1.5rem;
+    .nav-logo-mark {
+      width: 20px;
+      height: 20px;
+      background: var(--tier-auth-color);
+      border-radius: 4px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1.5rem;
+    .nav-logo-mark svg {
+      width: 11px;
+      height: 11px;
+      fill: #0d1117;
     }
 
-    .grid-wide {
-      grid-template-columns: 1fr;
+    .nav-logo-text {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text);
     }
 
-    .cell {
+    .nav-meta {
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      color: var(--text-3);
+      padding-left: 28px;
+    }
+
+    .nav-section {
+      padding: 1.125rem 1.25rem 0;
+    }
+
+    .nav-section + .nav-section {
+      padding-top: 1.25rem;
+    }
+
+    .nav-label {
+      font-size: 0.625rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-3);
+      margin-bottom: 0.375rem;
+    }
+
+    .nav-links {
+      list-style: none;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      gap: 0.25rem;
+      gap: 1px;
     }
 
-    .cell-label {
-      font-size: var(--secure-ui-font-size-xs);
-      font-weight: var(--secure-ui-font-weight-medium);
-      color: var(--secure-ui-color-text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+    .nav-link {
+      display: block;
+      padding: 0.3125rem 0.5rem;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-2);
+      text-decoration: none;
+      transition: color 120ms ease, background 120ms ease;
     }
 
-    hr {
-      border: none;
-      border-top: 1px solid var(--secure-ui-color-border);
-      margin: 1.5rem 0;
+    .nav-link:hover { color: var(--text); background: var(--surface-2); }
+    .nav-link.active { color: var(--tier-auth-color); background: var(--tier-auth-bg); }
+
+    .nav-tier-legend {
+      margin-top: auto;
+      padding: 1.125rem 1.25rem;
+      border-top: 1px solid var(--border-sub);
     }
 
-    .row {
+    .legend-items {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6875rem;
+    }
+
+    .legend-item {
+      display: grid;
+      grid-template-columns: 3px 1fr;
+      gap: 0.625rem;
+      align-items: start;
+    }
+
+    .legend-bar {
+      width: 3px;
+      height: 100%;
+      min-height: 30px;
+      border-radius: 2px;
+    }
+
+    .legend-item[data-tier="public"]        .legend-bar { background: var(--tier-public-color); }
+    .legend-item[data-tier="authenticated"] .legend-bar { background: var(--tier-auth-color); }
+    .legend-item[data-tier="sensitive"]     .legend-bar { background: var(--tier-sensitive-color); }
+    .legend-item[data-tier="critical"]      .legend-bar { background: var(--tier-critical-color); }
+
+    .legend-body {}
+
+    .legend-name {
+      font-size: 0.6875rem;
+      font-weight: 500;
+      line-height: 1.3;
+    }
+
+    .legend-item[data-tier="public"]        .legend-name { color: var(--tier-public-color); }
+    .legend-item[data-tier="authenticated"] .legend-name { color: var(--tier-auth-color); }
+    .legend-item[data-tier="sensitive"]     .legend-name { color: var(--tier-sensitive-color); }
+    .legend-item[data-tier="critical"]      .legend-name { color: var(--tier-critical-color); }
+
+    .legend-desc {
+      font-size: 0.625rem;
+      color: var(--text-3);
+      line-height: 1.45;
+    }
+
+    /* ============================================
+       MAIN
+       ============================================ */
+    .main {
+      padding: 2.75rem 2.5rem 5rem;
+      min-width: 0;
+    }
+
+    /* ============================================
+       PAGE HEADER
+       ============================================ */
+    .page-header {
+      margin-bottom: 3rem;
+      padding-bottom: 2.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .page-title {
+      font-size: 1.625rem;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      color: var(--text);
+      margin-bottom: 0.375rem;
+    }
+
+    .page-desc {
+      font-size: 0.875rem;
+      color: var(--text-2);
+      max-width: 60ch;
+      margin-bottom: 1.125rem;
+    }
+
+    .page-pills {
       display: flex;
       flex-wrap: wrap;
-      gap: 1.5rem;
+      gap: 0.375rem;
     }
 
-    .row > * {
+    .pill {
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      padding: 0.1875rem 0.5rem;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      color: var(--text-3);
+      background: var(--surface);
+    }
+
+    .pill-accent {
+      border-color: var(--tier-auth-color);
+      color: var(--tier-auth-color);
+    }
+
+    /* ============================================
+       COMPONENT SECTION
+       ============================================ */
+    .component-section {
+      margin-bottom: 4.5rem;
+      scroll-margin-top: 1.5rem;
+    }
+
+    .section-head {
+      margin-bottom: 1.375rem;
+    }
+
+    .section-title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.625rem;
+      margin-bottom: 0.3125rem;
+    }
+
+    .section-name {
+      font-size: 1.0625rem;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      color: var(--text);
+    }
+
+    .section-tag {
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      color: var(--text-3);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 0.125rem 0.4375rem;
+    }
+
+    .section-desc {
+      font-size: 0.8125rem;
+      color: var(--text-2);
+      max-width: 70ch;
+    }
+
+    /* Example group within a section */
+    .example-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .group-head {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      margin-bottom: 0.625rem;
+    }
+
+    .group-title {
+      font-size: 0.625rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--text-3);
+      white-space: nowrap;
+    }
+
+    .group-rule {
       flex: 1;
-      min-width: 280px;
+      height: 1px;
+      background: var(--border-sub);
     }
 
-    /* Dialog */
+    /* ============================================
+       TIER GRID — 4-column comparison
+       ============================================ */
+    .tier-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .tier-cell {
+      --tier-color: var(--border);
+      --tier-bg: var(--surface);
+      background: var(--tier-bg);
+      border-top: 2px solid var(--tier-color);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.625rem;
+    }
+
+    .tier-cell + .tier-cell {
+      border-left: 1px solid var(--border);
+    }
+
+    .tier-cell[data-tier="public"] {
+      --tier-color: var(--tier-public-color);
+      --tier-bg: var(--tier-public-bg);
+    }
+    .tier-cell[data-tier="authenticated"] {
+      --tier-color: var(--tier-auth-color);
+      --tier-bg: var(--tier-auth-bg);
+    }
+    .tier-cell[data-tier="sensitive"] {
+      --tier-color: var(--tier-sensitive-color);
+      --tier-bg: var(--tier-sensitive-bg);
+    }
+    .tier-cell[data-tier="critical"] {
+      --tier-color: var(--tier-critical-color);
+      --tier-bg: var(--tier-critical-bg);
+    }
+
+    .tier-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1875rem;
+    }
+
+    .tier-name {
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--tier-color);
+    }
+
+    .tier-behaviors {
+      font-size: 0.625rem;
+      color: var(--text-3);
+      line-height: 1.5;
+    }
+
+    /* ============================================
+       STATES GRID — variable columns
+       ============================================ */
+    .states-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .state-cell {
+      background: var(--surface);
+      padding: 1rem;
+    }
+
+    .state-cell + .state-cell {
+      border-left: 1px solid var(--border);
+    }
+
+    .state-label {
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-3);
+      margin-bottom: 0.625rem;
+    }
+
+    /* ============================================
+       WIDE GRID — for forms (2 columns)
+       ============================================ */
+    .wide-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .wide-cell {
+      background: var(--surface);
+      padding: 1.5rem;
+    }
+
+    .wide-cell + .wide-cell {
+      border-left: 1px solid var(--border);
+    }
+
+    .wide-label {
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-3);
+      margin-bottom: 0.875rem;
+    }
+
+    /* ============================================
+       FULL CELL — for tables
+       ============================================ */
+    .full-cell {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.125rem;
+    }
+
+    .full-label {
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-3);
+      margin-bottom: 0.75rem;
+    }
+
+    /* ============================================
+       CALLOUT
+       ============================================ */
+    .callout {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.5625rem 0.75rem;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 0.75rem;
+      color: var(--text-2);
+      margin-bottom: 1rem;
+    }
+
+    .callout-icon {
+      color: var(--tier-auth-color);
+      flex-shrink: 0;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+    }
+
+    /* ============================================
+       DIALOG
+       ============================================ */
     dialog {
-      border: 1px solid var(--secure-ui-color-border);
-      border-radius: var(--secure-ui-border-radius-lg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
       padding: 0;
-      min-width: 380px;
-      max-width: 520px;
-      margin-inline: auto;
-      top: 20vh;
-      font-family: var(--secure-ui-font-family-base);
-      box-shadow: var(--secure-ui-shadow-lg);
+      min-width: 360px;
+      max-width: 500px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
       opacity: 0;
-      transform: scale(0.95) translateY(-8px);
-      transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+      transform: scale(0.96) translateY(-8px);
+      transition: opacity 200ms ease-out, transform 200ms ease-out;
     }
 
     dialog[open] {
@@ -132,619 +555,1161 @@
 
     dialog::backdrop {
       background: rgba(0, 0, 0, 0);
-      transition: background 0.15s ease-out;
+      transition: background 160ms ease-out;
     }
 
     dialog[open]::backdrop {
-      background: rgba(0, 0, 0, 0.4);
+      background: rgba(0, 0, 0, 0.65);
     }
 
     @media (prefers-reduced-motion: reduce) {
-      dialog {
-        transition: none !important;
-      }
-      dialog::backdrop {
-        transition: none !important;
-      }
+      dialog, dialog::backdrop { transition: none !important; }
     }
 
     .dialog-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 1rem 1.5rem;
-      border-bottom: 1px solid var(--secure-ui-color-border);
+      padding: 0.875rem 1.25rem;
+      border-bottom: 1px solid var(--border);
     }
 
-    .dialog-header h3 {
-      font-size: var(--secure-ui-font-size-lg);
-      font-weight: var(--secure-ui-font-weight-semibold);
-      margin: 0;
+    .dialog-title {
+      font-size: 0.875rem;
+      font-weight: 600;
     }
 
-    .dialog-close {
+    .dialog-close-btn {
       background: none;
       border: none;
-      font-size: 1.25rem;
       cursor: pointer;
-      color: var(--secure-ui-color-text-secondary);
-      padding: 0.25rem;
+      color: var(--text-2);
+      font-size: 1.125rem;
+      padding: 0.1875rem 0.375rem;
+      border-radius: 4px;
       line-height: 1;
+      transition: color 120ms ease, background 120ms ease;
     }
 
+    .dialog-close-btn:hover { color: var(--text); background: var(--surface-2); }
+
     .dialog-body {
-      padding: 1.5rem;
+      padding: 1.25rem;
+      max-height: 56vh;
+      overflow-y: auto;
     }
 
     .dialog-body table {
       width: 100%;
       border-collapse: collapse;
+      font-size: 0.8125rem;
     }
 
     .dialog-body th,
     .dialog-body td {
       text-align: left;
-      padding: 0.5rem 0.75rem;
-      border-bottom: 1px solid var(--secure-ui-color-border);
-      font-size: var(--secure-ui-font-size-sm);
+      padding: 0.375rem 0.625rem;
+      border-bottom: 1px solid var(--border-sub);
+      vertical-align: top;
     }
 
     .dialog-body th {
-      font-weight: var(--secure-ui-font-weight-medium);
-      color: var(--secure-ui-color-text-secondary);
-      width: 40%;
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      font-weight: 500;
+      color: var(--text-3);
+      width: 38%;
       white-space: nowrap;
     }
 
     .dialog-body td {
-      color: var(--secure-ui-color-text-primary);
-      word-break: break-word;
+      color: var(--text);
+      word-break: break-all;
     }
 
     .dialog-body tr:last-child th,
-    .dialog-body tr:last-child td {
-      border-bottom: none;
-    }
+    .dialog-body tr:last-child td { border-bottom: none; }
 
     .dialog-footer {
-      padding: 1rem 1.5rem;
-      border-top: 1px solid var(--secure-ui-color-border);
+      padding: 0.875rem 1.25rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      padding: 0.375rem 0.875rem;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--surface-2);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.8125rem;
+      font-family: var(--font);
+      transition: background 120ms ease, border-color 120ms ease;
+    }
+
+    .btn:hover { background: var(--border); }
+
+    /* ============================================
+       SIGNALS PANEL (telemetry-provider section)
+       ============================================ */
+    secure-telemetry-provider {
+      display: block;
+    }
+
+    .signals-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      height: 100%;
+    }
+
+    .signals-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6875rem 1rem;
+      border-bottom: 1px solid var(--border-sub);
+      background: var(--surface-2);
+    }
+
+    .signals-panel-title {
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-3);
+    }
+
+    .btn-sm {
+      padding: 0.25rem 0.625rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--surface);
+      color: var(--text-2);
+      cursor: pointer;
+      font-size: 0.6875rem;
+      font-family: var(--font-mono);
+      font-weight: 500;
+      transition: background 120ms ease, color 120ms ease;
+    }
+
+    .btn-sm:hover { background: var(--border); color: var(--text); }
+
+    .signal-rows {
+      padding: 0.625rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .signal-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid var(--border-sub);
+      gap: 0.5rem;
+    }
+
+    .signal-row:last-child { border-bottom: none; }
+
+    .signal-key {
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      color: var(--text-3);
+      flex-shrink: 0;
+    }
+
+    .signal-val {
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      color: var(--text-2);
       text-align: right;
     }
 
-    button {
-      padding: 0.5rem 1.25rem;
-      border: 1px solid var(--secure-ui-color-border);
-      border-radius: var(--secure-ui-border-radius-base);
-      background: var(--secure-ui-color-bg-primary);
-      cursor: pointer;
-      font-size: var(--secure-ui-font-size-sm);
-      font-family: var(--secure-ui-font-family-base);
+    .signal-row.is-flagged .signal-val { color: var(--tier-critical-color); }
+    .signal-row.is-clean .signal-val   { color: var(--tier-auth-color); }
+
+    .signal-empty {
+      font-size: 0.75rem;
+      color: var(--text-3);
+      font-style: italic;
+      padding: 0.75rem 1rem;
     }
 
-    button:hover {
-      background: var(--secure-ui-color-bg-tertiary);
+    /* ============================================
+       RESPONSIVE
+       ============================================ */
+    @media (max-width: 960px) {
+      body { grid-template-columns: 1fr; }
+      .nav {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: 1rem;
+        gap: 1rem;
+      }
+      .nav-brand { padding: 0; border-bottom: none; }
+      .nav-section { padding: 0; }
+      .nav-tier-legend { display: none; }
+      .nav-links { flex-direction: row; flex-wrap: wrap; gap: 0.25rem; }
+      .tier-grid { grid-template-columns: repeat(2, 1fr); }
+      .wide-grid { grid-template-columns: 1fr; }
     }
-   </style>
+
+    @media (max-width: 600px) {
+      .main { padding: 1.5rem 1rem 3rem; }
+      .tier-grid { grid-template-columns: 1fr; }
+      .tier-cell + .tier-cell { border-left: none; border-top: 1px solid var(--border); }
+    }
+  </style>
 </head>
 <body>
 
-  <h1>Secure-UI Components</h1>
-  <p class="subtitle">All components and their states &mdash; focus and blur fields to trigger validation</p>
-
-  <!-- ============================================
-       SECURE INPUT
-       ============================================ -->
-  <section class="component-section">
-    <h2>Secure Input</h2>
-    <span class="tag">&lt;secure-input&gt;</span>
-
-    <div class="grid">
-      <!-- Security Tiers -->
-      <div class="cell">
-        <span class="cell-label">Public Tier</span>
-        <secure-input label="Username" name="user" placeholder="Enter username" security-tier="public"></secure-input>
+  <nav class="nav" aria-label="Component navigation">
+    <div class="nav-brand">
+      <div class="nav-logo">
+        <div class="nav-logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 11 11" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5.5 1L9 3.25V7.75L5.5 10L2 7.75V3.25L5.5 1Z"/>
+          </svg>
+        </div>
+        <span class="nav-logo-text">Secure-UI</span>
       </div>
-      <div class="cell">
-        <span class="cell-label">Authenticated Tier</span>
-        <secure-input label="Display Name" name="display" placeholder="Your name" security-tier="authenticated"></secure-input>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Sensitive Tier (value masked)</span>
-        <secure-input label="Phone Number" name="phone" placeholder="555-0100" security-tier="sensitive"></secure-input>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Critical Tier (fully masked)</span>
-        <secure-input label="SSN" name="ssn" placeholder="***-**-****" security-tier="critical"></secure-input>
-      </div>
-
-      <hr style="grid-column: 1 / -1;">
-
-      <!-- Validation & Error States -->
-      <div class="cell">
-        <span class="cell-label">Required (blur empty to see error)</span>
-        <secure-input label="Full Name" name="name" required placeholder="Required field" security-tier="public"></secure-input>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Email with Pattern</span>
-        <secure-input label="Email" name="email" type="email" pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" required placeholder="user@example.com" security-tier="public"></secure-input>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Pattern (letters only)</span>
-        <secure-input label="First Name" name="fname" pattern="^[A-Za-z]+$" placeholder="Letters only — try numbers" security-tier="public"></secure-input>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Min Length (5 chars)</span>
-        <secure-input label="Username" name="user_min" minlength="5" placeholder="At least 5 characters" security-tier="public"></secure-input>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Password (sensitive tier)</span>
-        <secure-input label="Password" name="pass" type="password" required minlength="8" placeholder="Min 8 characters" security-tier="sensitive"></secure-input>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Max Length (10)</span>
-        <secure-input label="Nickname" name="nick" maxlength="10" placeholder="Max 10 chars" security-tier="public"></secure-input>
-      </div>
-
-      <hr style="grid-column: 1 / -1;">
-
-      <!-- Disabled / Readonly -->
-      <div class="cell">
-        <span class="cell-label">Disabled</span>
-        <secure-input label="Account ID" name="account" value="ACC-12345" disabled security-tier="public"></secure-input>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Readonly</span>
-        <secure-input label="Created Date" name="created" value="2025-01-15" readonly security-tier="public"></secure-input>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============================================
-       SECURE TEXTAREA
-       ============================================ -->
-  <section class="component-section">
-    <h2>Secure Textarea</h2>
-    <span class="tag">&lt;secure-textarea&gt;</span>
-
-    <div class="grid">
-      <div class="cell">
-        <span class="cell-label">Public Tier</span>
-        <secure-textarea label="Comments" name="comments" placeholder="Leave a comment..." security-tier="public"></secure-textarea>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Authenticated Tier</span>
-        <secure-textarea label="Notes" name="notes" placeholder="Internal notes..." security-tier="authenticated"></secure-textarea>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Sensitive Tier</span>
-        <secure-textarea label="Medical Notes" name="medical" placeholder="Confidential..." security-tier="sensitive"></secure-textarea>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Critical Tier</span>
-        <secure-textarea label="Encryption Key" name="key" placeholder="Paste key..." security-tier="critical" rows="3"></secure-textarea>
-      </div>
-
-      <hr style="grid-column: 1 / -1;">
-
-      <div class="cell">
-        <span class="cell-label">Required (blur empty to see error)</span>
-        <secure-textarea label="Bio" name="bio" required placeholder="This field is required" security-tier="public"></secure-textarea>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Max Length with Char Counter</span>
-        <secure-textarea label="Summary" name="summary" maxlength="100" placeholder="Type to see counter (max 100)" security-tier="public"></secure-textarea>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Min Length (20 chars)</span>
-        <secure-textarea label="Description" name="desc_min" minlength="20" placeholder="At least 20 characters" security-tier="public"></secure-textarea>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Custom Rows (6)</span>
-        <secure-textarea label="Long Form" name="desc" rows="6" placeholder="Larger textarea" security-tier="public"></secure-textarea>
-      </div>
-
-      <hr style="grid-column: 1 / -1;">
-
-      <div class="cell">
-        <span class="cell-label">Disabled</span>
-        <secure-textarea label="System Log" name="log" disabled security-tier="public">System initialized successfully.</secure-textarea>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Readonly</span>
-        <secure-textarea label="Terms" name="terms" readonly security-tier="public">These are the terms of service. Read-only content that cannot be edited.</secure-textarea>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============================================
-       SECURE SELECT
-       ============================================ -->
-  <section class="component-section">
-    <h2>Secure Select</h2>
-    <span class="tag">&lt;secure-select&gt;</span>
-
-    <div class="grid">
-      <div class="cell">
-        <span class="cell-label">Public Tier</span>
-        <secure-select label="Country" name="country" security-tier="public">
-          <option value="">-- Select --</option>
-          <option value="us">United States</option>
-          <option value="uk">United Kingdom</option>
-          <option value="ca">Canada</option>
-          <option value="au">Australia</option>
-        </secure-select>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Authenticated Tier</span>
-        <secure-select label="Department" name="dept" security-tier="authenticated">
-          <option value="">-- Select --</option>
-          <option value="eng">Engineering</option>
-          <option value="hr">Human Resources</option>
-          <option value="fin">Finance</option>
-        </secure-select>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Sensitive Tier</span>
-        <secure-select label="Access Level" name="access" security-tier="sensitive">
-          <option value="">-- Select --</option>
-          <option value="read">Read Only</option>
-          <option value="write">Read/Write</option>
-          <option value="admin">Administrator</option>
-        </secure-select>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Critical Tier</span>
-        <secure-select label="Key Algorithm" name="algo" security-tier="critical">
-          <option value="">-- Select --</option>
-          <option value="rsa">RSA-4096</option>
-          <option value="ecdsa">ECDSA P-384</option>
-          <option value="ed25519">Ed25519</option>
-        </secure-select>
-      </div>
-
-      <hr style="grid-column: 1 / -1;">
-
-      <div class="cell">
-        <span class="cell-label">Required (blur without selecting to see error)</span>
-        <secure-select label="Priority" name="priority" required security-tier="public">
-          <option value="">-- Select --</option>
-          <option value="low">Low</option>
-          <option value="med">Medium</option>
-          <option value="high">High</option>
-        </secure-select>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Disabled</span>
-        <secure-select label="Region" name="region" disabled security-tier="public">
-          <option value="na" selected>North America</option>
-          <option value="eu">Europe</option>
-        </secure-select>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Multiple Selection</span>
-        <secure-select label="Languages" name="langs" multiple size="4" security-tier="public">
-          <option value="en">English</option>
-          <option value="es">Spanish</option>
-          <option value="fr">French</option>
-          <option value="de">German</option>
-          <option value="ja">Japanese</option>
-        </secure-select>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Pre-selected Value</span>
-        <secure-select label="Status" name="status" security-tier="public">
-          <option value="draft">Draft</option>
-          <option value="active" selected>Active</option>
-          <option value="archived">Archived</option>
-        </secure-select>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============================================
-       SECURE DATETIME
-       ============================================ -->
-  <section class="component-section">
-    <h2>Secure DateTime</h2>
-    <span class="tag">&lt;secure-datetime&gt;</span>
-
-    <div class="grid">
-      <div class="cell">
-        <span class="cell-label">Date (Public)</span>
-        <secure-datetime label="Birth Date" name="dob" type="date" security-tier="public"></secure-datetime>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Time (Authenticated)</span>
-        <secure-datetime label="Meeting Time" name="meeting" type="time" security-tier="authenticated"></secure-datetime>
-      </div>
-      <div class="cell">
-        <span class="cell-label">DateTime Local (Sensitive)</span>
-        <secure-datetime label="Appointment" name="appt" type="datetime-local" security-tier="sensitive"></secure-datetime>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Date (Critical)</span>
-        <secure-datetime label="Audit Timestamp" name="audit" type="date" security-tier="critical"></secure-datetime>
-      </div>
-
-      <hr style="grid-column: 1 / -1;">
-
-      <div class="cell">
-        <span class="cell-label">Month Picker</span>
-        <secure-datetime label="Expiry Month" name="expiry" type="month" security-tier="public"></secure-datetime>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Week Picker</span>
-        <secure-datetime label="Sprint Week" name="sprint" type="week" security-tier="public"></secure-datetime>
-      </div>
-      <div class="cell">
-        <span class="cell-label">With Min/Max Range</span>
-        <secure-datetime label="Event Date" name="event" type="date" min="2025-01-01" max="2025-12-31" security-tier="public"></secure-datetime>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Required (blur empty to see error)</span>
-        <secure-datetime label="Start Date" name="start" type="date" required security-tier="public"></secure-datetime>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Disabled</span>
-        <secure-datetime label="Locked Date" name="locked" type="date" value="2025-06-15" disabled security-tier="public"></secure-datetime>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Readonly</span>
-        <secure-datetime label="Record Date" name="record" type="date" value="2025-03-20" readonly security-tier="public"></secure-datetime>
-      </div>
-      <div class="cell">
-        <span class="cell-label">With Timezone</span>
-        <secure-datetime label="Server Time" name="server" type="time" show-timezone security-tier="authenticated"></secure-datetime>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Time with Step (15 min)</span>
-        <secure-datetime label="Slot" name="slot" type="time" step="900" security-tier="public"></secure-datetime>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============================================
-       SECURE FILE UPLOAD
-       ============================================ -->
-  <section class="component-section">
-    <h2>Secure File Upload</h2>
-    <span class="tag">&lt;secure-file-upload&gt;</span>
-
-    <div class="grid">
-      <div class="cell">
-        <span class="cell-label">Public Tier (all common types, 20MB)</span>
-        <secure-file-upload label="Attachments" name="attach" multiple security-tier="public"></secure-file-upload>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Authenticated Tier (10MB)</span>
-        <secure-file-upload label="Document" name="doc" security-tier="authenticated"></secure-file-upload>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Sensitive Tier (5MB)</span>
-        <secure-file-upload label="ID Scan" name="id" accept="image/*,.pdf" security-tier="sensitive"></secure-file-upload>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Critical Tier (PDF/TXT only, 2MB)</span>
-        <secure-file-upload label="Signed Contract" name="contract" accept=".pdf,.txt" security-tier="critical"></secure-file-upload>
-      </div>
-
-      <hr style="grid-column: 1 / -1;">
-
-      <div class="cell">
-        <span class="cell-label">Required</span>
-        <secure-file-upload label="Resume" name="resume" required accept=".pdf,.doc,.docx" security-tier="public"></secure-file-upload>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Disabled</span>
-        <secure-file-upload label="Upload Locked" name="locked" disabled security-tier="public"></secure-file-upload>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Images Only</span>
-        <secure-file-upload label="Profile Photo" name="photo" accept="image/*" security-tier="public"></secure-file-upload>
-      </div>
-      <div class="cell">
-        <span class="cell-label">Custom Max Size (1MB)</span>
-        <secure-file-upload label="Thumbnail" name="thumb" accept="image/*" max-size="1048576" security-tier="public"></secure-file-upload>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============================================
-       SECURE TABLE
-       ============================================ -->
-  <section class="component-section">
-    <h2>Secure Table</h2>
-    <span class="tag">&lt;secure-table&gt;</span>
-
-    <div class="grid grid-wide">
-      <div class="cell">
-        <span class="cell-label">With Sorting, Filtering & Pagination</span>
-        <secure-table id="demo-table"></secure-table>
-      </div>
+      <div class="nav-meta">v0.1.2 &middot; Custom Elements V1</div>
     </div>
 
-    <hr>
-
-    <div class="grid grid-wide">
-      <div class="cell">
-        <span class="cell-label">With Masked Columns (Sensitive & Critical tiers)</span>
-        <secure-table id="masked-table"></secure-table>
-      </div>
+    <div class="nav-section">
+      <div class="nav-label">Components</div>
+      <ul class="nav-links" role="list">
+        <li><a href="#secure-input"       class="nav-link">secure-input</a></li>
+        <li><a href="#secure-textarea"    class="nav-link">secure-textarea</a></li>
+        <li><a href="#secure-select"      class="nav-link">secure-select</a></li>
+        <li><a href="#secure-datetime"    class="nav-link">secure-datetime</a></li>
+        <li><a href="#secure-file-upload" class="nav-link">secure-file-upload</a></li>
+        <li><a href="#secure-table"       class="nav-link">secure-table</a></li>
+        <li><a href="#secure-form"        class="nav-link">secure-form</a></li>
+        <li><a href="#secure-card"        class="nav-link">secure-card</a></li>
+        <li><a href="#secure-telemetry-provider" class="nav-link">secure-telemetry-provider</a></li>
+      </ul>
     </div>
 
-    <hr>
-
-    <div class="grid grid-wide">
-      <div class="cell">
-        <span class="cell-label">Empty State</span>
-        <secure-table id="empty-table"></secure-table>
+    <div class="nav-tier-legend" aria-label="Security tier reference">
+      <div class="nav-label">Security Tiers</div>
+      <div class="legend-items">
+        <div class="legend-item" data-tier="public">
+          <span class="legend-bar" aria-hidden="true"></span>
+          <div class="legend-body">
+            <div class="legend-name">Public</div>
+            <div class="legend-desc">Visible &middot; autocomplete on &middot; minimal audit</div>
+          </div>
+        </div>
+        <div class="legend-item" data-tier="authenticated">
+          <span class="legend-bar" aria-hidden="true"></span>
+          <div class="legend-body">
+            <div class="legend-name">Authenticated</div>
+            <div class="legend-desc">Visible &middot; no autocomplete &middot; changes logged</div>
+          </div>
+        </div>
+        <div class="legend-item" data-tier="sensitive">
+          <span class="legend-bar" aria-hidden="true"></span>
+          <div class="legend-body">
+            <div class="legend-name">Sensitive</div>
+            <div class="legend-desc">Partial mask &middot; 10 req/min &middot; full audit</div>
+          </div>
+        </div>
+        <div class="legend-item" data-tier="critical">
+          <span class="legend-bar" aria-hidden="true"></span>
+          <div class="legend-body">
+            <div class="legend-name">Critical</div>
+            <div class="legend-desc">Full mask &middot; 5 req/min &middot; full audit</div>
+          </div>
+        </div>
       </div>
     </div>
-  </section>
+  </nav>
 
-  <!-- ============================================
-       SECURE FORM
-       ============================================ -->
-  <section class="component-section">
-    <h2>Secure Form</h2>
-    <span class="tag">&lt;secure-form&gt;</span>
+  <main class="main">
 
-    <div class="row">
-      <div class="cell">
-        <span class="cell-label">Contact Form (public) &mdash; all fields validate on blur</span>
-        <secure-form action="/api/contact" method="POST" security-tier="public">
-          <secure-input label="Name" name="form_name" required placeholder="Your name" security-tier="public"></secure-input>
-          <secure-input label="Email" name="form_email" type="email" required pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" placeholder="you@example.com" security-tier="public"></secure-input>
-          <secure-textarea label="Message" name="form_message" required minlength="10" placeholder="At least 10 characters..." security-tier="public"></secure-textarea>
-          <secure-submit-button label="Send"></secure-submit-button>
-        </secure-form>
+    <header class="page-header">
+      <h1 class="page-title">Component Gallery</h1>
+      <p class="page-desc">Live examples of every component across all four security tiers. Interact with fields to observe validation, masking, rate limiting, and audit behaviors.</p>
+      <div class="page-pills">
+        <span class="pill pill-accent">v0.1.2</span>
+        <span class="pill">Zero dependencies</span>
+        <span class="pill">TypeScript strict</span>
+        <span class="pill">Shadow DOM V1</span>
+        <span class="pill">WCAG 2.2 AA</span>
+      </div>
+    </header>
+
+    <!-- ============================================
+         SECURE INPUT
+         ============================================ -->
+    <section id="secure-input" class="component-section">
+      <header class="section-head">
+        <div class="section-title-row">
+          <h2 class="section-name">secure-input</h2>
+          <code class="section-tag">&lt;secure-input&gt;</code>
+        </div>
+        <p class="section-desc">Single-line text input. Sensitive and critical tiers mask the entered value on blur. Rate limiting and structured audit events fire automatically based on tier.</p>
+      </header>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">Security Tiers</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="tier-grid">
+          <div class="tier-cell" data-tier="public">
+            <div class="tier-meta">
+              <span class="tier-name">Public</span>
+              <span class="tier-behaviors">visible &middot; autocomplete on &middot; minimal audit</span>
+            </div>
+            <secure-input label="Username" name="i_pub" placeholder="Enter username" security-tier="public"></secure-input>
+          </div>
+          <div class="tier-cell" data-tier="authenticated">
+            <div class="tier-meta">
+              <span class="tier-name">Authenticated</span>
+              <span class="tier-behaviors">visible &middot; autocomplete off &middot; changes logged</span>
+            </div>
+            <secure-input label="Display Name" name="i_auth" placeholder="Your name" security-tier="authenticated"></secure-input>
+          </div>
+          <div class="tier-cell" data-tier="sensitive">
+            <div class="tier-meta">
+              <span class="tier-name">Sensitive</span>
+              <span class="tier-behaviors">partial mask on blur &middot; autocomplete off &middot; 10/min &middot; full audit</span>
+            </div>
+            <secure-input label="Phone Number" name="i_sens" placeholder="555-0100" security-tier="sensitive"></secure-input>
+          </div>
+          <div class="tier-cell" data-tier="critical">
+            <div class="tier-meta">
+              <span class="tier-name">Critical</span>
+              <span class="tier-behaviors">full mask on blur &middot; autocomplete off &middot; 5/min &middot; full audit</span>
+            </div>
+            <secure-input label="SSN" name="i_crit" placeholder="***-**-****" security-tier="critical"></secure-input>
+          </div>
+        </div>
       </div>
 
-      <div class="cell">
-        <span class="cell-label">Profile Form (sensitive) with CSRF</span>
-        <secure-form action="/api/profile" method="POST" csrf-token="abc123" security-tier="sensitive">
-          <secure-input label="Legal Name" name="legal_name" required security-tier="sensitive"></secure-input>
-          <secure-input label="Tax ID" name="tax_id" required security-tier="critical"></secure-input>
-          <secure-select label="Country" name="form_country" required security-tier="sensitive">
-            <option value="">-- Select --</option>
-            <option value="us">United States</option>
-            <option value="uk">United Kingdom</option>
-          </secure-select>
-          <secure-datetime label="Date of Birth" name="form_dob" type="date" required security-tier="sensitive"></secure-datetime>
-          <secure-submit-button label="Save Profile"></secure-submit-button>
-        </secure-form>
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">Validation &amp; States</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="states-grid">
+          <div class="state-cell">
+            <div class="state-label">Required — blur empty to trigger</div>
+            <secure-input label="Full Name" name="i_req" required placeholder="Required field" security-tier="public"></secure-input>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Email + pattern constraint</div>
+            <secure-input label="Email" name="i_email" type="email" pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" required placeholder="user@example.com" security-tier="public"></secure-input>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Pattern — letters only</div>
+            <secure-input label="First Name" name="i_pat" pattern="^[A-Za-z]+$" placeholder="Try entering numbers" security-tier="public"></secure-input>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Min length — 5 chars</div>
+            <secure-input label="Username" name="i_minl" minlength="5" placeholder="At least 5 characters" security-tier="public"></secure-input>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Password — sensitive tier</div>
+            <secure-input label="Password" name="i_pass" type="password" required minlength="8" placeholder="Min 8 characters" security-tier="sensitive"></secure-input>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Max length — 10 chars</div>
+            <secure-input label="Nickname" name="i_maxl" maxlength="10" placeholder="Max 10 chars" security-tier="public"></secure-input>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Disabled</div>
+            <secure-input label="Account ID" name="i_dis" value="ACC-12345" disabled security-tier="public"></secure-input>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Readonly</div>
+            <secure-input label="Created Date" name="i_ro" value="2025-01-15" readonly security-tier="public"></secure-input>
+          </div>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- Form data dialog -->
-  <dialog id="form-data-dialog">
+    <!-- ============================================
+         SECURE TEXTAREA
+         ============================================ -->
+    <section id="secure-textarea" class="component-section">
+      <header class="section-head">
+        <div class="section-title-row">
+          <h2 class="section-name">secure-textarea</h2>
+          <code class="section-tag">&lt;secure-textarea&gt;</code>
+        </div>
+        <p class="section-desc">Multi-line text area with optional character counter. Tier-based masking, rate limiting, and structured audit events match those of secure-input.</p>
+      </header>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">Security Tiers</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="tier-grid">
+          <div class="tier-cell" data-tier="public">
+            <div class="tier-meta">
+              <span class="tier-name">Public</span>
+              <span class="tier-behaviors">visible &middot; minimal audit</span>
+            </div>
+            <secure-textarea label="Comments" name="ta_pub" placeholder="Leave a comment..." security-tier="public"></secure-textarea>
+          </div>
+          <div class="tier-cell" data-tier="authenticated">
+            <div class="tier-meta">
+              <span class="tier-name">Authenticated</span>
+              <span class="tier-behaviors">visible &middot; changes logged</span>
+            </div>
+            <secure-textarea label="Notes" name="ta_auth" placeholder="Internal notes..." security-tier="authenticated"></secure-textarea>
+          </div>
+          <div class="tier-cell" data-tier="sensitive">
+            <div class="tier-meta">
+              <span class="tier-name">Sensitive</span>
+              <span class="tier-behaviors">partial mask &middot; 10/min &middot; full audit</span>
+            </div>
+            <secure-textarea label="Medical Notes" name="ta_sens" placeholder="Confidential content..." security-tier="sensitive"></secure-textarea>
+          </div>
+          <div class="tier-cell" data-tier="critical">
+            <div class="tier-meta">
+              <span class="tier-name">Critical</span>
+              <span class="tier-behaviors">full mask &middot; 5/min &middot; full audit</span>
+            </div>
+            <secure-textarea label="Encryption Key" name="ta_crit" placeholder="Paste key here..." security-tier="critical" rows="3"></secure-textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">States</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="states-grid">
+          <div class="state-cell">
+            <div class="state-label">Required — blur empty to trigger</div>
+            <secure-textarea label="Bio" name="ta_req" required placeholder="Required field" security-tier="public"></secure-textarea>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Max length + character counter</div>
+            <secure-textarea label="Summary" name="ta_max" maxlength="100" placeholder="100 character limit" security-tier="public"></secure-textarea>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Min length — 20 chars</div>
+            <secure-textarea label="Description" name="ta_min" minlength="20" placeholder="At least 20 characters" security-tier="public"></secure-textarea>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Custom rows — 6</div>
+            <secure-textarea label="Long Form" name="ta_rows" rows="6" placeholder="Taller textarea" security-tier="public"></secure-textarea>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Disabled</div>
+            <secure-textarea label="System Log" name="ta_dis" disabled security-tier="public">System initialized successfully.</secure-textarea>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Readonly</div>
+            <secure-textarea label="Terms" name="ta_ro" readonly security-tier="public">These are the terms of service. This content cannot be edited.</secure-textarea>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================
+         SECURE SELECT
+         ============================================ -->
+    <section id="secure-select" class="component-section">
+      <header class="section-head">
+        <div class="section-title-row">
+          <h2 class="section-name">secure-select</h2>
+          <code class="section-tag">&lt;secure-select&gt;</code>
+        </div>
+        <p class="section-desc">Dropdown and multi-select. Selection changes are audit-logged at authenticated tier and above. Fail-secure default is critical tier if attribute is absent or invalid.</p>
+      </header>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">Security Tiers</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="tier-grid">
+          <div class="tier-cell" data-tier="public">
+            <div class="tier-meta">
+              <span class="tier-name">Public</span>
+              <span class="tier-behaviors">visible &middot; minimal audit</span>
+            </div>
+            <secure-select label="Country" name="s_pub" security-tier="public">
+              <option value="">— Select —</option>
+              <option value="us">United States</option>
+              <option value="uk">United Kingdom</option>
+              <option value="ca">Canada</option>
+              <option value="au">Australia</option>
+            </secure-select>
+          </div>
+          <div class="tier-cell" data-tier="authenticated">
+            <div class="tier-meta">
+              <span class="tier-name">Authenticated</span>
+              <span class="tier-behaviors">visible &middot; changes logged</span>
+            </div>
+            <secure-select label="Department" name="s_auth" security-tier="authenticated">
+              <option value="">— Select —</option>
+              <option value="eng">Engineering</option>
+              <option value="hr">Human Resources</option>
+              <option value="fin">Finance</option>
+            </secure-select>
+          </div>
+          <div class="tier-cell" data-tier="sensitive">
+            <div class="tier-meta">
+              <span class="tier-name">Sensitive</span>
+              <span class="tier-behaviors">changes audited &middot; 10/min</span>
+            </div>
+            <secure-select label="Access Level" name="s_sens" security-tier="sensitive">
+              <option value="">— Select —</option>
+              <option value="read">Read Only</option>
+              <option value="write">Read / Write</option>
+              <option value="admin">Administrator</option>
+            </secure-select>
+          </div>
+          <div class="tier-cell" data-tier="critical">
+            <div class="tier-meta">
+              <span class="tier-name">Critical</span>
+              <span class="tier-behaviors">full audit &middot; 5/min</span>
+            </div>
+            <secure-select label="Key Algorithm" name="s_crit" security-tier="critical">
+              <option value="">— Select —</option>
+              <option value="rsa">RSA-4096</option>
+              <option value="ecdsa">ECDSA P-384</option>
+              <option value="ed25519">Ed25519</option>
+            </secure-select>
+          </div>
+        </div>
+      </div>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">States</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="states-grid">
+          <div class="state-cell">
+            <div class="state-label">Required — blur without selecting</div>
+            <secure-select label="Priority" name="s_req" required security-tier="public">
+              <option value="">— Select —</option>
+              <option value="low">Low</option>
+              <option value="med">Medium</option>
+              <option value="high">High</option>
+            </secure-select>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Pre-selected value</div>
+            <secure-select label="Status" name="s_pre" security-tier="public">
+              <option value="draft">Draft</option>
+              <option value="active" selected>Active</option>
+              <option value="archived">Archived</option>
+            </secure-select>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Multiple selection</div>
+            <secure-select label="Languages" name="s_multi" multiple size="4" security-tier="public">
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="ja">Japanese</option>
+            </secure-select>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Disabled</div>
+            <secure-select label="Region" name="s_dis" disabled security-tier="public">
+              <option value="na" selected>North America</option>
+              <option value="eu">Europe</option>
+            </secure-select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================
+         SECURE DATETIME
+         ============================================ -->
+    <section id="secure-datetime" class="component-section">
+      <header class="section-head">
+        <div class="section-title-row">
+          <h2 class="section-name">secure-datetime</h2>
+          <code class="section-tag">&lt;secure-datetime&gt;</code>
+        </div>
+        <p class="section-desc">Date, time, and datetime-local picker variants. Supports min/max constraints, step granularity, and optional timezone display. Audit events fire on value change.</p>
+      </header>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">Types across tiers</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="tier-grid">
+          <div class="tier-cell" data-tier="public">
+            <div class="tier-meta">
+              <span class="tier-name">Date &mdash; Public</span>
+              <span class="tier-behaviors">type="date" &middot; minimal audit</span>
+            </div>
+            <secure-datetime label="Birth Date" name="dt_date" type="date" security-tier="public"></secure-datetime>
+          </div>
+          <div class="tier-cell" data-tier="authenticated">
+            <div class="tier-meta">
+              <span class="tier-name">Time &mdash; Authenticated</span>
+              <span class="tier-behaviors">type="time" &middot; changes logged</span>
+            </div>
+            <secure-datetime label="Meeting Time" name="dt_time" type="time" security-tier="authenticated"></secure-datetime>
+          </div>
+          <div class="tier-cell" data-tier="sensitive">
+            <div class="tier-meta">
+              <span class="tier-name">DateTime &mdash; Sensitive</span>
+              <span class="tier-behaviors">type="datetime-local" &middot; 10/min &middot; full audit</span>
+            </div>
+            <secure-datetime label="Appointment" name="dt_dtl" type="datetime-local" security-tier="sensitive"></secure-datetime>
+          </div>
+          <div class="tier-cell" data-tier="critical">
+            <div class="tier-meta">
+              <span class="tier-name">Date &mdash; Critical</span>
+              <span class="tier-behaviors">type="date" &middot; 5/min &middot; full audit</span>
+            </div>
+            <secure-datetime label="Audit Timestamp" name="dt_crit" type="date" security-tier="critical"></secure-datetime>
+          </div>
+        </div>
+      </div>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">Variants &amp; States</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="states-grid">
+          <div class="state-cell">
+            <div class="state-label">Month picker</div>
+            <secure-datetime label="Expiry Month" name="dt_month" type="month" security-tier="public"></secure-datetime>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Week picker</div>
+            <secure-datetime label="Sprint Week" name="dt_week" type="week" security-tier="public"></secure-datetime>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Min / max range</div>
+            <secure-datetime label="Event Date" name="dt_range" type="date" min="2025-01-01" max="2025-12-31" security-tier="public"></secure-datetime>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Time with timezone</div>
+            <secure-datetime label="Server Time" name="dt_tz" type="time" show-timezone security-tier="authenticated"></secure-datetime>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Time step — 15 min</div>
+            <secure-datetime label="Slot" name="dt_step" type="time" step="900" security-tier="public"></secure-datetime>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Required — blur empty to trigger</div>
+            <secure-datetime label="Start Date" name="dt_req" type="date" required security-tier="public"></secure-datetime>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Disabled</div>
+            <secure-datetime label="Locked Date" name="dt_dis" type="date" value="2025-06-15" disabled security-tier="public"></secure-datetime>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Readonly</div>
+            <secure-datetime label="Record Date" name="dt_ro" type="date" value="2025-03-20" readonly security-tier="public"></secure-datetime>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================
+         SECURE FILE UPLOAD
+         ============================================ -->
+    <section id="secure-file-upload" class="component-section">
+      <header class="section-head">
+        <div class="section-title-row">
+          <h2 class="section-name">secure-file-upload</h2>
+          <code class="section-tag">&lt;secure-file-upload&gt;</code>
+        </div>
+        <p class="section-desc">Drag-and-drop file input with tier-enforced size limits and accept constraints. Critical tier restricts to 2 MB; sensitive to 5 MB. Every upload is audit-logged.</p>
+      </header>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">Security Tiers</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="tier-grid">
+          <div class="tier-cell" data-tier="public">
+            <div class="tier-meta">
+              <span class="tier-name">Public</span>
+              <span class="tier-behaviors">all common types &middot; 20 MB max</span>
+            </div>
+            <secure-file-upload label="Attachments" name="f_pub" multiple security-tier="public"></secure-file-upload>
+          </div>
+          <div class="tier-cell" data-tier="authenticated">
+            <div class="tier-meta">
+              <span class="tier-name">Authenticated</span>
+              <span class="tier-behaviors">all common types &middot; 10 MB max &middot; upload logged</span>
+            </div>
+            <secure-file-upload label="Document" name="f_auth" security-tier="authenticated"></secure-file-upload>
+          </div>
+          <div class="tier-cell" data-tier="sensitive">
+            <div class="tier-meta">
+              <span class="tier-name">Sensitive</span>
+              <span class="tier-behaviors">image/* + .pdf &middot; 5 MB max &middot; full audit</span>
+            </div>
+            <secure-file-upload label="ID Scan" name="f_sens" accept="image/*,.pdf" security-tier="sensitive"></secure-file-upload>
+          </div>
+          <div class="tier-cell" data-tier="critical">
+            <div class="tier-meta">
+              <span class="tier-name">Critical</span>
+              <span class="tier-behaviors">.pdf + .txt only &middot; 2 MB max &middot; full audit</span>
+            </div>
+            <secure-file-upload label="Signed Contract" name="f_crit" accept=".pdf,.txt" security-tier="critical"></secure-file-upload>
+          </div>
+        </div>
+      </div>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">States</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="states-grid">
+          <div class="state-cell">
+            <div class="state-label">Required</div>
+            <secure-file-upload label="Resume" name="f_req" required accept=".pdf,.doc,.docx" security-tier="public"></secure-file-upload>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Images only</div>
+            <secure-file-upload label="Profile Photo" name="f_img" accept="image/*" security-tier="public"></secure-file-upload>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Custom max size — 1 MB</div>
+            <secure-file-upload label="Thumbnail" name="f_maxsz" accept="image/*" max-size="1048576" security-tier="public"></secure-file-upload>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Disabled</div>
+            <secure-file-upload label="Upload Locked" name="f_dis" disabled security-tier="public"></secure-file-upload>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================
+         SECURE CARD
+         ============================================ -->
+    <section id="secure-card" class="component-section">
+      <header class="section-head">
+        <div class="section-title-row">
+          <h2 class="section-name">secure-card</h2>
+          <code class="section-tag">&lt;secure-card&gt;</code>
+        </div>
+        <p class="section-desc">Composite payment card input with live 3D preview. Always locked to critical tier. Luhn validation on card number; expiry validated against current date. Card network detected from number prefix.</p>
+      </header>
+
+      <div class="callout">
+        <span class="callout-icon">&#9432;</span>
+        <span><strong>PCI model:</strong> The full PAN is never included in events, audit logs, or hidden inputs. The CVC is never stored, logged, or transmitted — not even to your own server. Use <code style="font-family:var(--font-mono);font-size:0.75em;background:var(--surface-2);padding:0.1em 0.3em;border-radius:2px;">getCardData()</code> exclusively for PCI-compliant SDK tokenisation (e.g. Stripe.js). Hidden inputs carry only the last-4 and expiry.</span>
+      </div>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">Variants</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="wide-grid">
+          <div class="wide-cell">
+            <div class="wide-label">Standard &mdash; card number · expiry · CVC</div>
+            <secure-card name="card_standard" label="Payment details"></secure-card>
+          </div>
+          <div class="wide-cell">
+            <div class="wide-label">With cardholder name &mdash; show-name attribute</div>
+            <secure-card name="card_named" label="Payment details" show-name></secure-card>
+          </div>
+        </div>
+      </div>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">States</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="states-grid">
+          <div class="state-cell">
+            <div class="state-label">Disabled</div>
+            <secure-card name="card_disabled" label="Payment details" disabled></secure-card>
+          </div>
+          <div class="state-cell">
+            <div class="state-label">Validation — blur each field empty to trigger</div>
+            <secure-card name="card_validate" label="Validate all fields"></secure-card>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================
+         SECURE TABLE
+         ============================================ -->
+    <section id="secure-table" class="component-section">
+      <header class="section-head">
+        <div class="section-title-row">
+          <h2 class="section-name">secure-table</h2>
+          <code class="section-tag">&lt;secure-table&gt;</code>
+        </div>
+        <p class="section-desc">Data table with sortable and filterable columns, pagination, and per-column security tiers. Sensitive and critical columns are automatically masked in the rendered output.</p>
+      </header>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">Sorting, filtering &amp; pagination</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="full-cell">
+          <div class="full-label">Click column headers to sort &middot; Use the filter inputs to search</div>
+          <secure-table id="demo-table"></secure-table>
+        </div>
+      </div>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">Per-column security tiers — masked data</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="callout">
+          <span class="callout-icon">&#9432;</span>
+          <span>Email and Phone are <strong>sensitive</strong> tier (partial mask). SSN is <strong>critical</strong> tier (full mask). Name is <strong>public</strong> and unmasked.</span>
+        </div>
+        <div class="full-cell">
+          <div class="full-label">Masked columns</div>
+          <secure-table id="masked-table"></secure-table>
+        </div>
+      </div>
+
+      <div class="example-group">
+        <div class="group-head">
+          <span class="group-title">Empty state</span>
+          <span class="group-rule" aria-hidden="true"></span>
+        </div>
+        <div class="full-cell">
+          <div class="full-label">No data provided</div>
+          <secure-table id="empty-table"></secure-table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================
+         SECURE FORM
+         ============================================ -->
+    <section id="secure-form" class="component-section">
+      <header class="section-head">
+        <div class="section-title-row">
+          <h2 class="section-name">secure-form</h2>
+          <code class="section-tag">&lt;secure-form&gt;</code>
+        </div>
+        <p class="section-desc">Form wrapper with built-in CSRF token injection, coordinated field validation before submit, telemetry aggregation, and a single structured fetch payload. Submit triggers a dialog showing collected data.</p>
+      </header>
+
+      <div class="callout">
+        <span class="callout-icon">&#9432;</span>
+        <span>Submitting either form below intercepts the request and displays the serialised payload — including CSRF token if set — for inspection.</span>
+      </div>
+
+      <div class="wide-grid">
+        <div class="wide-cell">
+          <div class="wide-label">Contact form &mdash; public tier &mdash; all fields validate on blur</div>
+          <secure-form action="/api/contact" method="POST" security-tier="public">
+            <secure-input label="Name" name="f_name" required placeholder="Your name" security-tier="public"></secure-input>
+            <secure-input label="Email" name="f_email" type="email" required pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" placeholder="you@example.com" security-tier="public"></secure-input>
+            <secure-textarea label="Message" name="f_message" required minlength="10" placeholder="At least 10 characters..." security-tier="public"></secure-textarea>
+            <secure-submit-button label="Send Message"></secure-submit-button>
+          </secure-form>
+        </div>
+        <div class="wide-cell">
+          <div class="wide-label">Profile form &mdash; sensitive tier &mdash; CSRF token injected</div>
+          <secure-form action="/api/profile" method="POST" csrf-token="abc123demo" security-tier="sensitive">
+            <secure-input label="Legal Name" name="f_legal" required security-tier="sensitive"></secure-input>
+            <secure-input label="Tax ID" name="f_taxid" required security-tier="critical"></secure-input>
+            <secure-select label="Country" name="f_country" required security-tier="sensitive">
+              <option value="">— Select —</option>
+              <option value="us">United States</option>
+              <option value="uk">United Kingdom</option>
+              <option value="ca">Canada</option>
+            </secure-select>
+            <secure-datetime label="Date of Birth" name="f_dob" type="date" required security-tier="sensitive"></secure-datetime>
+            <secure-submit-button label="Save Profile"></secure-submit-button>
+          </secure-form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================
+         SECURE TELEMETRY PROVIDER
+         ============================================ -->
+    <section id="secure-telemetry-provider" class="component-section">
+      <header class="section-head">
+        <div class="section-title-row">
+          <h2 class="section-name">secure-telemetry-provider</h2>
+          <code class="section-tag">&lt;secure-telemetry-provider&gt;</code>
+        </div>
+        <p class="section-desc">Optional wrapper that enriches every <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--surface-2);padding:0.1em 0.3em;border-radius:2px;">secure-form-submit</code> event with a signed environmental signals envelope. Detects automation flags, headless browsers, script injection, pointer type, and devtools state. Signs with HMAC-SHA-256 via SubtleCrypto.</p>
+      </header>
+
+      <div class="callout">
+        <span class="callout-icon">&#9432;</span>
+        <span>Wrap any <code style="font-family:var(--font-mono);font-size:0.75em;background:var(--surface-2);padding:0.1em 0.3em;border-radius:2px;">&lt;secure-form&gt;</code> with this component and provide a <code style="font-family:var(--font-mono);font-size:0.75em;background:var(--surface-2);padding:0.1em 0.3em;border-radius:2px;">signing-key</code> attribute. The signed <code style="font-family:var(--font-mono);font-size:0.75em;background:var(--surface-2);padding:0.1em 0.3em;border-radius:2px;">_env</code> envelope is injected onto <code style="font-family:var(--font-mono);font-size:0.75em;background:var(--surface-2);padding:0.1em 0.3em;border-radius:2px;">detail.telemetry</code> asynchronously before the request fires. Verify the HMAC server-side with the same key.</span>
+      </div>
+
+      <secure-telemetry-provider id="tp-demo" signing-key="demo-session-key-2024">
+        <div class="wide-grid">
+
+          <div class="wide-cell">
+            <div class="wide-label">Live environmental signals &mdash; read via getEnvironmentalSignals()</div>
+            <div class="signals-panel">
+              <div class="signals-panel-header">
+                <span class="signals-panel-title">EnvironmentalSignals</span>
+                <button class="btn-sm" id="scan-signals-btn" type="button">Scan now</button>
+              </div>
+              <div id="signals-output">
+                <p class="signal-empty">Click &ldquo;Scan now&rdquo; to collect a point-in-time snapshot of environment signals.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="wide-cell">
+            <div class="wide-label">Demo form &mdash; submit to inspect telemetry + signed _env envelope</div>
+            <secure-form id="tp-form" action="/api/telemetry-demo" method="POST" csrf-token="tp-csrf-demo" security-tier="authenticated">
+              <secure-input label="Username" name="tp_user" required placeholder="Enter username" security-tier="authenticated"></secure-input>
+              <secure-input label="Email" name="tp_email" type="email" required pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" placeholder="you@example.com" security-tier="authenticated"></secure-input>
+              <secure-submit-button label="Submit &amp; Inspect Telemetry"></secure-submit-button>
+            </secure-form>
+          </div>
+
+        </div>
+      </secure-telemetry-provider>
+    </section>
+
+  </main>
+
+  <!-- Form data inspection dialog -->
+  <dialog id="form-dialog" aria-labelledby="dialog-heading">
     <div class="dialog-header">
-      <h3 id="dialog-title">Form Data</h3>
-      <button class="dialog-close" aria-label="Close">&times;</button>
+      <h3 class="dialog-title" id="dialog-heading">Form Payload</h3>
+      <button class="dialog-close-btn" aria-label="Close dialog">&times;</button>
     </div>
     <div class="dialog-body">
-      <table><tbody id="dialog-table-body"></tbody></table>
+      <table><tbody id="dialog-rows"></tbody></table>
     </div>
     <div class="dialog-footer">
-      <button class="dialog-close">Close</button>
+      <button class="btn dialog-close-btn">Close</button>
     </div>
   </dialog>
 
-  <!-- ============================================
-       SETUP SCRIPT
-       ============================================ -->
   <script type="module">
-    // Wait for custom elements to be defined
     await Promise.all([
       customElements.whenDefined('secure-table'),
       customElements.whenDefined('secure-form'),
-      customElements.whenDefined('secure-submit-button')
+      customElements.whenDefined('secure-submit-button'),
+      customElements.whenDefined('secure-card'),
+      customElements.whenDefined('secure-telemetry-provider'),
     ]);
 
-    // Demo table — sortable, filterable
+    // ── Sortable / filterable table ──────────────────────────────────────
     const demoTable = document.getElementById('demo-table');
     if (demoTable) {
       demoTable.columns = [
-        { key: 'id', label: 'ID', sortable: true, width: '60px' },
-        { key: 'name', label: 'Name', sortable: true, filterable: true },
-        { key: 'email', label: 'Email', sortable: true, filterable: true },
-        { key: 'role', label: 'Role', sortable: true, filterable: true },
-        { key: 'status', label: 'Status', sortable: true }
+        { key: 'id',     label: 'ID',     sortable: true, width: '56px' },
+        { key: 'name',   label: 'Name',   sortable: true, filterable: true },
+        { key: 'email',  label: 'Email',  sortable: true, filterable: true },
+        { key: 'role',   label: 'Role',   sortable: true, filterable: true },
+        { key: 'status', label: 'Status', sortable: true },
       ];
       demoTable.data = [
-        { id: 1, name: 'Alice Johnson', email: 'alice@example.com', role: 'Admin', status: 'Active' },
-        { id: 2, name: 'Bob Smith', email: 'bob@example.com', role: 'Editor', status: 'Active' },
-        { id: 3, name: 'Carol White', email: 'carol@example.com', role: 'Viewer', status: 'Inactive' },
-        { id: 4, name: 'David Brown', email: 'david@example.com', role: 'Editor', status: 'Active' },
-        { id: 5, name: 'Eve Davis', email: 'eve@example.com', role: 'Admin', status: 'Active' },
-        { id: 6, name: 'Frank Wilson', email: 'frank@example.com', role: 'Viewer', status: 'Inactive' },
-        { id: 7, name: 'Grace Lee', email: 'grace@example.com', role: 'Editor', status: 'Active' },
-        { id: 8, name: 'Hank Miller', email: 'hank@example.com', role: 'Viewer', status: 'Active' },
-        { id: 9, name: 'Ivy Chen', email: 'ivy@example.com', role: 'Admin', status: 'Active' },
-        { id: 10, name: 'Jack Taylor', email: 'jack@example.com', role: 'Editor', status: 'Inactive' },
-        { id: 11, name: 'Karen Moore', email: 'karen@example.com', role: 'Viewer', status: 'Active' },
-        { id: 12, name: 'Leo Garcia', email: 'leo@example.com', role: 'Editor', status: 'Active' }
+        { id: 1,  name: 'Alice Johnson', email: 'alice@example.com',  role: 'Admin',  status: 'Active'   },
+        { id: 2,  name: 'Bob Smith',     email: 'bob@example.com',    role: 'Editor', status: 'Active'   },
+        { id: 3,  name: 'Carol White',   email: 'carol@example.com',  role: 'Viewer', status: 'Inactive' },
+        { id: 4,  name: 'David Brown',   email: 'david@example.com',  role: 'Editor', status: 'Active'   },
+        { id: 5,  name: 'Eve Davis',     email: 'eve@example.com',    role: 'Admin',  status: 'Active'   },
+        { id: 6,  name: 'Frank Wilson',  email: 'frank@example.com',  role: 'Viewer', status: 'Inactive' },
+        { id: 7,  name: 'Grace Lee',     email: 'grace@example.com',  role: 'Editor', status: 'Active'   },
+        { id: 8,  name: 'Hank Miller',   email: 'hank@example.com',   role: 'Viewer', status: 'Active'   },
+        { id: 9,  name: 'Ivy Chen',      email: 'ivy@example.com',    role: 'Admin',  status: 'Active'   },
+        { id: 10, name: 'Jack Taylor',   email: 'jack@example.com',   role: 'Editor', status: 'Inactive' },
+        { id: 11, name: 'Karen Moore',   email: 'karen@example.com',  role: 'Viewer', status: 'Active'   },
+        { id: 12, name: 'Leo Garcia',    email: 'leo@example.com',    role: 'Editor', status: 'Active'   },
       ];
     }
 
-    // Masked table — sensitive/critical column tiers
+    // ── Masked-column table ──────────────────────────────────────────────
     const maskedTable = document.getElementById('masked-table');
     if (maskedTable) {
       maskedTable.columns = [
-        { key: 'id', label: 'ID', width: '60px' },
-        { key: 'name', label: 'Name', tier: 'public' },
-        { key: 'email', label: 'Email', tier: 'sensitive' },
-        { key: 'ssn', label: 'SSN', tier: 'critical' },
-        { key: 'phone', label: 'Phone', tier: 'sensitive' }
+        { key: 'id',    label: 'ID',    width: '56px', tier: 'public'    },
+        { key: 'name',  label: 'Name',  tier: 'public'                   },
+        { key: 'email', label: 'Email', tier: 'sensitive'                },
+        { key: 'ssn',   label: 'SSN',   tier: 'critical'                 },
+        { key: 'phone', label: 'Phone', tier: 'sensitive'                },
       ];
       maskedTable.data = [
         { id: 1, name: 'Alice Johnson', email: 'alice@example.com', ssn: '123-45-6789', phone: '555-0101' },
-        { id: 2, name: 'Bob Smith', email: 'bob@example.com', ssn: '987-65-4321', phone: '555-0102' },
-        { id: 3, name: 'Carol White', email: 'carol@example.com', ssn: '456-78-9012', phone: '555-0103' }
+        { id: 2, name: 'Bob Smith',     email: 'bob@example.com',   ssn: '987-65-4321', phone: '555-0102' },
+        { id: 3, name: 'Carol White',   email: 'carol@example.com', ssn: '456-78-9012', phone: '555-0103' },
       ];
     }
 
-    // Empty table
+    // ── Empty table ──────────────────────────────────────────────────────
     const emptyTable = document.getElementById('empty-table');
     if (emptyTable) {
       emptyTable.columns = [
-        { key: 'id', label: 'ID' },
-        { key: 'name', label: 'Name' },
-        { key: 'value', label: 'Value' }
+        { key: 'id',    label: 'ID'    },
+        { key: 'name',  label: 'Name'  },
+        { key: 'value', label: 'Value' },
       ];
       emptyTable.data = [];
     }
 
-    // ---- Form Submit → Dialog ----
-    const dialog = document.getElementById('form-data-dialog');
-    const dialogTitle = document.getElementById('dialog-title');
-    const dialogTableBody = document.getElementById('dialog-table-body');
+    // ── Form submit → dialog ─────────────────────────────────────────────
+    const dialog    = document.getElementById('form-dialog');
+    const dialogRows = document.getElementById('dialog-rows');
 
-    // Close buttons
-    dialog.querySelectorAll('.dialog-close').forEach(btn => {
+    dialog.querySelectorAll('.dialog-close-btn').forEach(btn => {
       btn.addEventListener('click', () => dialog.close());
     });
 
-    // Backdrop click closes dialog
-    dialog.addEventListener('click', (e) => {
-      if (e.target === dialog) dialog.close();
-    });
+    dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
 
-    // Map each secure-form to a friendly title
-    const formTitles = new Map();
-    document.querySelectorAll('secure-form').forEach(sf => {
-      const cellLabel = sf.closest('.cell')?.querySelector('.cell-label');
-      formTitles.set(sf, cellLabel ? cellLabel.textContent : 'Form Data');
-    });
-
-    // Intercept submit on each secure-form
-    document.querySelectorAll('secure-form').forEach(secureForm => {
-      secureForm.addEventListener('submit', (e) => {
+    document.querySelectorAll('secure-form').forEach(form => {
+      form.addEventListener('submit', e => {
         e.preventDefault();
-
-        // Collect data via the component API
-        const data = secureForm.getData();
-
-        // Populate dialog table
-        dialogTableBody.innerHTML = '';
+        const data = form.getData();
+        dialogRows.innerHTML = '';
         for (const [key, value] of Object.entries(data)) {
           const tr = document.createElement('tr');
           const th = document.createElement('th');
           th.textContent = key;
           const td = document.createElement('td');
           td.textContent = value || '(empty)';
-          tr.appendChild(th);
-          tr.appendChild(td);
-          dialogTableBody.appendChild(tr);
+          tr.append(th, td);
+          dialogRows.appendChild(tr);
         }
-
-        // Set title and show
-        dialogTitle.textContent = formTitles.get(secureForm) || 'Form Data';
         dialog.showModal();
       });
     });
+
+    // ── Telemetry provider: scan signals ────────────────────────────────────
+    const tp = document.getElementById('tp-demo');
+    const signalsOutput = document.getElementById('signals-output');
+
+    document.getElementById('scan-signals-btn')?.addEventListener('click', () => {
+      const signals = tp?.getEnvironmentalSignals?.();
+      if (!signals || !signalsOutput) return;
+
+      signalsOutput.innerHTML = '';
+      const rows = document.createElement('div');
+      rows.className = 'signal-rows';
+
+      // Flag values that indicate potential automation
+      const flaggedKeys = new Set([
+        'webdriverDetected', 'headlessDetected', 'domMutationDetected', 'devtoolsOpen', 'suspiciousScreenSize',
+      ]);
+
+      for (const [key, value] of Object.entries(signals)) {
+        const row = document.createElement('div');
+        const isFlagged = flaggedKeys.has(key) && value === true;
+        const isClean  = flaggedKeys.has(key) && value === false;
+        row.className = `signal-row${isFlagged ? ' is-flagged' : ''}${isClean ? ' is-clean' : ''}`;
+        const keyEl = document.createElement('span');
+        keyEl.className = 'signal-key';
+        keyEl.textContent = key;
+        const valEl = document.createElement('span');
+        valEl.className = 'signal-val';
+        valEl.textContent = JSON.stringify(value);
+        row.append(keyEl, valEl);
+        rows.appendChild(row);
+      }
+      signalsOutput.appendChild(rows);
+    });
+
+    // ── Telemetry provider: intercept form submit ───────────────────────────
+    const tpForm = document.getElementById('tp-form');
+    if (tpForm) {
+      // Prevent the real fetch for demo purposes
+      tpForm.addEventListener('submit', e => e.preventDefault());
+    }
+
+    if (tp) {
+      tp.addEventListener('secure-form-submit', async (e) => {
+        // Wait one tick for the async HMAC signing to complete
+        await new Promise(r => setTimeout(r, 100));
+
+        const detail = e.detail;
+        const tel = detail?.telemetry;
+
+        dialogRows.innerHTML = '';
+        document.getElementById('dialog-heading').textContent = 'Telemetry + Signed Envelope';
+
+        const addRow = (key, value) => {
+          const tr = document.createElement('tr');
+          const th = document.createElement('th');
+          th.textContent = key;
+          const td = document.createElement('td');
+          td.textContent = String(value ?? '—');
+          tr.append(th, td);
+          dialogRows.appendChild(tr);
+        };
+
+        if (tel) {
+          addRow('riskScore',  tel.riskScore ?? 0);
+          addRow('riskFlags',  (tel.riskFlags ?? []).join(', ') || 'none');
+          addRow('sessionDuration', `${tel.sessionDurationMs ?? 0}ms`);
+          addRow('fieldCount', tel.fields ? Object.keys(tel.fields).length : 0);
+
+          const env = tel._env;
+          if (env) {
+            addRow('— envelope —', '');
+            addRow('_env.nonce',     env.nonce);
+            addRow('_env.issuedAt',  env.issuedAt);
+            addRow('_env.signature', env.signature ? `${env.signature.slice(0, 20)}…` : '(unsigned — non-secure context)');
+            if (env.environment) {
+              addRow('— environment —', '');
+              for (const [k, v] of Object.entries(env.environment)) {
+                addRow(`env.${k}`, JSON.stringify(v));
+              }
+            }
+          } else {
+            addRow('_env', '(signing pending or non-secure context)');
+          }
+        } else {
+          addRow('telemetry', '(not available)');
+        }
+
+        dialog.showModal();
+      });
+    }
+
+    // ── Active nav link on scroll ────────────────────────────────────────
+    const sections = document.querySelectorAll('.component-section[id]');
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          navLinks.forEach(link => {
+            link.classList.toggle('active', link.getAttribute('href') === `#${entry.target.id}`);
+          });
+        }
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+
+    sections.forEach(s => observer.observe(s));
   </script>
 
 </body>
