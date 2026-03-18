@@ -172,15 +172,78 @@ describe('SecureDatetime', () => {
     it('should reject invalid date format', () => {
       datetime.value = '01/15/2024'; // Wrong format
 
-      // Either value is rejected or marked invalid
-      expect(datetime.value !== '01/15/2024' || !datetime.valid).toBe(true);
+      // Value must be rejected (empty) OR component must mark it invalid
+      if (datetime.value === '01/15/2024') {
+        expect(datetime.valid).toBe(false);
+      } else {
+        expect(datetime.value).toBe('');
+      }
     });
 
-    it('should reject invalid date values', () => {
-      datetime.value = '2024-13-45'; // Invalid month and day
+    it('should reject dates with invalid month (13)', () => {
+      datetime.value = '2024-13-01';
 
-      // Should be invalid
+      // Month 13 does not exist — must be rejected or marked invalid
+      if (datetime.value === '2024-13-01') {
+        expect(datetime.valid).toBe(false);
+      } else {
+        expect(datetime.value).toBe('');
+      }
+    });
+
+    it('should reject dates with zero month (00)', () => {
+      datetime.value = '2024-00-15';
+
+      if (datetime.value === '2024-00-15') {
+        expect(datetime.valid).toBe(false);
+      } else {
+        expect(datetime.value).toBe('');
+      }
+    });
+
+    it('should reject dates with invalid day for February (30)', () => {
+      datetime.value = '2024-02-30';
+
+      // Feb 30 never exists (even in a leap year Feb has 29 days max)
+      if (datetime.value === '2024-02-30') {
+        expect(datetime.valid).toBe(false);
+      } else {
+        expect(datetime.value).toBe('');
+      }
+    });
+
+    it('should accept valid leap year date (2024-02-29)', () => {
+      datetime.value = '2024-02-29';
+
+      // 2024 is a leap year — Feb 29 must be accepted
+      expect(datetime.valid).toBe(true);
+    });
+
+    it('should reject invalid date values (month 13, day 45)', () => {
+      datetime.value = '2024-13-45';
+
       expect(datetime.valid).toBe(false);
+    });
+  });
+
+  describe('Date Format Injection', () => {
+    beforeEach(() => {
+      datetime.setAttribute('type', 'date');
+      document.body.appendChild(datetime);
+    });
+
+    it('should not execute script injected as date value', () => {
+      datetime.value = '<script>window.__datetimeXSS=true</script>';
+
+      expect((window as Record<string, unknown>)['__datetimeXSS']).toBeFalsy();
+      expect(datetime.shadowRoot?.innerHTML).not.toContain('<script>');
+    });
+
+    it('should sanitize SQL injection attempt in date value', () => {
+      datetime.value = "' OR '1'='1";
+
+      // Value must not propagate as raw HTML into the DOM
+      expect(datetime.shadowRoot?.innerHTML).not.toContain("' OR '1'='1");
     });
   });
 
@@ -205,8 +268,11 @@ describe('SecureDatetime', () => {
     it('should reject invalid time format', () => {
       datetime.value = '2:30 PM'; // Wrong format
 
-      // Either value is rejected or marked invalid
-      expect(datetime.value !== '2:30 PM' || !datetime.valid).toBe(true);
+      if (datetime.value === '2:30 PM') {
+        expect(datetime.valid).toBe(false);
+      } else {
+        expect(datetime.value).toBe('');
+      }
     });
   });
 

@@ -101,6 +101,39 @@ describe('SecureTelemetryProvider', () => {
       const b = provider.collectSignals();
       expect(Object.keys(a).sort()).toEqual(Object.keys(b).sort());
     });
+
+    it('webdriverDetected is true when navigator.webdriver is set', () => {
+      // Simulate an automation context
+      const navSpy = vi.spyOn(navigator, 'webdriver', 'get').mockReturnValue(true);
+      const signals = provider.collectSignals();
+      expect(signals.webdriverDetected).toBe(true);
+      navSpy.mockRestore();
+    });
+
+    it('headlessDetected is true when userAgent contains HeadlessChrome', () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 HeadlessChrome/120.0.0.0'
+      );
+      const signals = provider.collectSignals();
+      expect(signals.headlessDetected).toBe(true);
+      vi.restoreAllMocks();
+    });
+
+    it('suspiciousScreenSize is true when screen dimensions are zero', () => {
+      vi.spyOn(screen, 'width', 'get').mockReturnValue(0);
+      vi.spyOn(screen, 'height', 'get').mockReturnValue(0);
+      const signals = provider.collectSignals();
+      expect(signals.suspiciousScreenSize).toBe(true);
+      vi.restoreAllMocks();
+    });
+
+    it('suspiciousScreenSize is false for normal screen dimensions', () => {
+      vi.spyOn(screen, 'width', 'get').mockReturnValue(1920);
+      vi.spyOn(screen, 'height', 'get').mockReturnValue(1080);
+      const signals = provider.collectSignals();
+      expect(signals.suspiciousScreenSize).toBe(false);
+      vi.restoreAllMocks();
+    });
   });
 
   // ── DOM mutation detection ────────────────────────────────────────────────
@@ -143,10 +176,17 @@ describe('SecureTelemetryProvider', () => {
 
       expect(typeof envelope.nonce).toBe('string');
       expect(envelope.nonce.length).toBe(32);
+      // Nonce must be hex (only 0-9, a-f)
+      expect(envelope.nonce).toMatch(/^[0-9a-f]{32}$/);
       expect(typeof envelope.issuedAt).toBe('string');
-      expect(() => new Date(envelope.issuedAt)).not.toThrow();
+      expect(new Date(envelope.issuedAt).toISOString()).toBe(envelope.issuedAt);
       expect(envelope.environment).toEqual(signals);
+      // Signature must always be a string — never undefined
       expect(typeof envelope.signature).toBe('string');
+      // In a secure context (SubtleCrypto available in Node/happy-dom) the
+      // signature must be a 64-char hex HMAC-SHA-256. In a non-secure context
+      // the implementation returns '' — both are acceptable, but the type contract holds.
+      expect(envelope.signature === '' || /^[0-9a-f]{64}$/.test(envelope.signature)).toBe(true);
     });
 
     it('generates a unique nonce on each call', async () => {
@@ -171,10 +211,16 @@ describe('SecureTelemetryProvider', () => {
       const envA = await provider.sign(signals);
       const envB = await providerB.sign(signals);
 
-      // Signatures should differ (different keys)
-      // In non-secure contexts SubtleCrypto may not be available, both return ''
-      if (envA.signature && envB.signature) {
+      // When SubtleCrypto is available both signatures are 64-char hex — they MUST differ.
+      // When unavailable, both are '' and the test would be a no-op, so we skip that branch
+      // only if neither produced a signature (non-secure context).
+      const bothProducedSignatures = envA.signature.length > 0 && envB.signature.length > 0;
+      if (bothProducedSignatures) {
         expect(envA.signature).not.toBe(envB.signature);
+      } else {
+        // Non-secure context: both empty — confirm the type contract at least holds
+        expect(typeof envA.signature).toBe('string');
+        expect(typeof envB.signature).toBe('string');
       }
 
       providerB.remove();

@@ -834,6 +834,14 @@ export class SecureInput extends SecureBaseComponent {
       return false;
     }
 
+    // Delegate to the browser's native constraint validation for type-specific
+    // format checking (email, url, number, date, etc.). This catches invalid
+    // emails, malformed URLs, out-of-range numbers and more without duplicating
+    // browser logic. Only relevant when there is a value to validate.
+    if (this.#inputElement && this.#actualValue && !this.#inputElement.checkValidity()) {
+      return false;
+    }
+
     return true;
   }
 

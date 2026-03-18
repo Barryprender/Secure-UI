@@ -330,6 +330,87 @@ describe('SecureForm — telemetry aggregation', () => {
       });
     });
 
+    it('session_fast signal fires when session is between 3 s and 8 s', () => {
+      const T = 1_000_000;
+      // Pin all Date.now() calls during buildForm to T so #sessionStart = T
+      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(T);
+
+      form = buildForm([{ name: 'email' }]);
+
+      // Advance mock clock to T + 5 s before submission
+      dateSpy.mockReturnValue(T + 5000);
+
+      const telemetryPromise = new Promise<SessionTelemetry>((resolve) => {
+        form.addEventListener('secure-form-submit', (e) => {
+          resolve((e as CustomEvent).detail.telemetry as SessionTelemetry);
+        });
+      });
+
+      form.submit();
+
+      return telemetryPromise.then((t) => {
+        expect(t.riskSignals).toContain('session_fast');
+        expect(t.riskSignals).not.toContain('session_too_fast');
+      }).finally(() => { dateSpy.mockRestore(); });
+    });
+
+    it('high_velocity_typing signal fires when typing speed exceeds 15 chars/sec', () => {
+      form = buildForm([{ name: 'email' }]);
+
+      const input = getInputEl(form.querySelector('secure-input')!);
+      const T = Date.now();
+
+      // Mock: focus at T, first keystroke at T+100, blur at T+1100
+      // That gives 20 keystrokes in 1 s → velocity = 20 > 15
+      const dateSpy = vi.spyOn(Date, 'now')
+        .mockReturnValueOnce(T)         // focusAt
+        .mockReturnValueOnce(T + 100)   // firstKeystrokeAt (first input event)
+        .mockReturnValue(T + 1100);     // blurAt + form submit
+
+      fireFocus(input);
+
+      for (let i = 0; i < 20; i++) {
+        fireInput(input, 'insertText', 'a');
+      }
+
+      fireBlur(input);
+
+      const telemetryPromise = new Promise<SessionTelemetry>((resolve) => {
+        form.addEventListener('secure-form-submit', (e) => {
+          resolve((e as CustomEvent).detail.telemetry as SessionTelemetry);
+        });
+      });
+
+      form.submit();
+
+      return telemetryPromise.then((t) => {
+        expect(t.riskSignals).toContain('high_velocity_typing');
+      }).finally(() => { dateSpy.mockRestore(); });
+    });
+
+    it('form_probing does NOT fire on a single focus-blur cycle with no input', () => {
+      // Threshold is focusCount > 1 AND blurWithoutChange > 1.
+      // A single cycle gives focusCount = 1, blurWithoutChange = 1 — neither > 1.
+      form = buildForm([{ name: 'email' }]);
+
+      const input = getInputEl(form.querySelector('secure-input')!);
+
+      fireFocus(input);
+      fireBlur(input);
+
+      const telemetryPromise = new Promise<SessionTelemetry>((resolve) => {
+        form.addEventListener('secure-form-submit', (e) => {
+          resolve((e as CustomEvent).detail.telemetry as SessionTelemetry);
+        });
+      });
+
+      form.submit();
+
+      return telemetryPromise.then((t) => {
+        expect(t.riskSignals).not.toContain('form_probing');
+      });
+    });
+
     it('autofill_detected fires (and reduces score) when all fields autofilled', () => {
       form = buildForm([{ name: 'email' }, { name: 'name' }]);
 

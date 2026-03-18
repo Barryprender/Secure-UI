@@ -185,6 +185,26 @@ describe('SecureInput', () => {
         expect((hiddenInput as HTMLInputElement).value).toBe('form value');
       }
     });
+
+    it('should keep hidden input in sync after post-mount value change', () => {
+      input.setAttribute('name', 'syncfield');
+      document.body.appendChild(input);
+
+      // Initial set
+      input.value = 'initial';
+      const hiddenInput = input.querySelector('input[type="hidden"]') as HTMLInputElement | null;
+      if (!hiddenInput) return; // skip if component skips hidden input (e.g. inside secure-form)
+
+      expect(hiddenInput.value).toBe('initial');
+
+      // Update after mount — hidden input must follow
+      input.value = 'updated';
+      expect(hiddenInput.value).toBe('updated');
+
+      // Clear
+      input.value = '';
+      expect(hiddenInput.value).toBe('');
+    });
   });
 
   describe('XSS Prevention', () => {
@@ -284,16 +304,41 @@ describe('SecureInput', () => {
       input.setAttribute('maxlength', '5');
       input.value = 'this is too long';
 
-      // Either truncated or invalid
-      expect(input.value.length <= 5 || !input.valid).toBe(true);
+      // If the browser truncated the value, length must be ≤ 5.
+      // If not truncated, the component must report invalid.
+      // Both outcomes are acceptable; neither "long and valid" is.
+      if (input.value.length > 5) {
+        expect(input.valid).toBe(false);
+      } else {
+        expect(input.value.length).toBeLessThanOrEqual(5);
+      }
     });
 
-    it('should validate email format', () => {
-      input.setAttribute('type', 'email');
-      input.value = 'invalid-email';
+    it('should configure internal input as type="email" for native browser validation', () => {
+      // Create a fresh element with type="email" set BEFORE mount so render()
+      // picks it up — the Validation beforeEach already appended `input` with
+      // no type, so we create a separate element here.
+      const emailInput = document.createElement('secure-input') as SecureInput;
+      emailInput.setAttribute('type', 'email');
+      emailInput.setAttribute('name', 'email');
+      emailInput.setAttribute('security-tier', 'public');
+      document.body.appendChild(emailInput);
 
-      // Browser validation may vary, check component handles it
-      expect(typeof input.valid).toBe('boolean');
+      try {
+        const internalInput = emailInput.shadowRoot?.querySelector('input');
+        // The internal element MUST carry type="email" — without it the browser
+        // never validates email format regardless of what the component does.
+        expect(internalInput?.type).toBe('email');
+
+        // In a real browser, checkValidity() returns false for a malformed address.
+        // happy-dom does not implement the email constraint — branch on availability.
+        emailInput.value = 'not-an-email'; // use component setter so #actualValue is set
+        if (internalInput && !internalInput.checkValidity()) {
+          expect(emailInput.valid).toBe(false);
+        }
+      } finally {
+        emailInput.remove();
+      }
     });
 
     it('should pass email validation', () => {
@@ -413,10 +458,8 @@ describe('SecureInput', () => {
       document.body.appendChild(input);
 
       const internalInput = input.shadowRoot?.querySelector('input');
-      if (internalInput) {
-        // PUBLIC tier allows autocomplete
-        expect(internalInput.autocomplete !== 'off' || true).toBe(true);
-      }
+      // PUBLIC tier must NOT disable autocomplete
+      expect(internalInput?.autocomplete).not.toBe('off');
     });
 
     it('should set new-password autocomplete for password fields', () => {
@@ -432,30 +475,21 @@ describe('SecureInput', () => {
   });
 
   describe('Value Masking', () => {
-    it('should mask value for CRITICAL tier', () => {
+    it('should preserve actual value for CRITICAL tier (not lose data)', () => {
       input.setAttribute('security-tier', 'critical');
       document.body.appendChild(input);
 
       input.value = 'sensitive-data';
 
-      // The actual value should be preserved
       expect(input.value).toBe('sensitive-data');
-
-      // But displayed value may be masked
-      const internalInput = input.shadowRoot?.querySelector('input');
-      if (internalInput && input.securityTier === 'critical') {
-        // Display might show masked version
-        expect(internalInput).toBeDefined();
-      }
     });
 
-    it('should mask value for SENSITIVE tier', () => {
+    it('should preserve actual value for SENSITIVE tier', () => {
       input.setAttribute('security-tier', 'sensitive');
       document.body.appendChild(input);
 
       input.value = '1234567890';
 
-      // Actual value preserved
       expect(input.value).toBe('1234567890');
     });
 
@@ -466,6 +500,17 @@ describe('SecureInput', () => {
       input.value = 'public-data';
 
       expect(input.value).toBe('public-data');
+    });
+
+    it('password type renders as type="password" so the browser masks display', () => {
+      input.setAttribute('type', 'password');
+      input.setAttribute('security-tier', 'critical');
+      document.body.appendChild(input);
+
+      const internalInput = input.shadowRoot?.querySelector('input');
+      // The internal input MUST be type="password" — this is how the browser
+      // visually masks characters. Any other type leaks the value in plaintext.
+      expect(internalInput?.type).toBe('password');
     });
   });
 
@@ -638,6 +683,27 @@ describe('SecureInput', () => {
       input.value = '   ';
 
       expect(input.value).toBe('   ');
+    });
+
+    it('should store RTL override character without executing code', () => {
+      // U+202E RIGHT-TO-LEFT OVERRIDE — can be used to spoof displayed filenames
+      // It is not an injection vector for JS but must not cause crashes or DOM changes
+      const rtlValue = 'file\u202Etxt.exe';
+      input.value = rtlValue;
+
+      // Value must be stored, no exception thrown
+      expect(input.value).toBe(rtlValue);
+      // Shadow DOM must not contain executable content
+      expect(input.shadowRoot?.innerHTML).not.toContain('<script');
+    });
+
+    it('should store zero-width characters without executing code', () => {
+      // U+200B ZERO WIDTH SPACE — invisible character sometimes used to evade filters
+      const zwValue = 'hello\u200Bworld';
+      input.value = zwValue;
+
+      expect(input.value).toBe(zwValue);
+      expect(input.shadowRoot?.innerHTML).not.toContain('<script');
     });
   });
 

@@ -76,6 +76,17 @@ describe('SecureBaseComponent', () => {
       expect(component.shadowRoot).not.toBeNull();
     });
 
+    it('closed shadow DOM is configured with mode="closed"', () => {
+      document.body.appendChild(component);
+
+      // Verify the shadow root is created with mode:'closed'.
+      // In real browsers this prevents external script access via el.shadowRoot.
+      // happy-dom does not enforce closed mode during testing, so we assert the
+      // mode property on the ShadowRoot object rather than the external accessor.
+      const shadow = component.shadowRoot; // via the protected getter
+      expect(shadow?.mode).toBe('closed');
+    });
+
     it('should default to CRITICAL security tier (fail-secure)', () => {
       document.body.appendChild(component);
 
@@ -374,6 +385,17 @@ describe('SecureBaseComponent', () => {
 
       expect(log1).not.toBe(log2);
       expect(log1).toEqual(log2);
+    });
+
+    it('should cap audit log at 1000 entries to prevent DoS memory exhaustion', () => {
+      document.body.appendChild(component);
+
+      // Generate 1200 loggable events — the log must not grow beyond 1000
+      for (let i = 0; i < 1200; i++) {
+        component.testAudit('component_initialized', { i });
+      }
+
+      expect(component.getAuditLog().length).toBeLessThanOrEqual(1000);
     });
   });
 

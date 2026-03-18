@@ -303,3 +303,109 @@ describe('Accessibility — secure-form', () => {
     expect(await getViolations(container)).toHaveLength(0);
   });
 });
+
+// ── Positive ARIA assertions ──────────────────────────────────────────────────
+// axe-core only reports violations. These tests assert that required ARIA
+// attributes are actively present — catching regressions that remove them.
+
+describe('Accessibility — positive ARIA assertions', () => {
+  let container: HTMLDivElement;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it('secure-input required field has aria-required="true" on the internal input', async () => {
+    const el = document.createElement('secure-input') as SecureInput;
+    el.setAttribute('label', 'Email');
+    el.setAttribute('name', 'email');
+    el.setAttribute('required', '');
+    el.setAttribute('security-tier', 'public');
+    container.appendChild(el);
+    await new Promise(r => setTimeout(r, 50));
+
+    const internalInput = el.shadowRoot?.querySelector('input');
+    expect(internalInput?.getAttribute('aria-required')).toBe('true');
+  });
+
+  it('secure-input internal input has aria-describedby pointing to an error container', async () => {
+    const el = document.createElement('secure-input') as SecureInput;
+    el.setAttribute('label', 'Username');
+    el.setAttribute('name', 'username');
+    el.setAttribute('security-tier', 'public');
+    container.appendChild(el);
+    await new Promise(r => setTimeout(r, 50));
+
+    const internalInput = el.shadowRoot?.querySelector('input');
+    const describedBy = internalInput?.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+
+    // The referenced element must exist in the shadow DOM
+    const errorEl = el.shadowRoot?.getElementById(describedBy!);
+    expect(errorEl).not.toBeNull();
+  });
+
+  it('secure-input label is associated with the internal input via htmlFor/id', async () => {
+    const el = document.createElement('secure-input') as SecureInput;
+    el.setAttribute('label', 'Password');
+    el.setAttribute('name', 'password');
+    el.setAttribute('security-tier', 'public');
+    container.appendChild(el);
+    await new Promise(r => setTimeout(r, 50));
+
+    const label = el.shadowRoot?.querySelector('label');
+    const internalInput = el.shadowRoot?.querySelector('input');
+    expect(label).not.toBeNull();
+    expect(internalInput).not.toBeNull();
+    // label.htmlFor must match input.id
+    expect(label?.htmlFor).toBe(internalInput?.id);
+    expect(label?.htmlFor).not.toBe('');
+  });
+
+  it('secure-input does not have aria-invalid by default (before interaction)', async () => {
+    const el = document.createElement('secure-input') as SecureInput;
+    el.setAttribute('label', 'Field');
+    el.setAttribute('name', 'field');
+    el.setAttribute('security-tier', 'public');
+    container.appendChild(el);
+    await new Promise(r => setTimeout(r, 50));
+
+    const internalInput = el.shadowRoot?.querySelector('input');
+    // aria-invalid must be absent (or false) before the user has interacted
+    const ariaInvalid = internalInput?.getAttribute('aria-invalid');
+    expect(ariaInvalid === null || ariaInvalid === 'false').toBe(true);
+  });
+
+  it('secure-textarea required field has aria-required="true"', async () => {
+    const el = document.createElement('secure-textarea') as SecureTextarea;
+    el.setAttribute('label', 'Bio');
+    el.setAttribute('name', 'bio');
+    el.setAttribute('required', '');
+    el.setAttribute('security-tier', 'public');
+    container.appendChild(el);
+    await new Promise(r => setTimeout(r, 50));
+
+    const internalTextarea = el.shadowRoot?.querySelector('textarea');
+    expect(internalTextarea?.getAttribute('aria-required')).toBe('true');
+  });
+
+  it('secure-input without explicit label falls back to aria-label on internal input', async () => {
+    const el = document.createElement('secure-input') as SecureInput;
+    // No label attribute — component must set aria-label from name
+    el.setAttribute('name', 'search');
+    el.setAttribute('security-tier', 'public');
+    container.appendChild(el);
+    await new Promise(r => setTimeout(r, 50));
+
+    const internalInput = el.shadowRoot?.querySelector('input');
+    // Either a <label> exists or aria-label is set — input must not be unlabelled
+    const hasLabel = !!el.shadowRoot?.querySelector('label');
+    const hasAriaLabel = !!internalInput?.getAttribute('aria-label');
+    expect(hasLabel || hasAriaLabel).toBe(true);
+  });
+});

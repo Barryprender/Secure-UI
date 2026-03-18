@@ -48,6 +48,9 @@ import type {
  * - Default tier is CRITICAL (fail secure)
  */
 export abstract class SecureBaseComponent extends HTMLElement {
+  /** Maximum number of entries retained in the in-memory audit log */
+  static readonly #MAX_AUDIT_LOG_SIZE = 1000;
+
   #securityTier: SecurityTierValue = SecurityTier.CRITICAL as SecurityTierValue;
   #config: TierConfig;
   #shadow: ShadowRoot;
@@ -312,6 +315,10 @@ export abstract class SecureBaseComponent extends HTMLElement {
       logEntry.language = navigator.language;
     }
 
+    // Cap log size to prevent unbounded memory growth (DoS mitigation)
+    if (this.#auditLog.length >= SecureBaseComponent.#MAX_AUDIT_LOG_SIZE) {
+      this.#auditLog.shift();
+    }
     this.#auditLog.push(logEntry);
 
     this.dispatchEvent(

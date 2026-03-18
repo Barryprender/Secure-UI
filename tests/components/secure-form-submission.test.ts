@@ -30,6 +30,39 @@ describe('SecureForm — CSRF token', () => {
 
   afterEach(() => { form.remove(); });
 
+  it('two different form instances have different CSRF tokens when tokens are set', () => {
+    const formA = document.createElement('secure-form') as SecureForm;
+    const formB = document.createElement('secure-form') as SecureForm;
+    formA.setAttribute('security-tier', 'public');
+    formB.setAttribute('security-tier', 'public');
+
+    // Use distinct tokens (as a server would issue)
+    formA.setAttribute('csrf-token', 'token-A-' + crypto.randomUUID());
+    formB.setAttribute('csrf-token', 'token-B-' + crypto.randomUUID());
+    document.body.appendChild(formA);
+    document.body.appendChild(formB);
+
+    const tokenA = (formA.querySelector('input[name="csrf_token"]') as HTMLInputElement | null)?.value;
+    const tokenB = (formB.querySelector('input[name="csrf_token"]') as HTMLInputElement | null)?.value;
+
+    // Tokens must differ — reuse would allow cross-form CSRF attacks
+    if (tokenA && tokenB) {
+      expect(tokenA).not.toBe(tokenB);
+    }
+
+    formA.remove();
+    formB.remove();
+  });
+
+  it('CSRF token of minimum acceptable length (≥ 32 chars)', () => {
+    const token = 'a'.repeat(32); // minimum acceptable entropy
+    form.setAttribute('csrf-token', token);
+    document.body.appendChild(form);
+    const csrfInput = form.querySelector('input[name="csrf_token"]') as HTMLInputElement | null;
+    // Token must be stored verbatim and must be long enough to resist brute-force
+    expect(csrfInput?.value.length).toBeGreaterThanOrEqual(32);
+  });
+
   it('injects a hidden CSRF input when csrf-token is set before connect', () => {
     form.setAttribute('csrf-token', 'tok-abc-123');
     document.body.appendChild(form);
