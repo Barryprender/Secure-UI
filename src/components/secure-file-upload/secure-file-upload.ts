@@ -107,7 +107,7 @@ export class SecureFileUpload extends SecureBaseComponent {
    * Unique ID for this file upload instance
    * @private
    */
-  #instanceId: string = `secure-file-upload-${Math.random().toString(36).substr(2, 9)}`;
+  #instanceId: string = `secure-file-upload-${Math.random().toString(36).substring(2, 11)}`;
 
   /**
    * Allowed MIME types
@@ -172,6 +172,7 @@ export class SecureFileUpload extends SecureBaseComponent {
 
     const container = document.createElement('div');
     container.className = 'file-upload-container';
+    container.setAttribute('part', 'container');
 
     // Create label
     const label = this.getAttribute('label');
@@ -179,6 +180,7 @@ export class SecureFileUpload extends SecureBaseComponent {
       this.#labelElement = document.createElement('label');
       this.#labelElement.htmlFor = this.#instanceId;
       this.#labelElement.textContent = this.sanitizeValue(label);
+      this.#labelElement.setAttribute('part', 'label');
 
       container.appendChild(this.#labelElement);
     }
@@ -186,12 +188,14 @@ export class SecureFileUpload extends SecureBaseComponent {
     // Create drop zone
     this.#dropZone = document.createElement('div');
     this.#dropZone.className = 'drop-zone';
+    this.#dropZone.setAttribute('part', 'wrapper');
 
     // Create the file input element
     this.#fileInput = document.createElement('input');
     this.#fileInput.type = 'file';
     this.#fileInput.id = this.#instanceId;
     this.#fileInput.className = 'file-input';
+    this.#fileInput.setAttribute('part', 'input');
 
     // Apply attributes
     this.#applyFileInputAttributes();
@@ -273,6 +277,7 @@ export class SecureFileUpload extends SecureBaseComponent {
     this.#errorContainer = document.createElement('div');
     this.#errorContainer.className = 'error-container hidden';
     this.#errorContainer.setAttribute('role', 'alert');
+    this.#errorContainer.setAttribute('part', 'error');
     this.#errorContainer.id = `${this.#instanceId}-error`;
     container.appendChild(this.#errorContainer);
 

@@ -71,7 +71,7 @@ export class SecureSelect extends SecureBaseComponent {
    * Unique ID for this select instance
    * @private
    */
-  #instanceId: string = `secure-select-${Math.random().toString(36).substr(2, 9)}`;
+  #instanceId: string = `secure-select-${Math.random().toString(36).substring(2, 11)}`;
 
   /**
    * Valid option values
@@ -129,6 +129,7 @@ export class SecureSelect extends SecureBaseComponent {
 
     const container = document.createElement('div');
     container.className = 'select-container';
+    container.setAttribute('part', 'container');
 
     // Check if this is a multi-select
     this.#isMultiple = this.hasAttribute('multiple');
@@ -139,6 +140,7 @@ export class SecureSelect extends SecureBaseComponent {
       this.#labelElement = document.createElement('label');
       this.#labelElement.htmlFor = this.#instanceId;
       this.#labelElement.textContent = this.sanitizeValue(label);
+      this.#labelElement.setAttribute('part', 'label');
 
       container.appendChild(this.#labelElement);
     }
@@ -146,11 +148,13 @@ export class SecureSelect extends SecureBaseComponent {
     // Create select wrapper for progressive enhancement
     const selectWrapper = document.createElement('div');
     selectWrapper.className = 'select-wrapper';
+    selectWrapper.setAttribute('part', 'wrapper');
 
     // Create the actual select element
     this.#selectElement = document.createElement('select');
     this.#selectElement.id = this.#instanceId;
     this.#selectElement.className = 'select-field';
+    this.#selectElement.setAttribute('part', 'select');
 
     // Apply attributes from web component to native select
     this.#applySelectAttributes();
@@ -172,6 +176,7 @@ export class SecureSelect extends SecureBaseComponent {
     this.#errorContainer = document.createElement('div');
     this.#errorContainer.className = 'error-container hidden';
     this.#errorContainer.setAttribute('role', 'alert');
+    this.#errorContainer.setAttribute('part', 'error');
     this.#errorContainer.id = `${this.#instanceId}-error`;
     container.appendChild(this.#errorContainer);
 

@@ -72,7 +72,7 @@ export class SecureDateTime extends SecureBaseComponent {
    * Unique ID for this datetime instance
    * @private
    */
-  #instanceId: string = `secure-datetime-${Math.random().toString(36).substr(2, 9)}`;
+  #instanceId: string = `secure-datetime-${Math.random().toString(36).substring(2, 11)}`;
 
   /**
    * Observed attributes for this component
@@ -114,6 +114,7 @@ export class SecureDateTime extends SecureBaseComponent {
 
     const container = document.createElement('div');
     container.className = 'datetime-container';
+    container.setAttribute('part', 'container');
 
     // Create label
     const label = this.getAttribute('label');
@@ -121,6 +122,7 @@ export class SecureDateTime extends SecureBaseComponent {
       this.#labelElement = document.createElement('label');
       this.#labelElement.htmlFor = this.#instanceId;
       this.#labelElement.textContent = this.sanitizeValue(label);
+      this.#labelElement.setAttribute('part', 'label');
 
       container.appendChild(this.#labelElement);
     }
@@ -128,11 +130,13 @@ export class SecureDateTime extends SecureBaseComponent {
     // Create input wrapper
     const inputWrapper = document.createElement('div');
     inputWrapper.className = 'input-wrapper';
+    inputWrapper.setAttribute('part', 'wrapper');
 
     // Create the datetime input element
     this.#inputElement = document.createElement('input');
     this.#inputElement.id = this.#instanceId;
     this.#inputElement.className = 'datetime-field';
+    this.#inputElement.setAttribute('part', 'input');
 
     // Apply attributes
     this.#applyDateTimeAttributes();
@@ -157,6 +161,7 @@ export class SecureDateTime extends SecureBaseComponent {
     this.#errorContainer = document.createElement('div');
     this.#errorContainer.className = 'error-container hidden';
     this.#errorContainer.setAttribute('role', 'alert');
+    this.#errorContainer.setAttribute('part', 'error');
     this.#errorContainer.id = `${this.#instanceId}-error`;
     container.appendChild(this.#errorContainer);
 
@@ -264,7 +269,6 @@ export class SecureDateTime extends SecureBaseComponent {
     // Basic format validation based on input type
     const type = this.#inputElement?.type || this.getAttribute('type') || 'date';
 
-    // eslint-disable-next-line security/detect-unsafe-regex
     const patterns: Record<string, RegExp> = {
       'date': /^\d{4}-\d{2}-\d{2}$/,
       // eslint-disable-next-line security/detect-unsafe-regex
@@ -275,7 +279,7 @@ export class SecureDateTime extends SecureBaseComponent {
       'week': /^\d{4}-W\d{2}$/
     };
 
-    const pattern = patterns[type];
+    const pattern = Object.hasOwn(patterns, type) ? patterns[type] : undefined;
 
     if (pattern && !pattern.test(value)) {
       console.warn(`Invalid ${type} format: ${value}`);

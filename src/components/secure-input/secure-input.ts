@@ -82,7 +82,7 @@ export class SecureInput extends SecureBaseComponent {
    * Unique ID for this input instance
    * @private
    */
-  #instanceId: string = `secure-input-${Math.random().toString(36).substr(2, 9)}`;
+  #instanceId: string = `secure-input-${Math.random().toString(36).substring(2, 11)}`;
 
   /**
    * Observed attributes for this component
@@ -634,12 +634,22 @@ export class SecureInput extends SecureBaseComponent {
     }
 
     // Perform base validation
-    const pattern = this.getAttribute('pattern');
+    const patternAttr = this.getAttribute('pattern');
     const minLength = this.getAttribute('minlength');
     const maxLength = this.getAttribute('maxlength');
 
+    let compiledPattern: RegExp | null = null;
+    if (patternAttr) {
+      try {
+        // eslint-disable-next-line security/detect-non-literal-regexp
+        compiledPattern = new RegExp(patternAttr);
+      } catch {
+        // Invalid regex from attribute — treat as no pattern
+      }
+    }
+
     const validation = this.validateInput(this.#actualValue, {
-      pattern: pattern ? new RegExp(pattern) : null,
+      pattern: compiledPattern,
       minLength: minLength ? parseInt(minLength, 10) : 0,
       maxLength: maxLength ? parseInt(maxLength, 10) : this.config.validation.maxLength
     });
@@ -782,7 +792,7 @@ export class SecureInput extends SecureBaseComponent {
    * @public
    */
   get valid(): boolean {
-    const pattern = this.getAttribute('pattern');
+    const patternAttr = this.getAttribute('pattern');
     const minLength = this.getAttribute('minlength');
     const maxLength = this.getAttribute('maxlength');
     const required = this.hasAttribute('required');
@@ -794,8 +804,18 @@ export class SecureInput extends SecureBaseComponent {
       }
     }
 
+    let compiledPattern: RegExp | null = null;
+    if (patternAttr) {
+      try {
+        // eslint-disable-next-line security/detect-non-literal-regexp
+        compiledPattern = new RegExp(patternAttr);
+      } catch {
+        // Invalid regex from attribute — treat as no pattern
+      }
+    }
+
     const validation = this.validateInput(this.#actualValue, {
-      pattern: pattern ? new RegExp(pattern) : null,
+      pattern: compiledPattern,
       minLength: minLength ? parseInt(minLength, 10) : 0,
       maxLength: maxLength ? parseInt(maxLength, 10) : this.config.validation.maxLength
     });

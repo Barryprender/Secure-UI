@@ -69,7 +69,7 @@ export class SecureTextarea extends SecureBaseComponent {
    * Unique ID for this textarea instance
    * @private
    */
-  #instanceId: string = `secure-textarea-${Math.random().toString(36).substr(2, 9)}`;
+  #instanceId: string = `secure-textarea-${Math.random().toString(36).substring(2, 11)}`;
 
   /**
    * Observed attributes for this component
@@ -113,6 +113,7 @@ export class SecureTextarea extends SecureBaseComponent {
 
     const container = document.createElement('div');
     container.className = 'textarea-container';
+    container.setAttribute('part', 'container');
 
     // Create label
     const label = this.getAttribute('label');
@@ -120,6 +121,7 @@ export class SecureTextarea extends SecureBaseComponent {
       this.#labelElement = document.createElement('label');
       this.#labelElement.htmlFor = this.#instanceId;
       this.#labelElement.textContent = this.sanitizeValue(label);
+      this.#labelElement.setAttribute('part', 'label');
 
       container.appendChild(this.#labelElement);
     }
@@ -127,11 +129,13 @@ export class SecureTextarea extends SecureBaseComponent {
     // Create textarea wrapper for progressive enhancement
     const textareaWrapper = document.createElement('div');
     textareaWrapper.className = 'textarea-wrapper';
+    textareaWrapper.setAttribute('part', 'wrapper');
 
     // Create the actual textarea element
     this.#textareaElement = document.createElement('textarea');
     this.#textareaElement.id = this.#instanceId;
     this.#textareaElement.className = 'textarea-field';
+    this.#textareaElement.setAttribute('part', 'textarea');
 
     // Apply attributes from web component to native textarea
     this.#applyTextareaAttributes();
@@ -153,6 +157,7 @@ export class SecureTextarea extends SecureBaseComponent {
     this.#errorContainer = document.createElement('div');
     this.#errorContainer.className = 'error-container hidden';
     this.#errorContainer.setAttribute('role', 'alert');
+    this.#errorContainer.setAttribute('part', 'error');
     this.#errorContainer.id = `${this.#instanceId}-error`;
     container.appendChild(this.#errorContainer);
 

@@ -86,7 +86,7 @@ export class SecureSubmitButton extends SecureBaseComponent {
    * Unique instance ID for aria attribute association
    * @private
    */
-  #instanceId: string = `secure-submit-button-${Math.random().toString(36).substr(2, 9)}`;
+  #instanceId: string = `secure-submit-button-${Math.random().toString(36).substring(2, 11)}`;
 
   /**
    * Bound event handler for field change events

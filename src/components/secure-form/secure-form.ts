@@ -92,7 +92,7 @@ export class SecureForm extends HTMLElement {
    * Unique ID for this form instance
    * @private
    */
-  #instanceId: string = `secure-form-${Math.random().toString(36).substr(2, 9)}`;
+  #instanceId: string = `secure-form-${Math.random().toString(36).substring(2, 11)}`;
 
   /**
    * Security tier for this form
@@ -373,7 +373,6 @@ export class SecureForm extends HTMLElement {
     const validation = this.#validateAllFields();
     if (!validation.valid) {
       event.preventDefault();
-      console.log('[secure-form] Validation failed:', validation.errors);
       this.#showStatus(validation.errors.join(', '), 'error');
       this.audit('form_validation_failed', {
         formId: this.#instanceId,
@@ -381,8 +380,6 @@ export class SecureForm extends HTMLElement {
       });
       return;
     }
-
-    console.log('[secure-form] Validation passed, shouldEnhance:', shouldEnhance);
 
     // If not enhancing, allow native form submission
     if (!shouldEnhance) {
@@ -392,7 +389,6 @@ export class SecureForm extends HTMLElement {
       this.#syncSecureInputsToForm();
 
       // Let the browser handle the submission normally
-      console.log('[secure-form] Allowing native submission to:', this.#formElement!.action);
       this.audit('form_submitted_native', {
         formId: this.#instanceId,
         action: this.#formElement!.action,
@@ -476,7 +472,7 @@ export class SecureForm extends HTMLElement {
    * @private
    */
   #syncSecureInputsToForm(): void {
-    const secureInputs = this.#formElement!.querySelectorAll('secure-input, secure-textarea, secure-select');
+    const secureInputs = this.#formElement!.querySelectorAll('secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload');
 
     secureInputs.forEach((input) => {
       const name = input.getAttribute('name');
@@ -517,7 +513,7 @@ export class SecureForm extends HTMLElement {
     const errors: string[] = [];
 
     // Find all secure input components within the form
-    const inputs = this.#formElement!.querySelectorAll('secure-input, secure-textarea, secure-select');
+    const inputs = this.#formElement!.querySelectorAll('secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload');
 
     inputs.forEach((input) => {
       if (typeof (input as HTMLElement & { valid: boolean }).valid === 'boolean' && !(input as HTMLElement & { valid: boolean }).valid) {
@@ -541,10 +537,10 @@ export class SecureForm extends HTMLElement {
    * @private
    */
   #collectFormData(): Record<string, string> {
-    const formData: Record<string, string> = {};
+    const formData = Object.create(null) as Record<string, string>;
 
     // Collect from secure components within the form
-    const secureInputs = this.#formElement!.querySelectorAll('secure-input, secure-textarea, secure-select');
+    const secureInputs = this.#formElement!.querySelectorAll('secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload');
 
     secureInputs.forEach((input) => {
       const typedInput = input as HTMLElement & { name: string; value: string };
@@ -650,7 +646,7 @@ export class SecureForm extends HTMLElement {
     });
 
     // Also disable secure components
-    const secureFields = this.querySelectorAll('secure-input, secure-textarea, secure-select');
+    const secureFields = this.querySelectorAll('secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload');
     secureFields.forEach((field) => {
       field.setAttribute('disabled', '');
     });
@@ -669,7 +665,7 @@ export class SecureForm extends HTMLElement {
     });
 
     // Also enable secure components
-    const secureFields = this.querySelectorAll('secure-input, secure-textarea, secure-select');
+    const secureFields = this.querySelectorAll('secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload');
     secureFields.forEach((field) => {
       field.removeAttribute('disabled');
     });

@@ -103,10 +103,6 @@ export class SecureTable extends SecureBaseComponent {
     const slottedTable = this.querySelector('table[slot="table"]');
     const parsed = this.#parseSlottedTable();
     if (parsed) {
-      console.log('SecureTable: Using server-rendered content', {
-        columns: parsed.columns.length,
-        rows: parsed.data.length
-      });
       this.#usingSlottedContent = true;
       this.#columns = parsed.columns;
       this.#data = parsed.data;
@@ -157,20 +153,25 @@ export class SecureTable extends SecureBaseComponent {
       const rows = slottedTable.querySelectorAll('tbody tr');
       const data: Record<string, unknown>[] = Array.from(rows).map((tr, _rowIndex) => {
         const cells = tr.querySelectorAll('td');
-        const row: Record<string, unknown> = {};
+        const row = Object.create(null) as Record<string, unknown>;
 
         cells.forEach((td, index) => {
           if (index < columns.length) {
             const column = columns[index];
             const dataKey = td.getAttribute('data-key') || column.key;
 
+            // Guard against prototype pollution via attacker-controlled data-key attributes
+            if (dataKey === '__proto__' || dataKey === 'constructor' || dataKey === 'prototype') {
+              return;
+            }
+
             // Store both text content and HTML if needed
             if (td.innerHTML.trim().includes('<')) {
               // Cell contains HTML (like forms, badges, etc.)
-              row[dataKey] = td.textContent.trim();
+              row[dataKey] = td.textContent?.trim() ?? '';
               row[`${dataKey}_html`] = td.innerHTML.trim();
             } else {
-              row[dataKey] = td.textContent.trim();
+              row[dataKey] = td.textContent?.trim() ?? '';
             }
           }
         });
@@ -192,7 +193,7 @@ export class SecureTable extends SecureBaseComponent {
   #createRenderFunction(_th: HTMLElement): (value: unknown, row: Record<string, unknown>, columnKey: string) => string {
     return (value: unknown, row: Record<string, unknown>, columnKey: string): string => {
       const htmlKey = `${columnKey}_html`;
-      return (row[htmlKey] as string) || this.#sanitize(value);
+      return (Object.hasOwn(row, htmlKey) ? row[htmlKey] as string : null) || this.#sanitize(value);
     };
   }
 
@@ -201,10 +202,8 @@ export class SecureTable extends SecureBaseComponent {
    */
   set data(data: Record<string, unknown>[]) {
     if (!Array.isArray(data)) {
-      console.error('SecureTable: data must be an array');
       return;
     }
-    console.log('SecureTable: Setting data, count:', data.length);
     this.#data = data;
     this.#filteredData = [...data];
     this.#render();
@@ -222,10 +221,8 @@ export class SecureTable extends SecureBaseComponent {
    */
   set columns(columns: TableColumnDefinition[]) {
     if (!Array.isArray(columns)) {
-      console.error('SecureTable: columns must be an array');
       return;
     }
-    console.log('SecureTable: Setting columns, count:', columns.length);
     this.#columns = columns;
     this.#render();
   }
@@ -279,8 +276,8 @@ export class SecureTable extends SecureBaseComponent {
     }
 
     this.#filteredData.sort((a, b) => {
-      const aVal = a[columnKey];
-      const bVal = b[columnKey];
+      const aVal = Object.hasOwn(a, columnKey) ? a[columnKey] : undefined;
+      const bVal = Object.hasOwn(b, columnKey) ? b[columnKey] : undefined;
 
       let comparison = 0;
       if (aVal! > bVal!) comparison = 1;
@@ -355,7 +352,7 @@ export class SecureTable extends SecureBaseComponent {
 
     // Check if we have stored HTML content from server-rendered table
     const htmlKey = `${column.key}_html`;
-    if (row[htmlKey]) {
+    if (Object.hasOwn(row, htmlKey) && row[htmlKey]) {
       // Don't mask HTML content, it's already rendered
       return row[htmlKey] as string;
     }
@@ -603,11 +600,16 @@ export class SecureTable extends SecureBaseComponent {
 
         const action = target.getAttribute('data-action');
         // Collect all data-* attributes from the action element
-        const detail: Record<string, string> = { action: action! };
+        const detail = Object.create(null) as Record<string, string>;
+        detail['action'] = action!;
         for (const attr of Array.from(target.attributes)) {
           if (attr.name.startsWith('data-') && attr.name !== 'data-action') {
             // Convert data-user-id to userId style key
             const key = attr.name.slice(5).replace(/-([a-z])/g, (_match: string, c: string) => c.toUpperCase());
+            // Guard against prototype pollution via data-__proto__ style attributes
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+              continue;
+            }
             detail[key] = attr.value;
           }
         }
