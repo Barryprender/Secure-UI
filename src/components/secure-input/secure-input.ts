@@ -672,6 +672,12 @@ export class SecureInput extends SecureBaseComponent {
       this.#showError(numberError);
       return;
     }
+
+    // Native constraint validation: email, url, number format, date, etc.
+    if (this.#inputElement && this.#actualValue && !this.#inputElement.checkValidity()) {
+      this.#showError(this.#inputElement.validationMessage);
+      return;
+    }
   }
 
   /**

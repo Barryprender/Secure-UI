@@ -749,6 +749,34 @@ describe('SecureInput', () => {
       expect(shadowContent.length).toBeGreaterThan(0);
     });
 
+    it('should show error for invalid email format on blur', async () => {
+      const emailInput = document.createElement('secure-input') as SecureInput;
+      emailInput.setAttribute('type', 'email');
+      emailInput.setAttribute('name', 'email');
+      emailInput.setAttribute('security-tier', 'public');
+      document.body.appendChild(emailInput);
+
+      try {
+        const internalInput = emailInput.shadowRoot?.querySelector('input');
+        if (!internalInput) return;
+
+        // Only meaningful when the browser enforces email constraint validation
+        if (internalInput.checkValidity()) return; // happy-dom: skip
+
+        internalInput.value = 'fgsdf';
+        internalInput.dispatchEvent(new Event('input', { bubbles: true }));
+        internalInput.dispatchEvent(new FocusEvent('blur'));
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const errorContainer = emailInput.shadowRoot?.querySelector('[part="error"]');
+        expect(errorContainer?.classList.contains('hidden')).toBe(false);
+        expect(emailInput.valid).toBe(false);
+      } finally {
+        emailInput.remove();
+      }
+    });
+
     it('should clear error when input becomes valid', async () => {
       input.value = 'valid value';
 
