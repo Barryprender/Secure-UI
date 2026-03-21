@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>secure-input fixture</title>
+  <link rel="stylesheet" href="/latest/styles/tokens.css" />
+</head>
+<body>
+  <!-- All four tiers — type="text" so masking and autocomplete are both testable -->
+  <secure-input id="input-public"        security-tier="public"        name="pub"   label="Public"        type="text"></secure-input>
+  <secure-input id="input-authenticated" security-tier="authenticated" name="auth"  label="Authenticated" type="text"></secure-input>
+  <secure-input id="input-sensitive"     security-tier="sensitive"     name="sens"  label="Sensitive"     type="text"></secure-input>
+  <secure-input id="input-critical"      security-tier="critical"      name="crit"  label="Critical"      type="text"></secure-input>
+
+  <!-- Password type — rate-limit test without interfering with masking assertions -->
+  <secure-input id="input-critical-pw"   security-tier="critical"      name="pw"    label="Password"      type="password"></secure-input>
+
+  <!-- Email format validation -->
+  <secure-input id="input-email"         security-tier="public"        name="email" label="Email"         type="email"></secure-input>
+
+  <!-- Required field validation -->
+  <secure-input id="input-required"      security-tier="public"        name="req"   label="Required"      required></secure-input>
+
+  <!-- No security-tier attribute — must default to CRITICAL (fail-secure) -->
+  <secure-input id="input-no-tier"       name="notier" label="No Tier"></secure-input>
+
+  <script type="module" src="/latest/components/secure-input/secure-input.js"></script>
+</body>
+</html>

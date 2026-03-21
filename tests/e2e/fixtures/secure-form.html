@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>secure-form fixture</title>
+  <link rel="stylesheet" href="/latest/styles/tokens.css" />
+</head>
+<body>
+  <!-- Primary form: CSRF-protected with mixed-tier child inputs -->
+  <secure-form
+    id="test-form"
+    action="/api/test-submit"
+    method="POST"
+    security-tier="authenticated"
+    csrf-token="test-csrf-token-abc123"
+    csrf-field-name="_csrf"
+    enhance
+  >
+    <secure-input name="username" label="Username" security-tier="public"   required></secure-input>
+    <secure-input name="email"    label="Email"    security-tier="public"   type="email" required></secure-input>
+    <secure-input name="password" label="Password" security-tier="critical" type="password" required></secure-input>
+    <secure-submit-button id="submit-btn">Submit</secure-submit-button>
+  </secure-form>
+
+  <!-- Form without CSRF — tests component works but CSRF is absent -->
+  <secure-form
+    id="form-no-csrf"
+    action="/api/no-csrf"
+    method="POST"
+    security-tier="public"
+  >
+    <secure-input name="comment" label="Comment" security-tier="public"></secure-input>
+    <secure-submit-button>Submit</secure-submit-button>
+  </secure-form>
+
+  <script type="module">
+    import '/latest/components/secure-form/secure-form.js';
+    import '/latest/components/secure-input/secure-input.js';
+    import '/latest/components/secure-submit-button/secure-submit-button.js';
+
+    // Capture submit events for assertions — prevent real fetch
+    document.getElementById('test-form').addEventListener('secure-form-submit', (e) => {
+      window.__lastSubmitDetail = e.detail;
+      e.detail.preventDefault();
+    });
+  </script>
+</body>
+</html>

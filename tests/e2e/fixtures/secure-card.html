@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>secure-card fixture</title>
+  <link rel="stylesheet" href="/latest/styles/tokens.css" />
+</head>
+<body>
+  <!-- Default tier (no security-tier set — must behave as CRITICAL) -->
+  <secure-card id="card-default" name="payment-default" label="Payment"></secure-card>
+
+  <!-- Explicit CRITICAL -->
+  <secure-card id="card-critical" security-tier="critical" name="payment" label="Critical Payment"></secure-card>
+
+  <!-- With cardholder name field -->
+  <secure-card id="card-with-name" security-tier="critical" name="payment-named" label="Named Payment" show-name></secure-card>
+
+  <script type="module" src="/latest/components/secure-card/secure-card.js"></script>
+</body>
+</html>

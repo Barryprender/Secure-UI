@@ -37,6 +37,14 @@ app.use(cors({
   credentials: false
 }));
 
+// Security headers
+app.use((req, res, next) => {
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('X-Frame-Options', 'DENY');
+  res.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
 // Request logging
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
@@ -124,8 +132,6 @@ app.get('/health', (req, res) => {
   res.json({
     status: distExists ? 'healthy' : 'unhealthy',
     version: VERSION,
-    distDir: DIST_DIR,
-    distExists,
     timestamp: new Date().toISOString()
   });
 });
@@ -218,6 +224,13 @@ app.use('/styles', express.static(path.join(SRC_DIR, 'styles'), {
     res.set('Access-Control-Allow-Origin', '*');
   }
 }));
+
+/**
+ * E2E test fixtures — dev/test only, never exposed in production
+ */
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/test-fixtures', express.static(path.join(__dirname, 'tests/e2e/fixtures')));
+}
 
 /**
  * 404 handler

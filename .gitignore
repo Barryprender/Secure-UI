@@ -7,6 +7,10 @@ dist/
 # Coverage reports
 coverage/
 
+# Playwright
+test-results/
+playwright-report/
+
 # OS files
 .DS_Store
 Thumbs.db

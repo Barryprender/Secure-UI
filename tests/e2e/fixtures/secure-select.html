@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>secure-select fixture</title>
+  <link rel="stylesheet" href="/latest/styles/tokens.css" />
+</head>
+<body>
+  <!-- Options as light-DOM <option> elements — component transfers them to shadow <select> -->
+  <secure-select id="select-public" security-tier="public" name="pub-sel" label="Public">
+    <option value="opt1">Option 1</option>
+    <option value="opt2">Option 2</option>
+    <option value="opt3">Option 3</option>
+  </secure-select>
+
+  <secure-select id="select-authenticated" security-tier="authenticated" name="auth-sel" label="Authenticated">
+    <option value="opt1">Option 1</option>
+    <option value="opt2">Option 2</option>
+  </secure-select>
+
+  <secure-select id="select-sensitive" security-tier="sensitive" name="sens-sel" label="Sensitive">
+    <option value="opt1">Option 1</option>
+    <option value="opt2">Option 2</option>
+  </secure-select>
+
+  <secure-select id="select-critical" security-tier="critical" name="crit-sel" label="Critical">
+    <option value="opt1">Option 1</option>
+    <option value="opt2">Option 2</option>
+  </secure-select>
+
+  <secure-select id="select-no-tier" name="notier-sel" label="No Tier">
+    <option value="opt1">Option 1</option>
+  </secure-select>
+
+  <script type="module" src="/latest/components/secure-select/secure-select.js"></script>
+</body>
+</html>

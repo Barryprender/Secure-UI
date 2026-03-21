@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>secure-textarea fixture</title>
+  <link rel="stylesheet" href="/latest/styles/tokens.css" />
+</head>
+<body>
+  <secure-textarea id="textarea-public"        security-tier="public"        name="pub-text"  label="Public"></secure-textarea>
+  <secure-textarea id="textarea-authenticated" security-tier="authenticated" name="auth-text" label="Authenticated"></secure-textarea>
+  <secure-textarea id="textarea-sensitive"     security-tier="sensitive"     name="sens-text" label="Sensitive"></secure-textarea>
+  <secure-textarea id="textarea-critical"      security-tier="critical"      name="crit-text" label="Critical"></secure-textarea>
+  <secure-textarea id="textarea-no-tier"       name="notier-text" label="No Tier"></secure-textarea>
+
+  <script type="module" src="/latest/components/secure-textarea/secure-textarea.js"></script>
+</body>
+</html>
