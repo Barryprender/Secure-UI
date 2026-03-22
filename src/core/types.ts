@@ -344,6 +344,17 @@ export interface EnvironmentalSignals {
   mouseMovementDetected: boolean;
   /** true if keyboard events were detected on the page outside secure fields */
   keyboardActivityDetected: boolean;
+  /**
+   * Milliseconds from component mount to first page-level keystroke.
+   * -1 if no keystroke was detected before submission.
+   * Values < 200ms are consistent with programmatic input.
+   */
+  pageLoadToFirstKeystroke: number;
+  /**
+   * Milliseconds from component mount to form submission.
+   * Unusually low values (< 500ms) suggest automated submission.
+   */
+  loadToSubmit: number;
 }
 
 /**

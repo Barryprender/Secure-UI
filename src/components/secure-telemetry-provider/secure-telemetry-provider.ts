@@ -51,6 +51,8 @@ interface ProviderState {
   injectedScriptCount: number;
   domMutationDetected: boolean;
   pointerType: 'mouse' | 'touch' | 'pen' | 'none';
+  /** performance.now() at first keydown; -1 until a keystroke is recorded */
+  firstKeystrokeAt: number;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -66,20 +68,31 @@ export class SecureTelemetryProvider extends HTMLElement {
     injectedScriptCount: 0,
     domMutationDetected: false,
     pointerType: 'none',
+    firstKeystrokeAt: -1,
   };
+
+  /** performance.now() recorded at connectedCallback — baseline for timing signals */
+  #connectedAt: number = 0;
 
   #mutationObserver: MutationObserver | null = null;
   #knownScripts: Set<Node> = new Set();
 
   // Bound listener references so we can cleanly remove them
   #onMouseMove: () => void = () => { this.#state.mouseMovementDetected = true; };
-  #onKeydown: () => void = () => { this.#state.keyboardActivityDetected = true; };
+  #onKeydown: () => void = () => {
+    this.#state.keyboardActivityDetected = true;
+    if (this.#state.firstKeystrokeAt < 0) {
+      this.#state.firstKeystrokeAt = performance.now();
+    }
+  };
   #onPointerDown: (e: PointerEvent) => void = (e: PointerEvent) => {
     this.#state.pointerType = e.pointerType as 'mouse' | 'touch' | 'pen';
   };
   #onFormSubmit: (e: Event) => void = (e: Event) => { void this.#handleFormSubmit(e); };
 
   connectedCallback(): void {
+    this.#connectedAt = performance.now();
+
     // Snapshot existing scripts so we can detect later injections
     document.querySelectorAll('script').forEach(s => this.#knownScripts.add(s));
 
@@ -163,6 +176,12 @@ export class SecureTelemetryProvider extends HTMLElement {
       (window.outerWidth - window.innerWidth > 160) ||
       (window.outerHeight - window.innerHeight > 160);
 
+    const now = performance.now();
+    const pageLoadToFirstKeystroke = this.#state.firstKeystrokeAt >= 0
+      ? Math.round(this.#state.firstKeystrokeAt - this.#connectedAt)
+      : -1;
+    const loadToSubmit = Math.round(now - this.#connectedAt);
+
     return {
       webdriverDetected,
       headlessDetected,
@@ -173,6 +192,8 @@ export class SecureTelemetryProvider extends HTMLElement {
       pointerType: this.#state.pointerType,
       mouseMovementDetected: this.#state.mouseMovementDetected,
       keyboardActivityDetected: this.#state.keyboardActivityDetected,
+      pageLoadToFirstKeystroke,
+      loadToSubmit,
     };
   }
 
