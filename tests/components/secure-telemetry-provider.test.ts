@@ -136,6 +136,75 @@ describe('SecureTelemetryProvider', () => {
     });
   });
 
+  // ── Timing signals ───────────────────────────────────────────────────────
+
+  describe('timing signals', () => {
+    it('pageLoadToFirstKeystroke is -1 before any keydown', () => {
+      provider = mountProvider();
+      expect(provider.collectSignals().pageLoadToFirstKeystroke).toBe(-1);
+    });
+
+    it('pageLoadToFirstKeystroke is a non-negative number after a keydown', () => {
+      const nowStart = performance.now();
+      provider = mountProvider();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+      const delta = provider.collectSignals().pageLoadToFirstKeystroke;
+      // Must be >= 0 and not absurdly large (less than the time since the test suite started)
+      expect(delta).toBeGreaterThanOrEqual(0);
+      expect(delta).toBeLessThan(performance.now() - nowStart + 1000);
+    });
+
+    it('pageLoadToFirstKeystroke only records the first keydown', () => {
+      provider = mountProvider();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+      const first = provider.collectSignals().pageLoadToFirstKeystroke;
+      // Simulate time passing then a second keydown
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'b' }));
+      const second = provider.collectSignals().pageLoadToFirstKeystroke;
+      expect(first).toBe(second);
+    });
+
+    it('loadToSubmit is >= 0 immediately after mount', () => {
+      provider = mountProvider();
+      expect(provider.collectSignals().loadToSubmit).toBeGreaterThanOrEqual(0);
+    });
+
+    it('loadToSubmit increases over time', async () => {
+      provider = mountProvider();
+      const t1 = provider.collectSignals().loadToSubmit;
+      await new Promise(r => setTimeout(r, 20));
+      const t2 = provider.collectSignals().loadToSubmit;
+      expect(t2).toBeGreaterThan(t1);
+    });
+
+    it('collectSignals returns pageLoadToFirstKeystroke and loadToSubmit as numbers', () => {
+      provider = mountProvider();
+      const signals = provider.collectSignals();
+      expect(typeof signals.pageLoadToFirstKeystroke).toBe('number');
+      expect(typeof signals.loadToSubmit).toBe('number');
+    });
+
+    it('low loadToSubmit value (< 500) is present in the signed envelope environment', async () => {
+      provider = mountProvider('test-key');
+      // Collect immediately — loadToSubmit will be very small
+      const signals = provider.collectSignals();
+      expect(signals.loadToSubmit).toBeLessThan(500);
+      const envelope = await provider.sign(signals);
+      expect(envelope.environment.loadToSubmit).toBe(signals.loadToSubmit);
+    });
+
+    it('low pageLoadToFirstKeystroke value (< 200) is preserved in the signed envelope', async () => {
+      provider = mountProvider('test-key');
+      // Dispatch keydown immediately — delta from connectedAt will be tiny
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'x' }));
+      const signals = provider.collectSignals();
+      expect(signals.pageLoadToFirstKeystroke).toBeGreaterThanOrEqual(0);
+      expect(signals.pageLoadToFirstKeystroke).toBeLessThan(200);
+      const envelope = await provider.sign(signals);
+      expect(envelope.environment.pageLoadToFirstKeystroke).toBe(signals.pageLoadToFirstKeystroke);
+    });
+  });
+
   // ── DOM mutation detection ────────────────────────────────────────────────
 
   describe('DOM mutation detection', () => {
