@@ -89,6 +89,8 @@ export interface ValidationOptions {
   pattern?: RegExp | null;
   minLength?: number;
   maxLength?: number;
+  /** When provided, overrides the tier config's required setting */
+  required?: boolean;
 }
 
 // ========== Rate Limiting Types ==========

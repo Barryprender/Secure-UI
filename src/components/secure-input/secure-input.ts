@@ -649,6 +649,7 @@ export class SecureInput extends SecureBaseComponent {
     }
 
     const validation = this.validateInput(this.#actualValue, {
+      required: this.hasAttribute('required') || this.config.validation.required,
       pattern: compiledPattern,
       minLength: minLength ? parseInt(minLength, 10) : 0,
       maxLength: maxLength ? parseInt(maxLength, 10) : this.config.validation.maxLength
@@ -801,14 +802,6 @@ export class SecureInput extends SecureBaseComponent {
     const patternAttr = this.getAttribute('pattern');
     const minLength = this.getAttribute('minlength');
     const maxLength = this.getAttribute('maxlength');
-    const required = this.hasAttribute('required');
-
-    // Check required field first (combines HTML attribute and tier config)
-    if (required || this.config.validation.required) {
-      if (!this.#actualValue || this.#actualValue.trim().length === 0) {
-        return false;
-      }
-    }
 
     let compiledPattern: RegExp | null = null;
     if (patternAttr) {
@@ -821,6 +814,7 @@ export class SecureInput extends SecureBaseComponent {
     }
 
     const validation = this.validateInput(this.#actualValue, {
+      required: this.hasAttribute('required') || this.config.validation.required,
       pattern: compiledPattern,
       minLength: minLength ? parseInt(minLength, 10) : 0,
       maxLength: maxLength ? parseInt(maxLength, 10) : this.config.validation.maxLength

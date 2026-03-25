@@ -226,7 +226,8 @@ export abstract class SecureBaseComponent extends HTMLElement {
     const errors: string[] = [];
     const config = this.#config;
 
-    if (config.validation.required && (!value || value.trim().length === 0)) {
+    const isRequired = options.required !== undefined ? options.required : config.validation.required;
+    if (isRequired && (!value || value.trim().length === 0)) {
       errors.push('This field is required');
     }
 
