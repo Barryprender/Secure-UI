@@ -367,6 +367,7 @@ export class SecureTextarea extends SecureBaseComponent {
     const maxLength = this.getAttribute('maxlength');
 
     const validation = this.validateInput(this.#textareaElement!.value, {
+      required: this.hasAttribute('required') || this.config.validation.required,
       minLength: minLength ? parseInt(minLength, 10) : 0,
       maxLength: maxLength ? parseInt(maxLength, 10) : this.config.validation.maxLength
     });
@@ -479,16 +480,9 @@ export class SecureTextarea extends SecureBaseComponent {
   get valid(): boolean {
     const minLength = this.getAttribute('minlength');
     const maxLength = this.getAttribute('maxlength');
-    const required = this.hasAttribute('required');
-
-    // Check required field first
-    if (required || this.config.validation.required) {
-      if (!this.#textareaElement!.value || this.#textareaElement!.value.trim().length === 0) {
-        return false;
-      }
-    }
 
     const validation = this.validateInput(this.#textareaElement!.value, {
+      required: this.hasAttribute('required') || this.config.validation.required,
       minLength: minLength ? parseInt(minLength, 10) : 0,
       maxLength: maxLength ? parseInt(maxLength, 10) : this.config.validation.maxLength
     });
