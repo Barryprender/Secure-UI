@@ -357,8 +357,13 @@ export class SecureInput extends SecureBaseComponent {
       this.#setValue(value);
     }
 
-    // Apply masking if configured for this tier
-    if (config.masking.enabled && this.#inputElement!.type !== 'password') {
+    // Apply masking if configured for this tier.
+    // Never mask format-validated types (email, url, tel): the browser runs
+    // checkValidity() against the displayed value, and users must see their
+    // input to verify correctness. Masking is only appropriate for opaque
+    // text fields such as account numbers or SSNs (type="text").
+    const NON_MASKABLE_TYPES = new Set(['email', 'url', 'tel']);
+    if (config.masking.enabled && this.#inputElement!.type !== 'password' && !NON_MASKABLE_TYPES.has(this.#inputElement!.type)) {
       this.#isMasked = true;
     }
   }
@@ -675,9 +680,26 @@ export class SecureInput extends SecureBaseComponent {
     }
 
     // Native constraint validation: email, url, number format, date, etc.
-    if (this.#inputElement && this.#actualValue && !this.#inputElement.checkValidity()) {
-      this.#showError(this.#inputElement.validationMessage);
-      return;
+    // For masked inputs, checkValidity() would run against the displayed mask
+    // characters — temporarily swap in the actual value, capture the result,
+    // then restore the mask.
+    if (this.#inputElement && this.#actualValue) {
+      let isValid: boolean;
+      let validationMsg: string;
+      if (this.#isMasked) {
+        const prev = this.#inputElement.value;
+        this.#inputElement.value = this.#actualValue;
+        isValid = this.#inputElement.checkValidity();
+        validationMsg = this.#inputElement.validationMessage;
+        this.#inputElement.value = prev;
+      } else {
+        isValid = this.#inputElement.checkValidity();
+        validationMsg = this.#inputElement.validationMessage;
+      }
+      if (!isValid) {
+        this.#showError(validationMsg);
+        return;
+      }
     }
   }
 
@@ -838,8 +860,20 @@ export class SecureInput extends SecureBaseComponent {
     // format checking (email, url, number, date, etc.). This catches invalid
     // emails, malformed URLs, out-of-range numbers and more without duplicating
     // browser logic. Only relevant when there is a value to validate.
-    if (this.#inputElement && this.#actualValue && !this.#inputElement.checkValidity()) {
-      return false;
+    // For masked inputs, validate the actual value not the displayed mask.
+    if (this.#inputElement && this.#actualValue) {
+      let checkValid: boolean;
+      if (this.#isMasked) {
+        const prev = this.#inputElement.value;
+        this.#inputElement.value = this.#actualValue;
+        checkValid = this.#inputElement.checkValidity();
+        this.#inputElement.value = prev;
+      } else {
+        checkValid = this.#inputElement.checkValidity();
+      }
+      if (!checkValid) {
+        return false;
+      }
     }
 
     return true;
