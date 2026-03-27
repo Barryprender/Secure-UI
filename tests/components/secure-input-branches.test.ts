@@ -10,7 +10,7 @@
  * - #showError and #clearErrors paths
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureInput } from '../../src/components/secure-input/secure-input.js';
 
 if (!customElements.get('secure-input')) {
@@ -563,5 +563,191 @@ describe('SecureInput — branch coverage', () => {
       input.value = '9007199254740992'; // > MAX_SAFE_INTEGER
       expect(input.valid).toBe(false);
     });
+  });
+});
+
+// ── Additional branch coverage ─────────────────────────────────────────────────
+
+describe('SecureInput — fallback masked input (unknown inputType)', () => {
+  let input: SecureInput;
+
+  afterEach(() => input.remove());
+
+  function getInternalInput(si: SecureInput): HTMLInputElement {
+    return si.shadowRoot!.querySelector('input') as HTMLInputElement;
+  }
+
+  it('covers newLength > oldLength branch when an exotic inputType is dispatched on a masked input', () => {
+    input = document.createElement('secure-input') as SecureInput;
+    input.setAttribute('security-tier', 'critical');
+    input.setAttribute('type', 'text');
+    input.setAttribute('name', 'secret');
+    document.body.appendChild(input);
+
+    // Seed: actual value 'abc', display '•••'
+    input.value = 'abc';
+    const el = getInternalInput(input);
+
+    // Fake the display growing by one masked char (cursor at end = 4)
+    el.value = '••••';
+    el.setSelectionRange(4, 4);
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'historyRedo' }));
+
+    // Actual value length must grow by 1
+    expect(input.value.length).toBe(4);
+  });
+
+  it('covers newLength < oldLength branch when an exotic inputType is dispatched on a masked input', () => {
+    input = document.createElement('secure-input') as SecureInput;
+    input.setAttribute('security-tier', 'critical');
+    input.setAttribute('type', 'text');
+    input.setAttribute('name', 'secret');
+    document.body.appendChild(input);
+
+    // Seed: actual value 'abcde', display '•••••'
+    input.value = 'abcde';
+    const el = getInternalInput(input);
+
+    // Fake the display shrinking by one char (cursor at position 4)
+    el.value = '••••';
+    el.setSelectionRange(4, 4);
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'historyRedo' }));
+
+    // Actual value length must shrink by 1
+    expect(input.value.length).toBe(4);
+  });
+
+  it('covers newLength === oldLength no-op branch on a masked input', () => {
+    input = document.createElement('secure-input') as SecureInput;
+    input.setAttribute('security-tier', 'critical');
+    input.setAttribute('type', 'text');
+    input.setAttribute('name', 'secret');
+    document.body.appendChild(input);
+
+    input.value = 'abc';
+    const el = getInternalInput(input);
+
+    // Same length as actual value — neither add nor remove branch fires
+    el.value = '•••';
+    el.setSelectionRange(3, 3);
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'historyRedo' }));
+
+    expect(input.value.length).toBe(3);
+  });
+});
+
+describe('SecureInput — native checkValidity() failure path', () => {
+  let input: SecureInput;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    input.remove();
+  });
+
+  function getInternalInput(si: SecureInput): HTMLInputElement {
+    return si.shadowRoot!.querySelector('input') as HTMLInputElement;
+  }
+
+  function getErrorContainer(si: SecureInput): HTMLElement {
+    return si.shadowRoot!.querySelector('.error-container') as HTMLElement;
+  }
+
+  it('shows native validationMessage when checkValidity returns false on a non-masked input', () => {
+    input = document.createElement('secure-input') as SecureInput;
+    input.setAttribute('security-tier', 'public'); // no masking, no rate-limit, no strength check
+    input.setAttribute('type', 'text');
+    input.setAttribute('name', 'field');
+    document.body.appendChild(input);
+
+    const el = getInternalInput(input);
+
+    vi.spyOn(el, 'checkValidity').mockReturnValue(false);
+    Object.defineProperty(el, 'validationMessage', {
+      get: () => 'Please match the requested format.',
+      configurable: true,
+    });
+
+    // #actualValue must be non-empty to enter the checkValidity block
+    input.value = 'something';
+    el.dispatchEvent(new Event('blur'));
+
+    const err = getErrorContainer(input);
+    expect(err.classList.contains('hidden')).toBe(false);
+    expect(err.textContent).toBe('Please match the requested format.');
+  });
+});
+
+describe('SecureInput — transitionend callback in #clearErrors', () => {
+  let input: SecureInput;
+
+  afterEach(() => input.remove());
+
+  function getInternalInput(si: SecureInput): HTMLInputElement {
+    return si.shadowRoot!.querySelector('input') as HTMLInputElement;
+  }
+
+  function getErrorContainer(si: SecureInput): HTMLElement {
+    return si.shadowRoot!.querySelector('.error-container') as HTMLElement;
+  }
+
+  function blur(si: SecureInput): void {
+    getInternalInput(si).dispatchEvent(new Event('blur'));
+  }
+
+  function simulateInput(si: SecureInput, value: string): void {
+    const el = getInternalInput(si);
+    el.value = value;
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
+  }
+
+  it('clears error textContent after transitionend fires while container is hidden', () => {
+    input = document.createElement('secure-input') as SecureInput;
+    input.setAttribute('security-tier', 'critical');
+    input.setAttribute('type', 'password');
+    input.setAttribute('name', 'pwd');
+    document.body.appendChild(input);
+
+    // Show an error
+    input.value = 'weak';
+    blur(input);
+
+    const err = getErrorContainer(input);
+    expect(err.classList.contains('hidden')).toBe(false);
+    expect(err.textContent!.length).toBeGreaterThan(0);
+
+    // Clear the error via input — adds 'hidden', registers the transitionend listener
+    simulateInput(input, 'Stronger1!');
+    expect(err.classList.contains('hidden')).toBe(true);
+
+    // Fire transitionend — the listener must clear textContent
+    err.dispatchEvent(new Event('transitionend'));
+
+    expect(err.textContent).toBe('');
+  });
+
+  it('preserves error textContent when transitionend fires after container is un-hidden', () => {
+    input = document.createElement('secure-input') as SecureInput;
+    input.setAttribute('security-tier', 'critical');
+    input.setAttribute('type', 'password');
+    input.setAttribute('name', 'pwd');
+    document.body.appendChild(input);
+
+    // Show an error
+    input.value = 'weak';
+    blur(input);
+
+    const err = getErrorContainer(input);
+
+    // Start clearing (adds 'hidden')
+    simulateInput(input, 'S');
+
+    // Immediately re-trigger an error before transitionend fires (removes 'hidden')
+    input.value = 'weak';
+    blur(input);
+
+    // transitionend fires: 'hidden' is absent → the guard condition is false → text preserved
+    err.dispatchEvent(new Event('transitionend'));
+
+    expect(err.textContent!.length).toBeGreaterThan(0);
   });
 });
