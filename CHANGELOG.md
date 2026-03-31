@@ -13,7 +13,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 #### New Components
 - **SecureCard** — Payment card input with PAN masking, Luhn validation, card brand detection (Visa, Mastercard, Amex, Discover), expiry/CVC fields, and critical-tier defaults.
-- **SecureTelemetryProvider** — Optional wrapper component that enriches form submissions with a signed environmental signals envelope. Detects automation/headless browsers, DOM script injection, devtools open state, suspicious screen sizes, pointer type, mouse movement, and keyboard activity.
+- **SecureTelemetryProvider** — Optional wrapper component that enriches form submissions with a signed environmental signals envelope. Detects automation/headless browsers, DOM script injection, suspicious screen sizes, pointer type, mouse movement, and keyboard activity.
 
 #### Behavioral Telemetry System
 - **Field-level telemetry** (`SecureBaseComponent`) — All input components now track: dwell time, completion time, typing velocity (keystrokes/sec), correction count, paste detection (`insertFromPaste`), autofill detection (`insertReplacementText`), focus count, and blur-without-change.

@@ -61,7 +61,6 @@ describe('SecureTelemetryProvider', () => {
       expect(typeof signals.headlessDetected).toBe('boolean');
       expect(typeof signals.domMutationDetected).toBe('boolean');
       expect(typeof signals.injectedScriptCount).toBe('number');
-      expect(typeof signals.devtoolsOpen).toBe('boolean');
       expect(typeof signals.suspiciousScreenSize).toBe('boolean');
       expect(['mouse', 'touch', 'pen', 'none']).toContain(signals.pointerType);
       expect(typeof signals.mouseMovementDetected).toBe('boolean');

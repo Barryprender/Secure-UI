@@ -34,7 +34,7 @@ Secure-UI is a security-first Web Component library. Key mitigations include:
 - **CSP compliance** — styles are loaded via `<link rel="stylesheet">` (never inline `style` attributes or `adoptedStyleSheets` with inline strings)
 - **Immutable security tier** — the `security-tier` attribute is locked after `connectedCallback` and cannot be downgraded
 - **Behavioral telemetry** — every field silently records typing velocity, paste detection, correction patterns, dwell time, and autofill signals; `<secure-form>` aggregates these into a per-submission risk score (0–100) with named risk signals
-- **Environmental signals + envelope signing** — `<secure-telemetry-provider>` detects WebDriver/headless flags, DOM script injection (via `MutationObserver`), devtools, and suspicious screen dimensions; signs the final telemetry envelope with HMAC-SHA-256 via SubtleCrypto so the server can detect replay attacks and casual forgery
+- **Environmental signals + envelope signing** — `<secure-telemetry-provider>` detects WebDriver/headless flags, DOM script injection (via `MutationObserver`), and suspicious screen dimensions; signs the final telemetry envelope with HMAC-SHA-256 via SubtleCrypto so the server can detect replay attacks and casual forgery
 - **PCI-aware card handling** — `<secure-card>` never includes the full PAN or CVC in events, audit logs, or hidden form inputs; raw card data is only accessible via `getCardData()` for direct handoff to a PCI-compliant payment SDK
 
 ## Scope

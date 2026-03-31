@@ -110,7 +110,7 @@ Every component must expose named `part` attributes on key internal elements:
 
 `SecureForm` aggregates telemetry from all child fields at submission via `getFieldTelemetry()` and computes a composite risk score. **Do not replicate this logic in individual components.**
 
-`SecureTelemetryProvider` adds environmental signals (WebDriver, headless, DOM injection, devtools, screen size, pointer/keyboard activity) and signs the final envelope with HMAC-SHA-256 via SubtleCrypto. The signing key is symmetric — document the server-side rotation requirement when touching this component.
+`SecureTelemetryProvider` adds environmental signals (WebDriver, headless, DOM injection, screen size, pointer/keyboard activity) and signs the final envelope with HMAC-SHA-256 via SubtleCrypto. The signing key is symmetric — document the server-side rotation requirement when touching this component.
 
 ### PCI Considerations (`SecureCard`)
 - Full PAN and CVC must **never** appear in: `CustomEvent` detail, audit log entries, or hidden `<input>` elements

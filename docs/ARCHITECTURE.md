@@ -92,7 +92,7 @@ SecureFileUpload, SecureTable, SecureSubmitButton, SecureCard
 └── Public API (value, valid, name, getFieldTelemetry(), getAuditLog())
 
 SecureTelemetryProvider (extends HTMLElement directly — light DOM)
-├── Environmental signal detection (WebDriver, headless, devtools, screen size)
+├── Environmental signal detection (WebDriver, headless, screen size)
 ├── DOM mutation monitoring (MutationObserver for injected scripts)
 ├── Pointer and keyboard activity tracking
 └── HMAC-SHA-256 envelope signing (SubtleCrypto)

@@ -36,7 +36,7 @@ Every secure field silently records: dwell time from focus to first keystroke, t
 At submission, the form queries `getFieldTelemetry()` from every child field, produces per-field snapshots, and computes a composite risk score from 0–100. The telemetry payload travels alongside form data in a single `fetch` request as `_telemetry`.
 
 **Layer 3 — Environmental signals** (`<secure-telemetry-provider>`)
-An optional overlay that wraps `<secure-form>`. Monitors for WebDriver/headless flags, DOM script injection (via `MutationObserver`), devtools, suspicious screen dimensions, and pointer/keyboard activity. Signs the final envelope with HMAC-SHA-256 so the server can detect replay attacks.
+An optional overlay that wraps `<secure-form>`. Monitors for WebDriver/headless flags, DOM script injection (via `MutationObserver`), suspicious screen dimensions, and pointer/keyboard activity. Signs the final envelope with HMAC-SHA-256 so the server can detect replay attacks.
 
 **What the server receives (enhanced submission):**
 
@@ -407,7 +407,6 @@ provider.sign(signals)           // Promise<SignedTelemetryEnvelope>
 | `headlessDetected` | `HeadlessChrome` in userAgent or missing `window.chrome` |
 | `domMutationDetected` | New `<script>` element injected after page load |
 | `injectedScriptCount` | Count of dynamically added `<script>` elements |
-| `devtoolsOpen` | `outerWidth − innerWidth > 160` or `outerHeight − innerHeight > 160` |
 | `suspiciousScreenSize` | Screen width or height is zero or < 100px |
 | `pointerType` | Last pointer event type: `mouse` \| `touch` \| `pen` \| `none` |
 | `mouseMovementDetected` | Any `mousemove` event fired during session |
