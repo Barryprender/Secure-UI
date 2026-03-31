@@ -29,6 +29,9 @@ src/
     secure-file-upload/
     secure-datetime/
     secure-table/
+    secure-submit-button/
+    secure-card/        # composite credit card form — locked to CRITICAL tier
+    secure-telemetry-provider/  # light DOM overlay — extends HTMLElement directly
   styles/
     tokens.css          # Design token custom properties (:root + :host)
     shared.css          # Shared light-DOM styles
@@ -39,7 +42,9 @@ src/
 ## Web Component Rules
 
 ### Class structure
-- All components extend `SecureBaseComponent` from `src/core/base-component.ts`
+- All field components extend `SecureBaseComponent` from `src/core/base-component.ts`
+- **Exception**: `SecureTelemetryProvider` extends `HTMLElement` directly — it is a light-DOM orchestration layer, not a form field, and must not inherit shadow DOM or security-tier machinery from `SecureBaseComponent`
+- **Exception**: `SecureCard` is locked to `CRITICAL` tier unconditionally — do not expose `security-tier` as a configurable attribute; reject any attempt to change it
 - Private fields use ES2022 `#field` syntax — never `_field` or `private` keyword alone
 - `static get observedAttributes()` must spread `...super.observedAttributes`
 - Override `protected render(): DocumentFragment | HTMLElement | null` — never touch `connectedCallback` directly unless you need to bypass the base render (see `secure-table` pattern)
@@ -67,6 +72,11 @@ Every component must expose named `part` attributes on key internal elements:
 - `part="error"` — error message container
 - `part="security-badge"` — tier badge
 
+**Exception — `SecureCard`**: uses field-specific part names instead of a generic `part="input"`:
+`number-input`, `expiry-input`, `cvc-input`, `name-input` (one per card field).
+
+**Exception — `SecureTelemetryProvider`**: renders no visual elements; exposes no CSS parts.
+
 ### Custom Events
 - All events use `CustomEvent` with a typed `detail` — see `src/core/types.ts` for event detail interfaces
 - Always set `{ bubbles: true, composed: true }` so events cross shadow boundaries
@@ -90,6 +100,23 @@ Every component must expose named `part` attributes on key internal elements:
 - `this.sanitizeValue(str)` uses a temporary `div.textContent` round-trip — use it for every attribute value rendered as text
 - Never set `innerHTML` from user-controlled content
 - Use `document.createElement` + property assignment for all DOM construction
+
+### Behavioral Telemetry
+`SecureBaseComponent` provides field-level telemetry hooks that all field components must call:
+- `this.recordTelemetryFocus()` — call from the field's `focus` event listener
+- `this.recordTelemetryInput(event)` — call from the field's `input` event listener (detects velocity, corrections, paste, autofill)
+- `this.recordTelemetryBlur()` — call from the field's `blur` event listener
+- `this.getFieldTelemetry()` — public method; returns `FieldTelemetry` (no raw values — safe to log/transmit)
+
+`SecureForm` aggregates telemetry from all child fields at submission via `getFieldTelemetry()` and computes a composite risk score. **Do not replicate this logic in individual components.**
+
+`SecureTelemetryProvider` adds environmental signals (WebDriver, headless, DOM injection, devtools, screen size, pointer/keyboard activity) and signs the final envelope with HMAC-SHA-256 via SubtleCrypto. The signing key is symmetric — document the server-side rotation requirement when touching this component.
+
+### PCI Considerations (`SecureCard`)
+- Full PAN and CVC must **never** appear in: `CustomEvent` detail, audit log entries, or hidden `<input>` elements
+- Only `last4` and card type are safe to log or include in events
+- `getCardData()` is the sole accessor for raw card data — it exists only for direct handoff to a PCI-compliant payment SDK
+- Hidden inputs in the light DOM carry: `{name}` (last-4 only), `{name}-expiry`, `{name}-holder` — no CVC hidden input
 
 ## CSS Rules
 
@@ -127,18 +154,32 @@ All tokens live in `src/styles/tokens.css` under the `--secure-ui-*` namespace a
 3. Declare `static get observedAttributes()` spreading `...super.observedAttributes`
 4. Expose CSS `part` attributes on all key elements
 5. Inject styles via `this.addComponentStyles(new URL('./secure-<name>.css', import.meta.url).href)`
-6. Register: `customElements.define('secure-<name>', SecureName)`
-7. Export from `src/index.ts`
-8. Add event detail interface to `src/core/types.ts`
+6. If the component is a field (has user input): wire up `recordTelemetryFocus()`, `recordTelemetryInput(event)`, and `recordTelemetryBlur()` in the corresponding DOM event listeners
+7. Register: `customElements.define('secure-<name>', SecureName)`
+8. Export from `src/index.ts`
+9. Add event detail interface to `src/core/types.ts`
+10. Add `'secure-<name>'` to the `COMPONENTS` array in `build/css-inliner.js`
+11. Add a named export entry in `package.json` under `"exports"` following the existing pattern
 
-## Build
+## Build & Scripts
 
 ```bash
-npm run build   # production — CSS inlined, output to dist/
-npm run dev     # dev server — raw src served, no build step
+npm run build         # clean → tsc → css-inliner → dist/
+npm run dev           # build then serve with --watch (live reload)
+npm run typecheck     # tsc --noEmit (no output, type errors only)
+npm run lint          # eslint src/ tests/
+npm run lint:fix      # eslint --fix
+npm test              # vitest run (single pass)
+npm run test:watch    # vitest (watch mode)
+npm run test:coverage # vitest --coverage
+npm run size          # size-limit against dist/ (requires build first)
+npm run audit:check   # npm audit --audit-level=high
+npm run test:e2e      # build:ts then playwright test (headless)
 ```
 
-Production build (`build/css-inliner.js`) reads each component's `.css` file, minifies it, and replaces the `<link>` injection with an inlined `CSSStyleSheet` — no source changes required.
+Production build pipeline: `clean` wipes `dist/`, `build:ts` runs `tsc`, `build:css` runs `build/css-inliner.js` which reads each component's `.css` file, minifies it, and replaces the `<link>` injection with an inlined `CSSStyleSheet`. No manual source changes required.
+
+`prepublishOnly` runs `lint → typecheck → test → build` — all must pass before `npm publish`.
 
 ## Accessibility Baseline (WCAG 2.2 AA)
 

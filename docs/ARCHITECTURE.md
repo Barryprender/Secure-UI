@@ -14,20 +14,24 @@ Secure-UI is a security-first web component library with a modern, flexible arch
 
 ```
 secure-ui/
-├── src/                        # Source files
+├── src/                        # Source files (TypeScript)
 │   ├── components/            # Web Components
 │   │   ├── secure-input/
-│   │   │   ├── secure-input.js     # Component logic
+│   │   │   ├── secure-input.ts     # Component logic
 │   │   │   └── secure-input.css    # Component styles
 │   │   ├── secure-textarea/
 │   │   ├── secure-select/
 │   │   ├── secure-form/
 │   │   ├── secure-file-upload/
 │   │   ├── secure-datetime/
-│   │   └── secure-table/
+│   │   ├── secure-table/
+│   │   ├── secure-submit-button/
+│   │   ├── secure-card/
+│   │   └── secure-telemetry-provider/
 │   ├── core/                  # Core utilities
-│   │   ├── base-component.js   # Base class for all components
-│   │   └── security-config.js  # Security tier configuration
+│   │   ├── base-component.ts   # Abstract SecureBaseComponent — extend this
+│   │   ├── security-config.ts  # SecurityTier enum + TIER_CONFIG + helpers
+│   │   └── types.ts            # All shared TypeScript interfaces
 │   └── styles/
 │       └── tokens.css         # Design token system
 │
@@ -71,19 +75,27 @@ Each component is a Custom Element that extends `SecureBaseComponent`:
 
 ```
 SecureBaseComponent (Abstract)
-├── Security tier management
-├── Audit logging
-├── Rate limiting
-├── Value sanitization
-└── Shadow DOM setup
+├── Security tier management (immutable after connectedCallback)
+├── Audit logging (secure-audit events)
+├── Rate limiting (tier-based per-component limits)
+├── Value sanitization (textContent round-trip)
+├── Field-level behavioral telemetry (dwell, velocity, corrections, paste, autofill)
+└── Shadow DOM setup (closed mode)
 
 ↓ Extends
 
-SecureInput, SecureTextarea, SecureSelect, etc.
+SecureInput, SecureTextarea, SecureSelect, SecureDateTime,
+SecureFileUpload, SecureTable, SecureSubmitButton, SecureCard
 ├── Component-specific rendering
 ├── Validation logic
 ├── Event handling
-└── Public API
+└── Public API (value, valid, name, getFieldTelemetry(), getAuditLog())
+
+SecureTelemetryProvider (extends HTMLElement directly — light DOM)
+├── Environmental signal detection (WebDriver, headless, devtools, screen size)
+├── DOM mutation monitoring (MutationObserver for injected scripts)
+├── Pointer and keyboard activity tracking
+└── HMAC-SHA-256 envelope signing (SubtleCrypto)
 ```
 
 **Key Features:**
@@ -167,7 +179,40 @@ dist/components/secure-input/
 └── secure-input.js (with inlined CSS)
 ```
 
-### 4. Server Layer
+### 4. Telemetry Layer
+
+**Three-layer behavioral telemetry system:**
+
+```
+Layer 1 — Field signals (SecureBaseComponent)
+├── Dwell time (focus → first keystroke)
+├── Typing velocity (keystrokes/second)
+├── Correction count (backspace, delete, undo)
+├── Paste detection (insertFromPaste)
+├── Autofill detection (insertReplacementText)
+├── Focus count
+└── Blur-without-change
+
+↓ Aggregated at submission by
+
+Layer 2 — Session risk score (SecureForm)
+├── collectTelemetry() — queries getFieldTelemetry() from all child fields
+├── computeRiskScore() — 7 additive risk signals, 1 trust signal
+├── Risk payload travels as _telemetry alongside form data in a single fetch
+└── Events: secure-form-submit + secure-form-success include telemetry
+
+↓ Signed and enriched by
+
+Layer 3 — Environmental signals (SecureTelemetryProvider)
+├── WebDriver / headless detection
+├── DOM script injection monitoring
+├── Devtools open heuristic
+├── Screen size anomaly detection
+├── Pointer type + mouse movement
+└── HMAC-SHA-256 signed envelope injected as telemetry._env
+```
+
+### 5. Server Layer
 
 **Server-Side Rendering (SSR)**:
 
@@ -556,7 +601,9 @@ class MyInput extends SecureInput {
 **Typical Sizes (gzipped):**
 - secure-input: ~3-4KB
 - secure-form: ~4-5KB
-- All components: ~25-30KB
+- secure-card: ~8-10KB (includes card type detection + 3D preview)
+- secure-telemetry-provider: ~3-4KB
+- All components: ~35-45KB
 
 ### Runtime Performance
 
@@ -590,7 +637,6 @@ class MyInput extends SecureInput {
 ## Future Architecture Considerations
 
 **Potential Enhancements:**
-- TypeScript definitions
 - React/Vue/Svelte wrappers
 - Additional build targets (UMD, CommonJS)
 - Advanced CSS optimization (critical CSS extraction)
@@ -598,6 +644,7 @@ class MyInput extends SecureInput {
 - Performance monitoring integration
 - i18n/l10n support
 - Theme marketplace
+- Server-side telemetry verification SDK
 
 ## Design Principles
 
@@ -608,7 +655,7 @@ class MyInput extends SecureInput {
 5. **Customizable**: Easy to adapt to any design system
 6. **Developer Experience**: Simple, intuitive API
 7. **Performance**: Fast by default
-8. **Accessibility**: WCAG 2.1 AA compliant
+8. **Accessibility**: WCAG 2.2 AA compliant
 
 ## Conclusion
 

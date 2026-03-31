@@ -241,6 +241,21 @@ secure-table::part(pagination)
 secure-table::part(pagination-button)
 ```
 
+#### secure-card
+
+```css
+secure-card::part(container)      /* Outer wrapper */
+secure-card::part(label)          /* Legend element */
+secure-card::part(wrapper)        /* Input wrapper (per field group) */
+secure-card::part(number-input)   /* Card number <input> */
+secure-card::part(expiry-input)   /* Expiry <input> */
+secure-card::part(cvc-input)      /* CVC <input> */
+secure-card::part(name-input)     /* Cardholder name <input> */
+secure-card::part(error)          /* Error message container (per field) */
+```
+
+> `<secure-telemetry-provider>` renders no visual elements and exposes no CSS parts.
+
 ### Using CSS Parts
 
 ```css
