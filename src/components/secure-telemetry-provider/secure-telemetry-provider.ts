@@ -169,13 +169,6 @@ export class SecureTelemetryProvider extends HTMLElement {
       screen.height === 0 ||
       (screen.width < 100 && screen.height < 100);
 
-    // Devtools heuristic: console.log with a getter fires for each log call,
-    // so __defineGetter__ timing trick is the classic approach, but it's
-    // unreliable and triggers lint rules. We use a simple screen/outer check.
-    const devtoolsOpen =
-      (window.outerWidth - window.innerWidth > 160) ||
-      (window.outerHeight - window.innerHeight > 160);
-
     const now = performance.now();
     const pageLoadToFirstKeystroke = this.#state.firstKeystrokeAt >= 0
       ? Math.round(this.#state.firstKeystrokeAt - this.#connectedAt)
@@ -187,7 +180,6 @@ export class SecureTelemetryProvider extends HTMLElement {
       headlessDetected,
       domMutationDetected: this.#state.domMutationDetected,
       injectedScriptCount: this.#state.injectedScriptCount,
-      devtoolsOpen,
       suspiciousScreenSize,
       pointerType: this.#state.pointerType,
       mouseMovementDetected: this.#state.mouseMovementDetected,

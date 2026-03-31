@@ -336,8 +336,6 @@ export interface EnvironmentalSignals {
   domMutationDetected: boolean;
   /** count of unexpected script elements injected after page load */
   injectedScriptCount: number;
-  /** true if devtools appears to be open (timing-based heuristic) */
-  devtoolsOpen: boolean;
   /** screen dimensions appear to be non-human (very small or zero) */
   suspiciousScreenSize: boolean;
   /** pointer type detected: 'mouse' | 'touch' | 'pen' | 'none' */
