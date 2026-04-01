@@ -32,7 +32,8 @@ const COMPONENTS = [
   'secure-table',
   'secure-submit-button',
   'secure-card',
-  'secure-telemetry-provider'
+  'secure-telemetry-provider',
+  'secure-password-confirm'
 ];
 
 /**

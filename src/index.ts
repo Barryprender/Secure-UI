@@ -20,6 +20,7 @@ export { SecureTable } from './components/secure-table/secure-table.js';
 export { SecureSubmitButton } from './components/secure-submit-button/secure-submit-button.js';
 export { SecureCard } from './components/secure-card/secure-card.js';
 export { SecureTelemetryProvider } from './components/secure-telemetry-provider/secure-telemetry-provider.js';
+export { SecurePasswordConfirm } from './components/secure-password-confirm/secure-password-confirm.js';
 
 // Types
 export type {
@@ -56,5 +57,6 @@ export type {
   FieldTelemetrySnapshot,
   SessionTelemetry,
   EnvironmentalSignals,
-  SignedTelemetryEnvelope
+  SignedTelemetryEnvelope,
+  SecurePasswordConfirmEventDetail
 } from './core/types.js';

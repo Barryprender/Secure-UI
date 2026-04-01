@@ -21,6 +21,7 @@
   <script type="module" src="/latest/components/secure-submit-button/secure-submit-button.js"></script>
   <script type="module" src="/latest/components/secure-card/secure-card.js"></script>
   <script type="module" src="/latest/components/secure-telemetry-provider/secure-telemetry-provider.js"></script>
+  <script type="module" src="/latest/components/secure-password-confirm/secure-password-confirm.js"></script>
 
   <style>
     /* ============================================
@@ -782,6 +783,36 @@
     }
 
     /* ============================================
+       SECURE-PASSWORD-CONFIRM DEMO
+       ============================================ */
+    .pcd-actions {
+      margin-top: 0.75rem;
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .pcd-output {
+      margin-top: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--text-2);
+      min-height: 1.5rem;
+    }
+
+    .pcd-event-log-entry--match    { color: var(--secure-ui-color-success, #2e7d32); }
+    .pcd-event-log-entry--mismatch { color: var(--tier-critical-color); }
+
+    .pcd-event-log {
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      color: var(--text-2);
+      min-height: 3rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    /* ============================================
        RESPONSIVE
        ============================================ */
     @media (max-width: 960px) {
@@ -839,6 +870,7 @@
         <li><a href="#secure-form"        class="nav-link">secure-form</a></li>
         <li><a href="#secure-card"        class="nav-link">secure-card</a></li>
         <li><a href="#secure-telemetry-provider" class="nav-link">secure-telemetry-provider</a></li>
+        <li><a href="#secure-password-confirm"   class="nav-link">secure-password-confirm</a></li>
       </ul>
     </div>
 
@@ -1538,6 +1570,57 @@
       </secure-telemetry-provider>
     </section>
 
+    <!-- ============================================
+         SECURE PASSWORD CONFIRM
+         ============================================ -->
+    <section id="secure-password-confirm" class="component-section">
+      <header class="section-head">
+        <div class="section-title-row">
+          <h2 class="section-name">secure-password-confirm</h2>
+          <code class="section-tag">&lt;secure-password-confirm&gt;</code>
+        </div>
+        <p class="section-desc">Linked new-password + confirm-password pair, always locked to the critical tier. Match validation fires only after the confirm field is first blurred. Raw value is never exposed in events — use <code class="inline-code">getPasswordValue()</code> at submission. Strength rules: 8+ chars, upper, lower, digit, special character.</p>
+      </header>
+
+      <div class="wide-grid">
+
+        <div class="wide-cell">
+          <div class="wide-label">Standalone — default labels</div>
+          <secure-password-confirm id="pcd-standalone" name="new_password" required></secure-password-confirm>
+          <div class="pcd-actions">
+            <button class="btn-sm" id="pcd-get-value" type="button">getPasswordValue()</button>
+            <button class="btn-sm" id="pcd-check-valid" type="button">check valid</button>
+          </div>
+          <pre id="pcd-output" class="pcd-output"></pre>
+        </div>
+
+        <div class="wide-cell">
+          <div class="wide-label">Custom labels — inside a form</div>
+          <secure-form id="pcd-form" action="/api/change-password" method="POST" csrf-token="pcd-csrf-demo" security-tier="critical">
+            <secure-password-confirm
+              id="pcd-form-field"
+              name="password"
+              label="Update password"
+              password-label="New password"
+              confirm-label="Repeat new password"
+              required
+            ></secure-password-confirm>
+            <secure-submit-button label="Change password"></secure-submit-button>
+          </secure-form>
+        </div>
+
+      </div>
+
+      <div class="state-grid">
+
+        <div class="state-cell">
+          <div class="state-label">Event log — match / mismatch</div>
+          <div id="pcd-event-log" class="pcd-event-log"></div>
+        </div>
+
+      </div>
+    </section>
+
   </main>
 
   <!-- Form data inspection dialog -->
@@ -1561,6 +1644,7 @@
       customElements.whenDefined('secure-submit-button'),
       customElements.whenDefined('secure-card'),
       customElements.whenDefined('secure-telemetry-provider'),
+      customElements.whenDefined('secure-password-confirm'),
     ]);
 
     // ── Sortable / filterable table ──────────────────────────────────────
@@ -1645,7 +1729,35 @@
       });
     });
 
-    // ── Telemetry provider: scan signals ────────────────────────────────────
+    // ── secure-password-confirm demo ─────────────────────────────────────────
+    const pcdStandalone = document.getElementById('pcd-standalone');
+    const pcdOutput     = document.getElementById('pcd-output');
+    const pcdEventLog   = document.getElementById('pcd-event-log');
+
+    document.getElementById('pcd-get-value')?.addEventListener('click', () => {
+      const val = pcdStandalone?.getPasswordValue?.();
+      pcdOutput.textContent = val !== null ? `getPasswordValue() → "${val}"` : 'getPasswordValue() → null (no match yet)';
+    });
+
+    document.getElementById('pcd-check-valid')?.addEventListener('click', () => {
+      pcdOutput.textContent = `valid → ${pcdStandalone?.valid}`;
+    });
+
+    const logEvent = (type, detail) => {
+      const entry = document.createElement('div');
+      entry.className = type === 'secure-password-match' ? 'pcd-event-log-entry--match' : 'pcd-event-log-entry--mismatch';
+      entry.textContent = `${type} · name="${detail.name}" · matched=${detail.matched}`;
+      pcdEventLog.prepend(entry);
+      if (pcdEventLog.children.length > 5) pcdEventLog.lastElementChild?.remove();
+    };
+
+    pcdStandalone?.addEventListener('secure-password-match',    e => logEvent('secure-password-match',    e.detail));
+    pcdStandalone?.addEventListener('secure-password-mismatch', e => logEvent('secure-password-mismatch', e.detail));
+
+    // Prevent the demo form from making a real request
+    document.getElementById('pcd-form')?.addEventListener('submit', e => e.preventDefault());
+
+    // ── Telemetry provider: scan signals ─────────────────────────────────────
     const tp = document.getElementById('tp-demo');
     const signalsOutput = document.getElementById('signals-output');
 
