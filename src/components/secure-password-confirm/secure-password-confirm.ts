@@ -225,10 +225,10 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
 
   // ── SVG icon ──────────────────────────────────────────────────────────────
 
-  #createEyeIcon(): SVGSVGElement {
+  #createEyeIcon(): Element {
     const ns = 'http://www.w3.org/2000/svg';
 
-    const svg = document.createElementNS(ns, 'svg') as SVGSVGElement;
+    const svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('viewBox', '0 0 24 24');
     svg.setAttribute('aria-hidden', 'true');
     svg.setAttribute('class', 'eye-icon');
