@@ -51,6 +51,10 @@
       "types": "./dist/components/secure-telemetry-provider/secure-telemetry-provider.d.ts",
       "import": "./dist/components/secure-telemetry-provider/secure-telemetry-provider.js"
     },
+    "./secure-password-confirm": {
+      "types": "./dist/components/secure-password-confirm/secure-password-confirm.d.ts",
+      "import": "./dist/components/secure-password-confirm/secure-password-confirm.js"
+    },
     "./base-component": {
       "types": "./dist/core/base-component.d.ts",
       "import": "./dist/core/base-component.js"

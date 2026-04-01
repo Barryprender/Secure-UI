@@ -372,6 +372,18 @@ export interface SignedTelemetryEnvelope {
   signature: string;
 }
 
+/**
+ * Custom event detail for secure-password-confirm match/mismatch events.
+ * Raw password values are intentionally absent — use element.getPasswordValue()
+ * to retrieve the value only when needed for submission.
+ */
+export interface SecurePasswordConfirmEventDetail {
+  /** The name attribute of the component */
+  name: string;
+  /** true on secure-password-match, false on secure-password-mismatch */
+  matched: boolean;
+}
+
 // ========== Card Types ==========
 
 /**
