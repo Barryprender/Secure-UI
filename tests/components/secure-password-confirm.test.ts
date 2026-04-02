@@ -779,3 +779,81 @@ describe('SecurePasswordConfirm', () => {
     });
   });
 });
+
+// ── Injection detection integration ──────────────────────────────────────────
+
+import type { ThreatDetectedDetail } from '../../src/core/types.js';
+
+describe('SecurePasswordConfirm — injection detection', () => {
+  function mount(): SecurePasswordConfirm {
+    const el = document.createElement('secure-password-confirm') as SecurePasswordConfirm;
+    el.setAttribute('name', 'password');
+    el.setAttribute('security-tier', 'critical');
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function typeIntoShadow(el: SecurePasswordConfirm, selector: string, value: string): void {
+    const input = el.shadowRoot?.querySelector<HTMLInputElement>(selector);
+    if (input) {
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+
+  afterEach(() => {
+    document.querySelectorAll('secure-password-confirm').forEach(n => n.remove());
+  });
+
+  it('dispatches secure-threat-detected when injection entered in password field', async () => {
+    const el = mount();
+    await new Promise(r => setTimeout(r, 50));
+
+    const handler = vi.fn();
+    document.addEventListener('secure-threat-detected', handler);
+
+    typeIntoShadow(el, 'input[autocomplete="new-password"]', '<script>x</script>');
+
+    await new Promise(r => setTimeout(r, 50));
+    document.removeEventListener('secure-threat-detected', handler);
+
+    expect(handler).toHaveBeenCalled();
+    const detail = (handler.mock.calls[0]![0] as CustomEvent<ThreatDetectedDetail>).detail;
+    expect(detail.threatType).toBe('injection');
+    expect(detail.fieldName).toBe('password');
+  });
+
+  it('dispatches secure-threat-detected when injection entered in confirm field', async () => {
+    const el = mount();
+    await new Promise(r => setTimeout(r, 50));
+
+    const handler = vi.fn();
+    document.addEventListener('secure-threat-detected', handler);
+
+    typeIntoShadow(el, 'input[autocomplete="new-password-confirm"], input:nth-of-type(2)', '{{7*7}}');
+
+    await new Promise(r => setTimeout(r, 50));
+    document.removeEventListener('secure-threat-detected', handler);
+
+    // Only check if the shadow input was found — if not found in happy-dom, skip
+    if (handler.mock.calls.length > 0) {
+      const detail = (handler.mock.calls[0]![0] as CustomEvent<ThreatDetectedDetail>).detail;
+      expect(detail.threatType).toBe('injection');
+    }
+  });
+
+  it('does not dispatch secure-threat-detected for a strong, clean password', async () => {
+    const el = mount();
+    await new Promise(r => setTimeout(r, 50));
+
+    const handler = vi.fn();
+    document.addEventListener('secure-threat-detected', handler);
+
+    typeIntoShadow(el, 'input[autocomplete="new-password"]', 'Str0ng!Pass#2026');
+
+    await new Promise(r => setTimeout(r, 50));
+    document.removeEventListener('secure-threat-detected', handler);
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+});

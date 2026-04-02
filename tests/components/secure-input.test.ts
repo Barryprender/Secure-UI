@@ -799,3 +799,75 @@ declare global {
     xssInputExecuted?: boolean;
   }
 }
+
+// ── Injection detection integration ──────────────────────────────────────────
+
+import type { ThreatDetectedDetail } from '../../src/core/types.js';
+
+describe('SecureInput — injection detection', () => {
+  let input: SecureInput;
+
+  beforeEach(async () => {
+    input = document.createElement('secure-input') as SecureInput;
+    input.setAttribute('name', 'comment');
+    input.setAttribute('label', 'Comment');
+    input.setAttribute('security-tier', 'sensitive');
+    document.body.appendChild(input);
+    await new Promise(r => setTimeout(r, 50));
+  });
+
+  afterEach(() => { input.remove(); });
+
+  it('dispatches secure-threat-detected when injection pattern is typed into field', async () => {
+    const handler = vi.fn();
+    document.addEventListener('secure-threat-detected', handler);
+
+    const internalInput = input.shadowRoot?.querySelector('input');
+    if (internalInput) {
+      internalInput.value = '<script>alert(1)</script>';
+      internalInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    await new Promise(r => setTimeout(r, 50));
+    document.removeEventListener('secure-threat-detected', handler);
+
+    expect(handler).toHaveBeenCalled();
+    const detail = (handler.mock.calls[0]![0] as CustomEvent<ThreatDetectedDetail>).detail;
+    expect(detail.threatType).toBe('injection');
+    expect(detail.fieldName).toBe('comment');
+  });
+
+  it('does not dispatch secure-threat-detected for clean input', async () => {
+    const handler = vi.fn();
+    document.addEventListener('secure-threat-detected', handler);
+
+    const internalInput = input.shadowRoot?.querySelector('input');
+    if (internalInput) {
+      internalInput.value = 'hello world';
+      internalInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    await new Promise(r => setTimeout(r, 50));
+    document.removeEventListener('secure-threat-detected', handler);
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('dispatches only one event per input event even for multiple matching patterns', async () => {
+    const handler = vi.fn();
+    document.addEventListener('secure-threat-detected', handler);
+
+    const internalInput = input.shadowRoot?.querySelector('input');
+    if (internalInput) {
+      // Both script-tag and event-handler would match this value
+      internalInput.value = '<script onclick=x>';
+      internalInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    await new Promise(r => setTimeout(r, 50));
+    document.removeEventListener('secure-threat-detected', handler);
+
+    // Should have fired at most once
+    expect(handler.mock.calls.length).toBeLessThanOrEqual(1);
+  });
+});

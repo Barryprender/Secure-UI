@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureForm } from '../../src/components/secure-form/secure-form.js';
 import { SecureInput } from '../../src/components/secure-input/secure-input.js';
 import { SecureSubmitButton } from '../../src/components/secure-submit-button/secure-submit-button.js';
+import type { ThreatDetectedDetail } from '../../src/core/types.js';
 
 if (!customElements.get('secure-form')) {
   customElements.define('secure-form', SecureForm);
@@ -215,5 +216,118 @@ describe('SecureForm — attribute changes', () => {
     await new Promise(r => setTimeout(r, 50));
     const inner = form.querySelector('form') ?? form.shadowRoot?.querySelector('form');
     expect(inner?.getAttribute('method')?.toUpperCase()).toBe('POST');
+  });
+});
+
+describe('SecureForm — CSRF threat detection on submission', () => {
+  function makeForm(tier: string, withToken: boolean): SecureForm {
+    const f = document.createElement('secure-form') as SecureForm;
+    f.setAttribute('security-tier', tier);
+    f.setAttribute('enhance', '');
+    f.setAttribute('action', '/api/submit');
+    if (withToken) f.setAttribute('csrf-token', 'valid-token-xyz');
+    document.body.appendChild(f);
+    return f;
+  }
+
+  function triggerSubmit(f: SecureForm): void {
+    const inner = f.querySelector('form') ?? f.shadowRoot?.querySelector('form');
+    inner?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  }
+
+  afterEach(() => {
+    document.querySelectorAll('secure-form').forEach(el => el.remove());
+  });
+
+  it('dispatches secure-threat-detected (csrf-token-absent) on sensitive tier without token', async () => {
+    const form = makeForm('sensitive', false);
+    await new Promise(r => setTimeout(r, 50));
+
+    const handler = vi.fn();
+    form.addEventListener('secure-threat-detected', handler);
+    triggerSubmit(form);
+    await new Promise(r => setTimeout(r, 50));
+
+    expect(handler).toHaveBeenCalled();
+    const detail = (handler.mock.calls[0]![0] as CustomEvent<ThreatDetectedDetail>).detail;
+    expect(detail.threatType).toBe('csrf-token-absent');
+    expect(detail.patternId).toBe('csrf-token-absent');
+    expect(detail.tier).toBe('sensitive');
+  });
+
+  it('dispatches secure-threat-detected (csrf-token-absent) on critical tier without token', async () => {
+    const form = makeForm('critical', false);
+    await new Promise(r => setTimeout(r, 50));
+
+    const handler = vi.fn();
+    form.addEventListener('secure-threat-detected', handler);
+    triggerSubmit(form);
+    await new Promise(r => setTimeout(r, 50));
+
+    expect(handler).toHaveBeenCalled();
+    const detail = (handler.mock.calls[0]![0] as CustomEvent<ThreatDetectedDetail>).detail;
+    expect(detail.threatType).toBe('csrf-token-absent');
+    expect(detail.tier).toBe('critical');
+  });
+
+  it('does NOT dispatch csrf-token-absent for public tier without token', async () => {
+    const form = makeForm('public', false);
+    await new Promise(r => setTimeout(r, 50));
+
+    const handler = vi.fn();
+    form.addEventListener('secure-threat-detected', handler);
+    triggerSubmit(form);
+    await new Promise(r => setTimeout(r, 50));
+
+    const csrfAbsent = (handler.mock.calls as Array<[CustomEvent<ThreatDetectedDetail>]>)
+      .filter(([e]) => e.detail?.threatType === 'csrf-token-absent');
+    expect(csrfAbsent).toHaveLength(0);
+  });
+
+  it('does NOT dispatch csrf-token-absent for authenticated tier without token', async () => {
+    const form = makeForm('authenticated', false);
+    await new Promise(r => setTimeout(r, 50));
+
+    const handler = vi.fn();
+    form.addEventListener('secure-threat-detected', handler);
+    triggerSubmit(form);
+    await new Promise(r => setTimeout(r, 50));
+
+    const csrfAbsent = (handler.mock.calls as Array<[CustomEvent<ThreatDetectedDetail>]>)
+      .filter(([e]) => e.detail?.threatType === 'csrf-token-absent');
+    expect(csrfAbsent).toHaveLength(0);
+  });
+
+  it('does NOT dispatch csrf-token-absent when a valid token is present on critical tier', async () => {
+    const form = makeForm('critical', true);
+    await new Promise(r => setTimeout(r, 50));
+
+    const handler = vi.fn();
+    form.addEventListener('secure-threat-detected', handler);
+    triggerSubmit(form);
+    await new Promise(r => setTimeout(r, 50));
+
+    const csrfAbsent = (handler.mock.calls as Array<[CustomEvent<ThreatDetectedDetail>]>)
+      .filter(([e]) => e.detail?.threatType === 'csrf-token-absent');
+    expect(csrfAbsent).toHaveLength(0);
+  });
+
+  it('secure-threat-detected event bubbles and is composed', async () => {
+    const form = makeForm('critical', false);
+    await new Promise(r => setTimeout(r, 50));
+
+    let capturedEvent: CustomEvent | null = null;
+    document.addEventListener('secure-threat-detected', (e) => {
+      if ((e as CustomEvent<ThreatDetectedDetail>).detail?.threatType === 'csrf-token-absent') {
+        capturedEvent = e as CustomEvent;
+      }
+    });
+
+    triggerSubmit(form);
+    await new Promise(r => setTimeout(r, 50));
+
+    expect(capturedEvent).not.toBeNull();
+    expect(capturedEvent!.bubbles).toBe(true);
+    expect(capturedEvent!.composed).toBe(true);
   });
 });

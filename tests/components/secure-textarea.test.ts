@@ -383,3 +383,57 @@ declare global {
     xssTextareaExecuted?: boolean;
   }
 }
+
+// ── Injection detection integration ──────────────────────────────────────────
+
+import type { ThreatDetectedDetail } from '../../src/core/types.js';
+
+describe('SecureTextarea — injection detection', () => {
+  let ta: SecureTextarea;
+
+  beforeEach(async () => {
+    ta = document.createElement('secure-textarea') as SecureTextarea;
+    ta.setAttribute('name', 'body');
+    ta.setAttribute('label', 'Body');
+    ta.setAttribute('security-tier', 'sensitive');
+    document.body.appendChild(ta);
+    await new Promise(r => setTimeout(r, 50));
+  });
+
+  afterEach(() => { ta.remove(); });
+
+  it('dispatches secure-threat-detected when injection is typed', async () => {
+    const handler = vi.fn();
+    document.addEventListener('secure-threat-detected', handler);
+
+    const internalTextarea = ta.shadowRoot?.querySelector('textarea');
+    if (internalTextarea) {
+      internalTextarea.value = 'javascript:alert(1)';
+      internalTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    await new Promise(r => setTimeout(r, 50));
+    document.removeEventListener('secure-threat-detected', handler);
+
+    expect(handler).toHaveBeenCalled();
+    const detail = (handler.mock.calls[0]![0] as CustomEvent<ThreatDetectedDetail>).detail;
+    expect(detail.threatType).toBe('injection');
+    expect(detail.patternId).toBe('js-protocol');
+  });
+
+  it('does not dispatch secure-threat-detected for clean text', async () => {
+    const handler = vi.fn();
+    document.addEventListener('secure-threat-detected', handler);
+
+    const internalTextarea = ta.shadowRoot?.querySelector('textarea');
+    if (internalTextarea) {
+      internalTextarea.value = 'Normal comment with no threats.';
+      internalTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    await new Promise(r => setTimeout(r, 50));
+    document.removeEventListener('secure-threat-detected', handler);
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+});

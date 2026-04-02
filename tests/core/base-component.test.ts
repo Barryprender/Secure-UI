@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureBaseComponent } from '../../src/core/base-component.js';
 import { SecurityTier } from '../../src/core/security-config.js';
+import type { ThreatDetectedDetail } from '../../src/core/types.js';
 
 // Create a concrete implementation for testing
 class TestComponent extends SecureBaseComponent {
@@ -48,6 +49,10 @@ class TestComponent extends SecureBaseComponent {
 
   public testRerender(): void {
     this.rerender();
+  }
+
+  public testDetectInjection(value: string, fieldName: string): void {
+    this.detectInjection(value, fieldName);
   }
 }
 
@@ -476,6 +481,132 @@ describe('SecureBaseComponent', () => {
       document.body.appendChild(component);
 
       expect(component.shadowRoot).toBeInstanceOf(ShadowRoot);
+    });
+  });
+
+  describe('detectInjection()', () => {
+    beforeEach(async () => {
+      component.setAttribute('security-tier', 'critical');
+      document.body.appendChild(component);
+      await new Promise(r => setTimeout(r, 50));
+    });
+
+    const patterns: Array<{ id: string; value: string }> = [
+      { id: 'script-tag',      value: '<script src="x">' },
+      { id: 'js-protocol',     value: 'javascript:alert(1)' },
+      { id: 'event-handler',   value: 'hello onclick=bad()' },
+      { id: 'html-injection',  value: '<img src="safe.jpg">' },
+      { id: 'css-expression',  value: 'width:expression(alert(1))' },
+      { id: 'vbscript',        value: 'vbscript:msgbox(1)' },
+      { id: 'data-uri-html',   value: 'data:text/html,<h1>hi</h1>' },
+      { id: 'template-syntax', value: '{{7*7}}' },
+    ];
+
+    for (const { id, value } of patterns) {
+      it(`dispatches secure-threat-detected for pattern "${id}"`, () => {
+        const handler = vi.fn();
+        document.addEventListener('secure-threat-detected', handler);
+
+        component.testDetectInjection(value, 'test-field');
+
+        document.removeEventListener('secure-threat-detected', handler);
+
+        expect(handler).toHaveBeenCalledOnce();
+        const detail = (handler.mock.calls[0]![0] as CustomEvent<ThreatDetectedDetail>).detail;
+        expect(detail.patternId).toBe(id);
+        expect(detail.threatType).toBe('injection');
+      });
+    }
+
+    it('does not dispatch event for clean input', () => {
+      const handler = vi.fn();
+      document.addEventListener('secure-threat-detected', handler);
+
+      component.testDetectInjection('hello world', 'test-field');
+
+      document.removeEventListener('secure-threat-detected', handler);
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('only dispatches one event per call even when multiple patterns match', () => {
+      // This value matches both script-tag and event-handler
+      const multiMatch = '<script onclick=x>';
+      const handler = vi.fn();
+      document.addEventListener('secure-threat-detected', handler);
+
+      component.testDetectInjection(multiMatch, 'field');
+
+      document.removeEventListener('secure-threat-detected', handler);
+      expect(handler).toHaveBeenCalledOnce();
+    });
+
+    it('event detail contains fieldName, tier, and timestamp but not raw value', () => {
+      let capturedDetail: ThreatDetectedDetail | null = null;
+      document.addEventListener('secure-threat-detected', (e) => {
+        capturedDetail = (e as CustomEvent<ThreatDetectedDetail>).detail;
+      });
+
+      component.testDetectInjection('<script>', 'my-field');
+
+      expect(capturedDetail).not.toBeNull();
+      expect(capturedDetail!.fieldName).toBe('my-field');
+      expect(capturedDetail!.tier).toBe('critical');
+      expect(typeof capturedDetail!.timestamp).toBe('number');
+      expect(capturedDetail!.timestamp).toBeGreaterThan(0);
+      // Raw value must not be present anywhere in the detail
+      expect(JSON.stringify(capturedDetail)).not.toContain('<script>');
+    });
+
+    it('event bubbles and is composed', () => {
+      let capturedEvent: CustomEvent | null = null;
+      document.addEventListener('secure-threat-detected', (e) => {
+        capturedEvent = e as CustomEvent;
+      });
+
+      component.testDetectInjection('javascript:x', 'f');
+
+      expect(capturedEvent).not.toBeNull();
+      expect(capturedEvent!.bubbles).toBe(true);
+      expect(capturedEvent!.composed).toBe(true);
+    });
+
+    it('records a threat_detected audit entry', () => {
+      component.clearAuditLog();
+      component.testDetectInjection('<script>', 'audit-field');
+
+      const log = component.getAuditLog();
+      const entry = log.find(e => e.event === 'threat_detected');
+      expect(entry).toBeDefined();
+      // #audit spreads data directly into the log entry (no nested 'data' key)
+      expect(entry!['threatType']).toBe('injection');
+      expect(entry!['fieldName']).toBe('audit-field');
+    });
+
+    it('threat_detected audit entries are logged (shouldLog check)', () => {
+      // Verify the audit log stores threat events by checking log grows
+      component.clearAuditLog();
+      component.testDetectInjection('{{payload}}', 'f');
+      expect(component.getAuditLog().length).toBeGreaterThan(0);
+    });
+
+    it('detection is case-insensitive for script-tag', () => {
+      const handler = vi.fn();
+      document.addEventListener('secure-threat-detected', handler);
+
+      component.testDetectInjection('<SCRIPT SRC=x>', 'f');
+
+      document.removeEventListener('secure-threat-detected', handler);
+      expect(handler).toHaveBeenCalledOnce();
+    });
+
+    it('detection is case-insensitive for javascript: protocol', () => {
+      const handler = vi.fn();
+      document.addEventListener('secure-threat-detected', handler);
+
+      component.testDetectInjection('JAVASCRIPT:alert()', 'f');
+
+      document.removeEventListener('secure-threat-detected', handler);
+      expect(handler).toHaveBeenCalledOnce();
     });
   });
 });

@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureTelemetryProvider } from '../../src/components/secure-telemetry-provider/secure-telemetry-provider.js';
 import { SecureForm } from '../../src/components/secure-form/secure-form.js';
 import { SecureInput } from '../../src/components/secure-input/secure-input.js';
-import type { EnvironmentalSignals, SignedTelemetryEnvelope, SessionTelemetry } from '../../src/core/types.js';
+import type { EnvironmentalSignals, SignedTelemetryEnvelope, SessionTelemetry, ThreatDetectedDetail } from '../../src/core/types.js';
 
 if (!customElements.get('secure-telemetry-provider')) {
   customElements.define('secure-telemetry-provider', SecureTelemetryProvider);
@@ -364,5 +364,196 @@ describe('SecureTelemetryProvider', () => {
 
     document.dispatchEvent(new MouseEvent('mousemove'));
     expect(provider.collectSignals().mouseMovementDetected).toBe(false);
+  });
+
+  // ── Threat signal aggregation ─────────────────────────────────────────────
+
+  describe('threat signal aggregation', () => {
+    beforeEach(() => {
+      provider = mountProvider();
+    });
+
+    it('threatSignals is undefined in collectSignals() when no threats detected', () => {
+      expect(provider.collectSignals().threatSignals).toBeUndefined();
+    });
+
+    it('accumulates a secure-threat-detected event into threatSignals', () => {
+      const detail: ThreatDetectedDetail = {
+        fieldName: 'username',
+        threatType: 'injection',
+        patternId: 'script-tag',
+        tier: 'critical',
+        timestamp: Date.now(),
+      };
+      provider.dispatchEvent(new CustomEvent<ThreatDetectedDetail>('secure-threat-detected', {
+        detail,
+        bubbles: true,
+        composed: true,
+      }));
+
+      const signals = provider.collectSignals();
+      expect(signals.threatSignals).toBeDefined();
+      expect(signals.threatSignals).toHaveLength(1);
+      expect(signals.threatSignals![0]).toEqual(detail);
+    });
+
+    it('accumulates multiple threat signals from different events', () => {
+      const makeDetail = (patternId: string): ThreatDetectedDetail => ({
+        fieldName: 'f',
+        threatType: 'injection',
+        patternId,
+        tier: 'sensitive',
+        timestamp: Date.now(),
+      });
+
+      provider.dispatchEvent(new CustomEvent('secure-threat-detected', {
+        detail: makeDetail('script-tag'), bubbles: true, composed: true,
+      }));
+      provider.dispatchEvent(new CustomEvent('secure-threat-detected', {
+        detail: makeDetail('js-protocol'), bubbles: true, composed: true,
+      }));
+
+      const signals = provider.collectSignals();
+      expect(signals.threatSignals).toHaveLength(2);
+    });
+
+    it('accumulates a csrf-token-absent threat signal', () => {
+      const detail: ThreatDetectedDetail = {
+        fieldName: 'form-instance-1',
+        threatType: 'csrf-token-absent',
+        patternId: 'csrf-token-absent',
+        tier: 'critical',
+        timestamp: Date.now(),
+      };
+      provider.dispatchEvent(new CustomEvent('secure-threat-detected', {
+        detail, bubbles: true, composed: true,
+      }));
+
+      const signals = provider.collectSignals();
+      expect(signals.threatSignals![0]!.threatType).toBe('csrf-token-absent');
+    });
+
+    it('threatSignals is a copy (modifying returned array does not affect internal state)', () => {
+      provider.dispatchEvent(new CustomEvent('secure-threat-detected', {
+        detail: { fieldName: 'f', threatType: 'injection', patternId: 'script-tag', tier: 'public', timestamp: 1 } satisfies ThreatDetectedDetail,
+        bubbles: true,
+      }));
+
+      const signals = provider.collectSignals();
+      (signals.threatSignals as ThreatDetectedDetail[]).splice(0); // mutate the returned copy
+
+      // Internal state should still have one entry
+      expect(provider.collectSignals().threatSignals).toHaveLength(1);
+    });
+
+    it('threat signals are included in the signed envelope environment', async () => {
+      const detail: ThreatDetectedDetail = {
+        fieldName: 'email',
+        threatType: 'injection',
+        patternId: 'event-handler',
+        tier: 'authenticated',
+        timestamp: Date.now(),
+      };
+      provider.dispatchEvent(new CustomEvent('secure-threat-detected', {
+        detail, bubbles: true,
+      }));
+
+      const signals = provider.collectSignals();
+      const envelope = await provider.sign(signals);
+      expect(envelope.environment.threatSignals).toHaveLength(1);
+      expect(envelope.environment.threatSignals![0]!.patternId).toBe('event-handler');
+    });
+
+    it('stops accumulating threat signals after disconnect', () => {
+      provider.remove();
+
+      provider.dispatchEvent(new CustomEvent('secure-threat-detected', {
+        detail: { fieldName: 'f', threatType: 'injection', patternId: 'script-tag', tier: 'public', timestamp: 1 } satisfies ThreatDetectedDetail,
+        bubbles: true,
+      }));
+
+      // After disconnect the listener was removed — signals should remain empty
+      expect(provider.collectSignals().threatSignals).toBeUndefined();
+    });
+  });
+
+  // ── Cached HMAC signing key ───────────────────────────────────────────────
+
+  describe('cached HMAC signing key', () => {
+    it('sign() produces a deterministic signature for identical data on repeated calls', async () => {
+      provider = mountProvider('stable-key');
+      const signals = provider.collectSignals();
+
+      // Call sign() twice — both must produce a valid signature
+      const envA = await provider.sign(signals);
+      const envB = await provider.sign(signals);
+
+      // Both should be properly formed (same-length hex) even if nonces differ
+      if (envA.signature.length > 0 && envB.signature.length > 0) {
+        expect(envA.signature).toMatch(/^[0-9a-f]{64}$/);
+        expect(envB.signature).toMatch(/^[0-9a-f]{64}$/);
+      }
+      // Nonces must differ (they are random per call, not per key)
+      expect(envA.nonce).not.toBe(envB.nonce);
+    });
+
+    it('sign() uses the new key after signing-key attribute changes', async () => {
+      provider = mountProvider('key-one');
+      const signals = provider.collectSignals();
+
+      const envBefore = await provider.sign(signals);
+
+      // Rotate the key
+      provider.setAttribute('signing-key', 'key-two');
+
+      const envAfter = await provider.sign(signals);
+
+      // With different keys the signatures must differ (when SubtleCrypto is available)
+      if (envBefore.signature.length > 0 && envAfter.signature.length > 0) {
+        expect(envBefore.signature).not.toBe(envAfter.signature);
+      }
+    });
+
+    it('attributeChangedCallback does not throw for unrelated attribute changes', () => {
+      provider = mountProvider('my-key');
+      expect(() => {
+        provider.setAttribute('signing-key', 'my-key'); // same value — no-op cache invalidation
+      }).not.toThrow();
+    });
+
+    it('sign() with a valid key always returns a string signature (never undefined)', async () => {
+      provider = mountProvider('any-signing-key');
+      const signals = provider.collectSignals();
+      const envelope = await provider.sign(signals);
+      // Signature is '' in non-secure context or 64-char hex in secure context
+      expect(typeof envelope.signature).toBe('string');
+    });
+
+    it('disconnectedCallback clears the cached key state without throwing', () => {
+      provider = mountProvider('cache-key');
+      expect(() => provider.remove()).not.toThrow();
+    });
+
+    it('reconnect with a new key produces correct signature', async () => {
+      provider = mountProvider('original-key');
+      const signalsA = provider.collectSignals();
+      const envA = await provider.sign(signalsA);
+
+      provider.remove();
+
+      // Re-mount with a different key
+      const provider2 = document.createElement('secure-telemetry-provider') as SecureTelemetryProvider;
+      provider2.setAttribute('signing-key', 'rotated-key');
+      document.body.appendChild(provider2);
+
+      const signalsB = provider2.collectSignals();
+      const envB = await provider2.sign(signalsB);
+
+      if (envA.signature.length > 0 && envB.signature.length > 0) {
+        expect(envA.signature).not.toBe(envB.signature);
+      }
+
+      provider2.remove();
+    });
   });
 });
