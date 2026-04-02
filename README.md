@@ -6,17 +6,19 @@ Security-first Web Component library with built-in behavioral telemetry. Zero de
 
 ## Features
 
-- **10 Secure Components** — Input, Textarea, Select, Form, File Upload, DateTime, Table, Submit Button, Card, Telemetry Provider
+- **11 Secure Components** — Input, Textarea, Select, Form, File Upload, DateTime, Table, Submit Button, Card, Password Confirm, Telemetry Provider
 - **4-Tier Security System** — `public`, `authenticated`, `sensitive`, `critical`
 - **Behavioral Telemetry** — Every field collects typing patterns, paste detection, dwell time, and correction signals automatically
 - **Risk Scoring** — `<secure-form>` aggregates field signals into a session-level risk score at submission
-- **Signed Envelopes** — `<secure-telemetry-provider>` detects automation/headless browsers and signs every submission with HMAC-SHA-256
+- **Injection Detection** — All input fields scan for XSS, script injection, and template injection patterns in real time; fires `secure-threat-detected` with the matched pattern ID
+- **CSRF Threat Detection** — `<secure-form>` fires `secure-threat-detected` at submission when a CSRF token is absent on `sensitive` or `critical` tier forms
+- **Signed Envelopes** — `<secure-telemetry-provider>` detects automation/headless browsers, accumulates threat signals, and signs every submission with HMAC-SHA-256 (signing key cached per session)
 - **Zero Dependencies** — Pure TypeScript, no runtime dependencies
 - **Progressive Enhancement** — All components render meaningful markup and work without JavaScript
 - **CSP-Safe** — Styles loaded via `<link>` from `'self'`; no `unsafe-inline` required
 - **SSR Friendly** — Adopts server-rendered markup on upgrade; no document access in constructors
 - **Fully Customisable** — CSS Design Tokens + `::part()` API
-- **Comprehensive Testing** — 869 tests, 80%+ branch coverage
+- **Comprehensive Testing** — 1066 tests, 80%+ branch coverage
 
 ---
 
@@ -30,13 +32,13 @@ Field interaction  →  Behavioral signals  →  Risk score  →  Signed envelop
 ```
 
 **Layer 1 — Field-level signals** (`SecureBaseComponent`)
-Every secure field silently records: dwell time from focus to first keystroke, typing velocity, correction count (backspace/delete), paste detection, autofill detection, focus count, and blur-without-change patterns.
+Every secure field silently records: dwell time from focus to first keystroke, typing velocity, correction count (backspace/delete), paste detection, autofill detection, focus count, and blur-without-change patterns. On every input event, the raw value is scanned against injection patterns (XSS, script tags, JS protocols, event handlers, template injection, and more) — a `secure-threat-detected` event is dispatched if a match is found, with the matched pattern ID but never the raw value.
 
 **Layer 2 — Session aggregation** (`<secure-form>`)
-At submission, the form queries `getFieldTelemetry()` from every child field, produces per-field snapshots, and computes a composite risk score from 0–100. The telemetry payload travels alongside form data in a single `fetch` request as `_telemetry`.
+At submission, the form queries `getFieldTelemetry()` from every child field, produces per-field snapshots, and computes a composite risk score from 0–100. For `sensitive` and `critical` tiers, a missing CSRF token at submission time triggers a `secure-threat-detected` event before the request proceeds. The telemetry payload travels alongside form data in a single `fetch` request as `_telemetry`.
 
 **Layer 3 — Environmental signals** (`<secure-telemetry-provider>`)
-An optional overlay that wraps `<secure-form>`. Monitors for WebDriver/headless flags, DOM script injection (via `MutationObserver`), suspicious screen dimensions, and pointer/keyboard activity. Signs the final envelope with HMAC-SHA-256 so the server can detect replay attacks.
+An optional overlay that wraps `<secure-form>`. Monitors for WebDriver/headless flags, DOM script injection (via `MutationObserver`), suspicious screen dimensions, and pointer/keyboard activity. Accumulates all `secure-threat-detected` signals from child components during the session into `threatSignals`. Signs the final envelope with HMAC-SHA-256 using a cached `CryptoKey` (imported once per key value, re-imported only on rotation) so the server can detect replay attacks and inspect any injection or CSRF threats that occurred during the session.
 
 **What the server receives (enhanced submission):**
 
@@ -71,7 +73,16 @@ An optional overlay that wraps `<secure-form>`. Monitors for WebDriver/headless 
         "webdriverDetected": false,
         "headlessDetected": false,
         "mouseMovementDetected": true,
-        "pointerType": "mouse"
+        "pointerType": "mouse",
+        "threatSignals": [
+          {
+            "fieldName": "comment",
+            "threatType": "injection",
+            "patternId": "script-tag",
+            "tier": "sensitive",
+            "timestamp": 1743616200000
+          }
+        ]
       },
       "signature": "7d3a..."
     }
@@ -219,6 +230,7 @@ el.blur()
 |-------|--------|
 | `secure-input` | `{ name, value, masked, tier }` |
 | `secure-audit` | `{ event, tier, timestamp, … }` |
+| `secure-threat-detected` | `{ fieldName, threatType: 'injection', patternId, tier, timestamp }` — fired when a known injection pattern is detected in the field value |
 
 **Example**
 
@@ -327,6 +339,7 @@ el.submit()       // programmatic submit (triggers validation + telemetry)
 |-------|--------|
 | `secure-form-submit` | `{ formData, formElement, telemetry, preventDefault() }` — cancelable |
 | `secure-form-success` | `{ formData, response, telemetry }` — only when `enhance` is set |
+| `secure-threat-detected` | `{ fieldName, threatType: 'csrf-token-absent', patternId, tier, timestamp }` — fired on `sensitive`/`critical` tiers when CSRF token is absent at submission |
 
 **`telemetry` shape** (`SessionTelemetry`):
 
@@ -411,6 +424,7 @@ provider.sign(signals)           // Promise<SignedTelemetryEnvelope>
 | `pointerType` | Last pointer event type: `mouse` \| `touch` \| `pen` \| `none` |
 | `mouseMovementDetected` | Any `mousemove` event fired during session |
 | `keyboardActivityDetected` | Any `keydown` event fired during session |
+| `threatSignals` | Array of `ThreatDetectedDetail` objects accumulated from all `secure-threat-detected` events during the session; `undefined` when no threats were detected |
 
 **How the envelope is injected**
 
@@ -430,6 +444,7 @@ The provider listens for `secure-form-submit` on itself (bubbles from the nested
 **Security notes**
 
 - The `signing-key` is a *symmetric* secret. For strong guarantees, rotate it per-session via a server nonce endpoint rather than hardcoding it as an attribute.
+- The `CryptoKey` is imported from the `signing-key` attribute once and cached for the lifetime of the component. It is re-imported only when the attribute value changes, and cleared on `disconnectedCallback`. This avoids the cost of re-importing on every submission.
 - All signals are heuristic — a determined attacker can spoof them. The value is raising the cost of scripted attacks.
 - In non-secure contexts (`http://`) `SubtleCrypto` is unavailable; the signature will be an empty string. The server should treat unsigned envelopes with reduced trust.
 
@@ -733,6 +748,57 @@ payButton.addEventListener('click', async () => {
 
 ---
 
+### `<secure-password-confirm>`
+
+Dual-field password entry with real-time match validation, strength indicator, and injection detection on both the password and confirm inputs. Both fields use `type="password"` with autocomplete disabled at `sensitive`/`critical` tiers.
+
+**Attributes**
+
+| Attribute | Description |
+|-----------|-------------|
+| `label` | Legend displayed above the field group |
+| `name` | Base name for the hidden form input |
+| `required` | Mark as required |
+| `disabled` | Disable both fields |
+| `security-tier` | Security tier |
+
+**Properties & Methods**
+
+```js
+const el = document.querySelector('secure-password-confirm');
+
+el.valid                   // true when both fields match and pass validation
+el.name
+el.getPasswordValue()      // string — raw password; use only for form handoff
+el.getFieldTelemetry()     // composite FieldTelemetry across both inputs
+el.getAuditLog()
+el.clearAuditLog()
+el.focus()
+```
+
+**Events**
+
+| Event | Detail |
+|-------|--------|
+| `secure-password-match` | `{ name, matched: true }` — fired when both fields contain the same value |
+| `secure-password-mismatch` | `{ name, matched: false }` — fired when the values diverge |
+| `secure-threat-detected` | `{ fieldName, threatType: 'injection', patternId, tier, timestamp }` — fired if an injection pattern is typed into either field |
+
+**Form participation**
+
+A hidden `<input type="hidden">` is created in the light DOM, kept in sync with the password value, and cleared on `disconnectedCallback`.
+
+```html
+<secure-password-confirm
+  label="New password"
+  name="password"
+  required
+  security-tier="critical"
+></secure-password-confirm>
+```
+
+---
+
 ### `<secure-submit-button>`
 
 Accessible submit button with loading state and automatic form-validity gating.
@@ -756,6 +822,62 @@ el.getAuditLog()
 ```html
 <secure-submit-button label="Submit" loading-label="Submitting…"></secure-submit-button>
 ```
+
+---
+
+## Injection & CSRF Threat Detection
+
+### Injection detection
+
+Every `<secure-input>`, `<secure-textarea>`, and `<secure-password-confirm>` scans the raw field value on every `input` event against these patterns:
+
+| Pattern ID | What it catches |
+|------------|-----------------|
+| `script-tag` | `<script` tags |
+| `js-protocol` | `javascript:` URIs |
+| `event-handler` | Inline event attributes (`onclick=`, `onload=`, etc.) |
+| `html-injection` | Injected elements: `<img>`, `<svg>`, `<iframe>`, `<object>`, `<embed>`, `<link>`, `<meta>`, `<base>` |
+| `css-expression` | IE-era `expression()` CSS |
+| `vbscript` | `vbscript:` URIs |
+| `data-uri-html` | `data:text/html` payloads |
+| `template-syntax` | `{{...}}` template injection probes |
+
+Only the **first** matching pattern fires an event per input event to avoid flooding. The raw value is **never** included in the event detail.
+
+```js
+document.addEventListener('secure-threat-detected', (e) => {
+  const { fieldName, threatType, patternId, tier, timestamp } = e.detail;
+  // threatType === 'injection'
+  // patternId  === 'script-tag' | 'js-protocol' | ...
+  myFraudPipeline.report({ fieldName, patternId, tier });
+});
+```
+
+### CSRF threat detection
+
+`<secure-form>` fires `secure-threat-detected` at submission time when the form is `sensitive` or `critical` tier and no CSRF token value is present. This is a defence-in-depth signal — the request is still blocked by missing CSRF validation server-side, but the event lets client-side monitoring react immediately.
+
+```js
+form.addEventListener('secure-threat-detected', (e) => {
+  if (e.detail.threatType === 'csrf-token-absent') {
+    console.warn('Submission attempted without CSRF token', e.detail);
+  }
+});
+```
+
+### `ThreatDetectedDetail` shape
+
+```ts
+{
+  fieldName: string;                           // name attribute of the originating field
+  threatType: 'injection' | 'csrf-token-absent';
+  patternId: string;                           // e.g. 'script-tag', 'csrf-token-absent'
+  tier: 'public' | 'authenticated' | 'sensitive' | 'critical';
+  timestamp: number;                           // Unix ms — raw value intentionally absent
+}
+```
+
+All threat signals detected during a session are collected by `<secure-telemetry-provider>` into `threatSignals` on the signed envelope, so the server receives the full picture in a single request.
 
 ---
 
@@ -816,6 +938,7 @@ el.blur()
 | `secure-form-success` | `<secure-form>` | `{ formData, response, telemetry }` |
 | `secure-card` | `<secure-card>` | `{ name, cardType, last4, expiryMonth, expiryYear, cardholderName, valid, tier }` |
 | `secure-audit` | all components | `{ event, tier, timestamp, … }` |
+| `secure-threat-detected` | `<secure-input>`, `<secure-textarea>`, `<secure-password-confirm>`, `<secure-form>` | `{ fieldName, threatType, patternId, tier, timestamp }` — injection or CSRF threat detected |
 | `table-action` | `<secure-table>` | `{ action, row }` |
 
 ---
@@ -873,6 +996,7 @@ import 'secure-ui-components/secure-file-upload';
 import 'secure-ui-components/secure-datetime';
 import 'secure-ui-components/secure-table';
 import 'secure-ui-components/secure-card';
+import 'secure-ui-components/secure-password-confirm';
 import 'secure-ui-components/secure-telemetry-provider';
 ```
 
