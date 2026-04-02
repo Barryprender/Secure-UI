@@ -32,7 +32,8 @@ import type {
   RateLimitState,
   AuditLogEntry,
   FieldTelemetry,
-  FieldTelemetryState
+  FieldTelemetryState,
+  ThreatDetectedDetail
 } from './types.js';
 
 /**
@@ -50,6 +51,25 @@ import type {
 export abstract class SecureBaseComponent extends HTMLElement {
   /** Maximum number of entries retained in the in-memory audit log */
   static readonly #MAX_AUDIT_LOG_SIZE = 1000;
+
+  /**
+   * Injection detection patterns applied to raw input values on every input event.
+   * Ordered by descending severity. Only the first match is reported per event.
+   * Raw values are never included in the resulting threat event.
+   */
+  static readonly #INJECTION_PATTERNS: ReadonlyArray<{
+    readonly id: string;
+    readonly pattern: RegExp;
+  }> = [
+    { id: 'script-tag',      pattern: /<script[\s>/]/i },
+    { id: 'js-protocol',     pattern: /javascript\s*:/i },
+    { id: 'event-handler',   pattern: /\bon\w+\s*=/i },
+    { id: 'html-injection',  pattern: /<\s*(img|svg|iframe|object|embed|link|meta|base)[^>]*/i },
+    { id: 'css-expression',  pattern: /expression\s*\(/i },
+    { id: 'vbscript',        pattern: /vbscript\s*:/i },
+    { id: 'data-uri-html',   pattern: /data:\s*text\/html/i },
+    { id: 'template-syntax', pattern: /\{\{[\s\S]*?\}\}/ },
+  ];
 
   #securityTier: SecurityTierValue = SecurityTier.CRITICAL as SecurityTierValue;
   #config: TierConfig;
@@ -298,7 +318,8 @@ export abstract class SecureBaseComponent extends HTMLElement {
       (event.includes('submit') && config.logSubmission) ||
       event.includes('initialized') ||
       event.includes('rate_limit') ||
-      event.includes('validation');
+      event.includes('validation') ||
+      event.includes('threat');
 
     if (!shouldLog) {
       return;
@@ -371,6 +392,40 @@ export abstract class SecureBaseComponent extends HTMLElement {
    */
   protected audit(event: string, data: Record<string, unknown>): void {
     this.#audit(event, data);
+  }
+
+  /**
+   * Check a raw input value for injection patterns and signal if one is found.
+   *
+   * Called by input components on every input event, after the raw value is captured.
+   * Only the first matching pattern is reported to avoid event flooding.
+   * The raw value is never included in the dispatched event detail.
+   *
+   * @param value   - Raw field value (unmodified user input)
+   * @param fieldName - The field's name attribute
+   */
+  protected detectInjection(value: string, fieldName: string): void {
+    for (const { id, pattern } of SecureBaseComponent.#INJECTION_PATTERNS) {
+      if (pattern.test(value)) {
+        this.audit('threat_detected', {
+          fieldName,
+          patternId: id,
+          threatType: 'injection',
+        });
+        this.dispatchEvent(new CustomEvent<ThreatDetectedDetail>('secure-threat-detected', {
+          detail: {
+            fieldName,
+            threatType: 'injection',
+            patternId: id,
+            tier: this.securityTier,
+            timestamp: Date.now(),
+          },
+          bubbles: true,
+          composed: true,
+        }));
+        return; // first match only
+      }
+    }
   }
 
   /**

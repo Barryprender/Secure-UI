@@ -40,7 +40,8 @@
 import type {
   EnvironmentalSignals,
   SignedTelemetryEnvelope,
-  SessionTelemetry
+  SessionTelemetry,
+  ThreatDetectedDetail
 } from '../../core/types.js';
 
 // ── Internal state type ───────────────────────────────────────────────────────
@@ -53,6 +54,8 @@ interface ProviderState {
   pointerType: 'mouse' | 'touch' | 'pen' | 'none';
   /** performance.now() at first keydown; -1 until a keystroke is recorded */
   firstKeystrokeAt: number;
+  /** Threat signals detected by child components during this session */
+  threatSignals: ThreatDetectedDetail[];
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -69,6 +72,7 @@ export class SecureTelemetryProvider extends HTMLElement {
     domMutationDetected: false,
     pointerType: 'none',
     firstKeystrokeAt: -1,
+    threatSignals: [],
   };
 
   /** performance.now() recorded at connectedCallback — baseline for timing signals */
@@ -76,6 +80,15 @@ export class SecureTelemetryProvider extends HTMLElement {
 
   #mutationObserver: MutationObserver | null = null;
   #knownScripts: Set<Node> = new Set();
+
+  /**
+   * Cached CryptoKey derived from the signing-key attribute.
+   * Imported once on first use; invalidated when the attribute changes.
+   * Avoids re-importing the key on every form submission.
+   */
+  #cryptoKey: CryptoKey | null = null;
+  /** The raw key string that #cryptoKey was derived from. Used to detect stale cache. */
+  #cryptoKeySource: string = '';
 
   // Bound listener references so we can cleanly remove them
   #onMouseMove: () => void = () => { this.#state.mouseMovementDetected = true; };
@@ -89,6 +102,9 @@ export class SecureTelemetryProvider extends HTMLElement {
     this.#state.pointerType = e.pointerType as 'mouse' | 'touch' | 'pen';
   };
   #onFormSubmit: (e: Event) => void = (e: Event) => { void this.#handleFormSubmit(e); };
+  #onThreatDetected: (e: Event) => void = (e: Event) => {
+    this.#state.threatSignals.push((e as CustomEvent<ThreatDetectedDetail>).detail);
+  };
 
   connectedCallback(): void {
     this.#connectedAt = performance.now();
@@ -104,6 +120,16 @@ export class SecureTelemetryProvider extends HTMLElement {
     this.#mutationObserver?.disconnect();
     this.#mutationObserver = null;
     this.#removeListeners();
+    this.#cryptoKey = null;
+    this.#cryptoKeySource = '';
+  }
+
+  attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null): void {
+    if (name === 'signing-key' && newValue !== this.#cryptoKeySource) {
+      // Invalidate the cached key so it is re-imported on the next sign() call
+      this.#cryptoKey = null;
+      this.#cryptoKeySource = '';
+    }
   }
 
   // ── Mutation observer: detect script injection ──────────────────────────────
@@ -135,6 +161,7 @@ export class SecureTelemetryProvider extends HTMLElement {
     document.addEventListener('keydown', this.#onKeydown, { passive: true });
     document.addEventListener('pointerdown', this.#onPointerDown as EventListener, { passive: true });
     this.addEventListener('secure-form-submit', this.#onFormSubmit);
+    this.addEventListener('secure-threat-detected', this.#onThreatDetected);
   }
 
   #removeListeners(): void {
@@ -142,6 +169,7 @@ export class SecureTelemetryProvider extends HTMLElement {
     document.removeEventListener('keydown', this.#onKeydown);
     document.removeEventListener('pointerdown', this.#onPointerDown as EventListener);
     this.removeEventListener('secure-form-submit', this.#onFormSubmit);
+    this.removeEventListener('secure-threat-detected', this.#onThreatDetected);
   }
 
   // ── Signal collection ───────────────────────────────────────────────────────
@@ -186,6 +214,9 @@ export class SecureTelemetryProvider extends HTMLElement {
       keyboardActivityDetected: this.#state.keyboardActivityDetected,
       pageLoadToFirstKeystroke,
       loadToSubmit,
+      threatSignals: this.#state.threatSignals.length > 0
+        ? [...this.#state.threatSignals]
+        : undefined,
     };
   }
 
@@ -221,15 +252,20 @@ export class SecureTelemetryProvider extends HTMLElement {
     }
 
     const enc = new TextEncoder();
-    const keyMaterial = await crypto.subtle.importKey(
-      'raw',
-      enc.encode(key),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
 
-    const signatureBuffer = await crypto.subtle.sign('HMAC', keyMaterial, enc.encode(data));
+    // Import and cache the CryptoKey. Re-import only when the key string changes.
+    if (this.#cryptoKey === null || this.#cryptoKeySource !== key) {
+      this.#cryptoKey = await crypto.subtle.importKey(
+        'raw',
+        enc.encode(key),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+      this.#cryptoKeySource = key;
+    }
+
+    const signatureBuffer = await crypto.subtle.sign('HMAC', this.#cryptoKey, enc.encode(data));
     return Array.from(new Uint8Array(signatureBuffer), b => b.toString(16).padStart(2, '0')).join('');
   }
 

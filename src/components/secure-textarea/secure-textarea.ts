@@ -304,6 +304,8 @@ export class SecureTextarea extends SecureBaseComponent {
    * @private
    */
   #handleInput(_event: Event): void {
+    this.detectInjection(this.#textareaElement!.value, this.#textareaElement!.name);
+
     // Update character count
     this.#updateCharCount();
 

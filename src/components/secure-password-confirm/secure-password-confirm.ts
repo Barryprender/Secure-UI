@@ -176,6 +176,7 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
     this.#passwordInput!.addEventListener('input', (e: Event) => {
       this.recordTelemetryInput(e);
       this.#passwordValue = this.#passwordInput!.value;
+      this.detectInjection(this.#passwordValue, this.getAttribute('name') ?? '');
       if (this.#confirmTouched) {
         this.#checkMatch();
       }
@@ -195,6 +196,7 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
   #attachConfirmListeners(): void {
     this.#confirmInput!.addEventListener('input', () => {
       this.#confirmValue = this.#confirmInput!.value;
+      this.detectInjection(this.#confirmValue, this.getAttribute('name') ?? '');
       if (this.#confirmTouched) {
         this.#checkMatch();
       }

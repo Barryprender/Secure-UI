@@ -355,6 +355,11 @@ export interface EnvironmentalSignals {
    * Unusually low values (< 500ms) suggest automated submission.
    */
   loadToSubmit: number;
+  /**
+   * Injection or CSRF threat signals detected during this session.
+   * Populated by secure-telemetry-provider when it observes secure-threat-detected events.
+   */
+  threatSignals?: readonly ThreatDetectedDetail[];
 }
 
 /**
@@ -370,6 +375,26 @@ export interface SignedTelemetryEnvelope {
   environment: EnvironmentalSignals;
   /** HMAC-like integrity hash over nonce + issuedAt + environment (SHA-256 hex) */
   signature: string;
+}
+
+/**
+ * Custom event detail for secure-threat-detected events.
+ * Fired by input components when an injection pattern is detected in a field value,
+ * or by secure-form when a CSRF token is absent on submission.
+ * The raw field value is intentionally absent.
+ */
+export interface ThreatDetectedDetail {
+  /** The name attribute of the field that triggered detection */
+  fieldName: string;
+  /** Category of threat detected */
+  threatType: 'injection' | 'csrf-token-absent';
+  /** Identifier of the pattern that matched, e.g. 'script-tag', 'event-handler' */
+  patternId: string;
+  /** Security tier of the component at the time of detection */
+  tier: SecurityTierValue;
+  /** Unix timestamp (ms) of detection */
+  timestamp: number;
+  // raw field value intentionally absent
 }
 
 /**

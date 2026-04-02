@@ -482,6 +482,8 @@ export class SecureInput extends SecureBaseComponent {
       this.#actualValue = this.#inputElement!.value;
     }
 
+    this.detectInjection(this.#actualValue, this.#inputElement!.name);
+
     // Clear previous errors on input (improve UX)
     this.#clearErrors();
 

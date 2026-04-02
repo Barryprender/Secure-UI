@@ -37,7 +37,8 @@ import type {
   SecurityTierValue,
   FieldTelemetry,
   FieldTelemetrySnapshot,
-  SessionTelemetry
+  SessionTelemetry,
+  ThreatDetectedDetail
 } from '../../core/types.js';
 
 /**
@@ -352,6 +353,24 @@ export class SecureForm extends HTMLElement {
     if (this.#isSubmitting) {
       event.preventDefault();
       return;
+    }
+
+    // Detect absent CSRF token on sensitive/critical tiers at submission time
+    if (
+      (this.#securityTier === SecurityTier.SENSITIVE || this.#securityTier === SecurityTier.CRITICAL) &&
+      !this.#csrfInput?.value
+    ) {
+      this.dispatchEvent(new CustomEvent<ThreatDetectedDetail>('secure-threat-detected', {
+        detail: {
+          fieldName: this.#instanceId,
+          threatType: 'csrf-token-absent',
+          patternId: 'csrf-token-absent',
+          tier: this.#securityTier,
+          timestamp: Date.now(),
+        },
+        bubbles: true,
+        composed: true,
+      }));
     }
 
     // Check rate limit
