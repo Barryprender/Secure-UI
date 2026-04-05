@@ -31,6 +31,7 @@
 
 import { SecureBaseComponent } from '../../core/base-component.js';
 import { SecurityTier } from '../../core/security-config.js';
+import type { SecurityTierValue } from '../../core/types.js';
 
 /**
  * Secure Input Web Component
@@ -59,6 +60,13 @@ export class SecureInput extends SecureBaseComponent {
    * @private
    */
   #errorContainer: HTMLDivElement | null = null;
+
+  /**
+   * Threat feedback container — separate from validation errors so
+   * #clearErrors() never clobbers an active threat message.
+   * @private
+   */
+  #threatContainer: HTMLDivElement | null = null;
 
   /**
    * The actual unmasked value
@@ -167,6 +175,16 @@ export class SecureInput extends SecureBaseComponent {
     this.#errorContainer.setAttribute('part', 'error');
     this.#errorContainer.id = `${this.#instanceId}-error`;
     container.appendChild(this.#errorContainer);
+
+    // Threat feedback container — only rendered visibly when threat-feedback attribute
+    // is present and detectInjection() fires. Kept separate from #errorContainer so
+    // #clearErrors() (called on every input event) never clobbers a threat message.
+    this.#threatContainer = document.createElement('div');
+    this.#threatContainer.className = 'threat-container hidden';
+    this.#threatContainer.setAttribute('role', 'alert');
+    this.#threatContainer.setAttribute('part', 'threat');
+    this.#threatContainer.id = `${this.#instanceId}-threat`;
+    container.appendChild(this.#threatContainer);
 
     // CRITICAL: Create hidden input in light DOM for native form submission
     // The actual input is in Shadow DOM and can't participate in form submission
@@ -901,6 +919,59 @@ export class SecureInput extends SecureBaseComponent {
     if (this.#inputElement) {
       this.#inputElement.blur();
     }
+  }
+
+  /**
+   * Show inline threat feedback inside the component's shadow DOM.
+   * Called by the base class when a threat is detected and threat-feedback is set.
+   * Uses a separate container from validation errors so #clearErrors() does not
+   * clobber an active threat message.
+   * @protected
+   */
+  protected override showThreatFeedback(patternId: string, tier: SecurityTierValue): void {
+    if (!this.#threatContainer || !this.#inputElement) return;
+
+    // Build content with DOM methods — CSP-safe, no innerHTML
+    this.#threatContainer.textContent = '';
+
+    const msg = document.createElement('span');
+    msg.className = 'threat-message';
+    msg.textContent = this.getThreatLabel(patternId);
+
+    const patternBadge = document.createElement('span');
+    patternBadge.className = 'threat-badge';
+    patternBadge.textContent = patternId;
+
+    const tierBadge = document.createElement('span');
+    tierBadge.className = `threat-tier threat-tier--${tier}`;
+    tierBadge.textContent = tier;
+
+    this.#threatContainer.appendChild(msg);
+    this.#threatContainer.appendChild(patternBadge);
+    this.#threatContainer.appendChild(tierBadge);
+
+    // Force reflow so the browser registers the hidden state before removing it,
+    // ensuring the CSS transition fires correctly.
+    void this.#threatContainer.offsetHeight;
+    this.#threatContainer.classList.remove('hidden');
+    this.#inputElement.classList.add('threat');
+    this.#inputElement.setAttribute('aria-invalid', 'true');
+  }
+
+  /**
+   * Clear the threat feedback container.
+   * @protected
+   */
+  protected override clearThreatFeedback(): void {
+    if (!this.#threatContainer || !this.#inputElement) return;
+    this.#threatContainer.classList.add('hidden');
+    this.#threatContainer.addEventListener('transitionend', () => {
+      if (this.#threatContainer!.classList.contains('hidden')) {
+        this.#threatContainer!.textContent = '';
+      }
+    }, { once: true });
+    this.#inputElement.classList.remove('threat');
+    this.#inputElement.removeAttribute('aria-invalid');
   }
 
   /**

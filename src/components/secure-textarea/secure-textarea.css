@@ -134,9 +134,74 @@ label {
 
 @media (prefers-reduced-motion: reduce) {
   .textarea-field,
-  .error-container {
+  .error-container,
+  .threat-container {
     transition: none !important;
   }
+}
+
+/* Threat Feedback Container */
+.threat-container {
+  margin-top: var(--secure-ui-form-error-margin-top);
+  font-size: var(--secure-ui-error-font-size);
+  color: var(--secure-ui-color-warning);
+  line-height: var(--secure-ui-line-height-normal);
+  overflow: hidden;
+  max-height: 40px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out, max-height 0.2s ease-out, margin-top 0.2s ease-out;
+  display: flex;
+  align-items: center;
+  gap: var(--secure-ui-space-1, 4px);
+  flex-wrap: wrap;
+}
+
+.threat-container.hidden {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  margin-top: 0;
+}
+
+.threat-message {
+  flex: 1;
+  min-width: 0;
+}
+
+.threat-badge {
+  display: inline-block;
+  padding: var(--secure-ui-badge-padding);
+  font-size: var(--secure-ui-badge-font-size);
+  font-weight: var(--secure-ui-font-weight-semibold);
+  border-radius: var(--secure-ui-badge-border-radius);
+  background-color: color-mix(in srgb, var(--secure-ui-color-warning) 12%, transparent);
+  color: var(--secure-ui-color-warning);
+  border: var(--secure-ui-border-width-thin) solid currentColor;
+  font-family: var(--secure-ui-font-family-mono, monospace);
+  white-space: nowrap;
+}
+
+.threat-tier {
+  display: inline-block;
+  padding: var(--secure-ui-badge-padding);
+  font-size: var(--secure-ui-badge-font-size);
+  font-weight: var(--secure-ui-font-weight-semibold);
+  border-radius: var(--secure-ui-badge-border-radius);
+  background-color: var(--secure-ui-color-bg-tertiary);
+  color: var(--secure-ui-color-text-secondary);
+  border: var(--secure-ui-border-width-thin) solid var(--secure-ui-color-border);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Threat state on the textarea field */
+.textarea-field.threat {
+  border-color: var(--secure-ui-color-warning) !important;
+}
+
+.textarea-field.threat:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--secure-ui-color-warning) 25%, transparent);
 }
 
 /* Security Tier Styles */

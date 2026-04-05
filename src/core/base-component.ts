@@ -57,6 +57,21 @@ export abstract class SecureBaseComponent extends HTMLElement {
    * Ordered by descending severity. Only the first match is reported per event.
    * Raw values are never included in the resulting threat event.
    */
+  /**
+   * Human-readable labels for each injection pattern ID.
+   * Used by components that render threat feedback UI (threat-feedback attribute).
+   */
+  static readonly #THREAT_LABELS: Readonly<Record<string, string>> = {
+    'script-tag':      'Script injection blocked',
+    'js-protocol':     'JavaScript protocol blocked',
+    'event-handler':   'Event handler injection blocked',
+    'html-injection':  'HTML element injection blocked',
+    'css-expression':  'CSS expression injection blocked',
+    'vbscript':        'VBScript injection blocked',
+    'data-uri-html':   'Data URI injection blocked',
+    'template-syntax': 'Template injection blocked',
+  };
+
   static readonly #INJECTION_PATTERNS: ReadonlyArray<{
     readonly id: string;
     readonly pattern: RegExp;
@@ -109,7 +124,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
    * Observed attributes - must be overridden by child classes
    */
   static get observedAttributes(): string[] {
-    return ['security-tier', 'disabled', 'readonly'];
+    return ['security-tier', 'disabled', 'readonly', 'threat-feedback'];
   }
 
   /**
@@ -423,9 +438,43 @@ export abstract class SecureBaseComponent extends HTMLElement {
           bubbles: true,
           composed: true,
         }));
+        if (this.hasAttribute('threat-feedback')) {
+          this.showThreatFeedback(id, this.securityTier);
+        }
         return; // first match only
       }
     }
+    // No threat found — clear any lingering feedback
+    if (this.hasAttribute('threat-feedback')) {
+      this.clearThreatFeedback();
+    }
+  }
+
+  /**
+   * Show an inline threat feedback message inside the component.
+   * Called by detectInjection() when threat-feedback attribute is present.
+   * Override in child classes that render a threat UI container.
+   * @protected
+   */
+  protected showThreatFeedback(_patternId: string, _tier: SecurityTierValue): void {
+    // No-op — child classes override when they support inline threat UI
+  }
+
+  /**
+   * Clear any visible threat feedback.
+   * Called by detectInjection() when input is clean and threat-feedback is set.
+   * @protected
+   */
+  protected clearThreatFeedback(): void {
+    // No-op — child classes override when they support inline threat UI
+  }
+
+  /**
+   * Returns a human-readable label for the given injection pattern ID.
+   * @protected
+   */
+  protected getThreatLabel(patternId: string): string {
+    return SecureBaseComponent.#THREAT_LABELS[patternId] ?? `Injection blocked: ${patternId}`;
   }
 
   /**

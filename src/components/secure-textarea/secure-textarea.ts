@@ -30,6 +30,7 @@
  */
 
 import { SecureBaseComponent } from '../../core/base-component.js';
+import type { SecurityTierValue } from '../../core/types.js';
 
 /**
  * Secure Textarea Web Component
@@ -58,6 +59,13 @@ export class SecureTextarea extends SecureBaseComponent {
    * @private
    */
   #errorContainer: HTMLDivElement | null = null;
+
+  /**
+   * Threat feedback container — separate from validation errors so
+   * #clearErrors() never clobbers an active threat message.
+   * @private
+   */
+  #threatContainer: HTMLDivElement | null = null;
 
   /**
    * Character count display element
@@ -160,6 +168,15 @@ export class SecureTextarea extends SecureBaseComponent {
     this.#errorContainer.setAttribute('part', 'error');
     this.#errorContainer.id = `${this.#instanceId}-error`;
     container.appendChild(this.#errorContainer);
+
+    // Threat feedback container — kept separate from #errorContainer so
+    // #clearErrors() (called on every input event) never clobbers a threat message.
+    this.#threatContainer = document.createElement('div');
+    this.#threatContainer.className = 'threat-container hidden';
+    this.#threatContainer.setAttribute('role', 'alert');
+    this.#threatContainer.setAttribute('part', 'threat');
+    this.#threatContainer.id = `${this.#instanceId}-threat`;
+    container.appendChild(this.#threatContainer);
 
     // Add component styles (CSP-compliant via adoptedStyleSheets)
     this.addComponentStyles(this.#getComponentStyles());
@@ -517,6 +534,53 @@ export class SecureTextarea extends SecureBaseComponent {
   /**
    * Cleanup on disconnect
    */
+  /**
+   * Show inline threat feedback inside the component's shadow DOM.
+   * @protected
+   */
+  protected override showThreatFeedback(patternId: string, tier: SecurityTierValue): void {
+    if (!this.#threatContainer || !this.#textareaElement) return;
+
+    this.#threatContainer.textContent = '';
+
+    const msg = document.createElement('span');
+    msg.className = 'threat-message';
+    msg.textContent = this.getThreatLabel(patternId);
+
+    const patternBadge = document.createElement('span');
+    patternBadge.className = 'threat-badge';
+    patternBadge.textContent = patternId;
+
+    const tierBadge = document.createElement('span');
+    tierBadge.className = `threat-tier threat-tier--${tier}`;
+    tierBadge.textContent = tier;
+
+    this.#threatContainer.appendChild(msg);
+    this.#threatContainer.appendChild(patternBadge);
+    this.#threatContainer.appendChild(tierBadge);
+
+    void this.#threatContainer.offsetHeight;
+    this.#threatContainer.classList.remove('hidden');
+    this.#textareaElement.classList.add('threat');
+    this.#textareaElement.setAttribute('aria-invalid', 'true');
+  }
+
+  /**
+   * Clear the threat feedback container.
+   * @protected
+   */
+  protected override clearThreatFeedback(): void {
+    if (!this.#threatContainer || !this.#textareaElement) return;
+    this.#threatContainer.classList.add('hidden');
+    this.#threatContainer.addEventListener('transitionend', () => {
+      if (this.#threatContainer!.classList.contains('hidden')) {
+        this.#threatContainer!.textContent = '';
+      }
+    }, { once: true });
+    this.#textareaElement.classList.remove('threat');
+    this.#textareaElement.removeAttribute('aria-invalid');
+  }
+
   disconnectedCallback(): void {
     super.disconnectedCallback();
 
