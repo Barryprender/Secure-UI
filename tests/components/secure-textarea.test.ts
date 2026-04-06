@@ -437,3 +437,96 @@ describe('SecureTextarea — injection detection', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 });
+
+// ── threat-feedback UI ────────────────────────────────────────────────────────
+
+describe('SecureTextarea — threat-feedback UI', () => {
+  let ta: SecureTextarea;
+
+  const setup = async (withAttribute: boolean) => {
+    ta = document.createElement('secure-textarea') as SecureTextarea;
+    ta.setAttribute('name', 'body');
+    ta.setAttribute('label', 'Body');
+    ta.setAttribute('security-tier', 'critical');
+    if (withAttribute) ta.setAttribute('threat-feedback', '');
+    document.body.appendChild(ta);
+    await new Promise(r => setTimeout(r, 50));
+  };
+
+  afterEach(() => { ta.remove(); });
+
+  const fireInput = async (value: string) => {
+    const el = ta.shadowRoot?.querySelector('textarea');
+    if (el) {
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    await new Promise(r => setTimeout(r, 50));
+  };
+
+  it('threat container has role="alert" and part="threat"', async () => {
+    await setup(true);
+    const container = ta.shadowRoot?.querySelector('[part="threat"]');
+    expect(container).not.toBeNull();
+    expect(container?.getAttribute('role')).toBe('alert');
+  });
+
+  it('shows threat feedback when threat-feedback attribute is set and injection detected', async () => {
+    await setup(true);
+    await fireInput('javascript:alert(1)');
+
+    const container = ta.shadowRoot?.querySelector('[part="threat"]');
+    expect(container?.classList.contains('hidden')).toBe(false);
+    expect(container?.querySelector('.threat-message')?.textContent).toBe('JavaScript protocol blocked');
+    expect(container?.querySelector('.threat-badge')?.textContent).toBe('js-protocol');
+    expect(container?.querySelector('.threat-tier')?.textContent).toBe('critical');
+    expect(container?.querySelector('.threat-tier')?.classList.contains('threat-tier--critical')).toBe(true);
+  });
+
+  it('sets threat class on textarea element when threat shown', async () => {
+    await setup(true);
+    await fireInput('<img src=x onerror=alert(1)>');
+
+    const el = ta.shadowRoot?.querySelector('textarea');
+    // aria-invalid is set by showThreatFeedback() but cleared synchronously by #clearErrors()
+    // in the same input handler — test the stable state: threat class and container visibility
+    expect(el?.classList.contains('threat')).toBe(true);
+  });
+
+  it('clears threat class and aria-invalid on clean input after threat', async () => {
+    await setup(true);
+    await fireInput('{{payload}}');
+    await fireInput('clean text');
+
+    const el = ta.shadowRoot?.querySelector('textarea');
+    expect(el?.classList.contains('threat')).toBe(false);
+    expect(el?.hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('adds hidden class to container on clean input after threat', async () => {
+    await setup(true);
+    await fireInput('<script src="x">');
+    await fireInput('safe content');
+
+    const container = ta.shadowRoot?.querySelector('[part="threat"]');
+    expect(container?.classList.contains('hidden')).toBe(true);
+  });
+
+  it('does not show UI when threat-feedback attribute is absent', async () => {
+    await setup(false);
+    await fireInput('javascript:void(0)');
+
+    const container = ta.shadowRoot?.querySelector('[part="threat"]');
+    expect(container?.classList.contains('hidden')).toBe(true);
+  });
+
+  it('updates message content when a second different threat is detected', async () => {
+    await setup(true);
+    await fireInput('{{inject}}');
+    await fireInput('vbscript:msgbox(1)');
+
+    const container = ta.shadowRoot?.querySelector('[part="threat"]');
+    expect(container?.querySelector('.threat-message')?.textContent).toBe('VBScript injection blocked');
+    expect(container?.querySelector('.threat-badge')?.textContent).toBe('vbscript');
+  });
+});

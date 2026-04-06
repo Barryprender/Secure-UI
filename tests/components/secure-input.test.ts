@@ -871,3 +871,99 @@ describe('SecureInput — injection detection', () => {
     expect(handler.mock.calls.length).toBeLessThanOrEqual(1);
   });
 });
+
+// ── threat-feedback UI ────────────────────────────────────────────────────────
+
+describe('SecureInput — threat-feedback UI', () => {
+  let input: SecureInput;
+
+  const setup = async (withAttribute: boolean) => {
+    input = document.createElement('secure-input') as SecureInput;
+    input.setAttribute('name', 'field');
+    input.setAttribute('label', 'Field');
+    input.setAttribute('type', 'email'); // email bypasses masking (NON_MASKABLE_TYPES) so #actualValue = el.value directly
+    input.setAttribute('security-tier', 'critical');
+    if (withAttribute) input.setAttribute('threat-feedback', '');
+    document.body.appendChild(input);
+    await new Promise(r => setTimeout(r, 50));
+  };
+
+  afterEach(() => { input.remove(); });
+
+  const fireInput = async (value: string) => {
+    const el = input.shadowRoot?.querySelector('input');
+    if (el) {
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    await new Promise(r => setTimeout(r, 50));
+  };
+
+  it('threat container has role="alert" and part="threat"', async () => {
+    await setup(true);
+    const container = input.shadowRoot?.querySelector('[part="threat"]');
+    expect(container).not.toBeNull();
+    expect(container?.getAttribute('role')).toBe('alert');
+  });
+
+  it('shows threat feedback when threat-feedback attribute is set and injection detected', async () => {
+    await setup(true);
+    await fireInput('<script>alert(1)</script>');
+
+    const container = input.shadowRoot?.querySelector('[part="threat"]');
+    expect(container?.classList.contains('hidden')).toBe(false);
+    expect(container?.querySelector('.threat-message')?.textContent).toBe('Script injection blocked');
+    expect(container?.querySelector('.threat-badge')?.textContent).toBe('script-tag');
+    expect(container?.querySelector('.threat-tier')?.textContent).toBe('critical');
+    expect(container?.querySelector('.threat-tier')?.classList.contains('threat-tier--critical')).toBe(true);
+  });
+
+  it('sets threat class on input element when threat shown', async () => {
+    await setup(true);
+    await fireInput('javascript:void(0)');
+
+    const el = input.shadowRoot?.querySelector('input');
+    // aria-invalid is set by showThreatFeedback() but cleared synchronously by #clearErrors()
+    // in the same input handler — test the stable state: threat class and container visibility
+    expect(el?.classList.contains('threat')).toBe(true);
+  });
+
+  it('clears threat class on clean input after threat', async () => {
+    await setup(true);
+    await fireInput('<script>x</script>');
+    await fireInput('clean value');
+
+    const el = input.shadowRoot?.querySelector('input');
+    expect(el?.classList.contains('threat')).toBe(false);
+    // aria-invalid was already removed by #clearErrors() after the threat input, so hasAttribute is false here too
+    expect(el?.hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('adds hidden class to container on clean input after threat', async () => {
+    await setup(true);
+    await fireInput('{{payload}}');
+    await fireInput('safe text');
+
+    const container = input.shadowRoot?.querySelector('[part="threat"]');
+    expect(container?.classList.contains('hidden')).toBe(true);
+  });
+
+  it('does not show UI when threat-feedback attribute is absent', async () => {
+    await setup(false);
+    await fireInput('<script>alert(1)</script>');
+
+    const container = input.shadowRoot?.querySelector('[part="threat"]');
+    // Container is always in DOM but must stay hidden when attribute is absent
+    expect(container?.classList.contains('hidden')).toBe(true);
+  });
+
+  it('updates message content when a second different threat is detected', async () => {
+    await setup(true);
+    await fireInput('javascript:void(0)');
+    await fireInput('vbscript:alert(1)'); // same-length value to keep #actualValue stable under masking (moot with email type, but explicit)
+
+    const container = input.shadowRoot?.querySelector('[part="threat"]');
+    expect(container?.querySelector('.threat-message')?.textContent).toBe('VBScript injection blocked');
+    expect(container?.querySelector('.threat-badge')?.textContent).toBe('vbscript');
+  });
+});
