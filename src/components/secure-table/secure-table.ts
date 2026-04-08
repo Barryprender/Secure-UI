@@ -450,29 +450,35 @@ export class SecureTable extends SecureBaseComponent {
 
     const { tableHtml, paginationHtml } = this.#renderTableContent();
 
-    // Styles injected as <link> elements inside innerHTML — loads from 'self' (CSP-safe).
-    // getBaseStylesheetUrl() uses import.meta.url from base-component.js so the path
-    // resolves correctly regardless of where secure-table.js is located.
-    this.shadowRoot.innerHTML = `
-      <link rel="stylesheet" href="${this.getBaseStylesheetUrl()}">
-      <link rel="stylesheet" href="${new URL('./secure-table.css', import.meta.url).href}">
-      <!-- Slot for server-rendered table (fallback when JS fails to load) -->
-      <slot name="table"></slot>
+    // Clear child nodes (adoptedStyleSheets survive this).
+    this.shadowRoot.innerHTML = '';
 
-      <div class="table-container">
-        <div class="table-header">
-          <input
-            type="search"
-            class="search-input"
-            placeholder="Search across all columns..."
-            value="${this.#sanitize(this.#filterTerm)}"
-            id="searchInput"
-          />
-        </div>
-        <div id="tableContent">${tableHtml}</div>
-        <div id="paginationContent">${paginationHtml}</div>
+    // Inject styles via addComponentStyles — handles both URL (ESM/dev mode) and
+    // inlined CSS text (bundle mode) transparently.
+    this.addComponentStyles(this.getBaseStylesheetUrl());
+    this.addComponentStyles(new URL('./secure-table.css', import.meta.url).href);
+
+    // Slot for server-rendered table fallback.
+    const slot = document.createElement('slot');
+    slot.name = 'table';
+    this.shadowRoot.appendChild(slot);
+
+    const container = document.createElement('div');
+    container.className = 'table-container';
+    container.innerHTML = `
+      <div class="table-header">
+        <input
+          type="search"
+          class="search-input"
+          placeholder="Search across all columns..."
+          value="${this.#sanitize(this.#filterTerm)}"
+          id="searchInput"
+        />
       </div>
+      <div id="tableContent">${tableHtml}</div>
+      <div id="paginationContent">${paginationHtml}</div>
     `;
+    this.shadowRoot.appendChild(container);
 
     // Attach event listeners
     this.#attachEventListeners();

@@ -227,12 +227,20 @@ export class SecureForm extends HTMLElement {
    * @private
    */
   #addInlineStyles(): void {
-    // Only inject once globally — <link> in document head, loads from 'self' (CSP-safe)
     if (!SecureForm.__stylesAdded) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = new URL('./secure-form.css', import.meta.url).href;
-      document.head.appendChild(link);
+      const cssInput = new URL('./secure-form.css', import.meta.url).href;
+      if (cssInput.includes('{')) {
+        // Bundle mode — CSS text; document.adoptedStyleSheets is CSP-safe (no unsafe-inline).
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(cssInput);
+        document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+      } else {
+        // ESM/dev mode — URL; <link> in document head loads from 'self'.
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = cssInput;
+        document.head.appendChild(link);
+      }
       SecureForm.__stylesAdded = true;
     }
   }

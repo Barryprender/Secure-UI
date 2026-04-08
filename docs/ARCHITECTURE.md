@@ -154,29 +154,56 @@ secure-input::part(input) {
 
 ### 3. Build Layer
 
-**Two Build Modes**:
+**Two output targets, one build command (`npm run build`):**
 
-#### Development Mode
-- CSS loaded dynamically from separate files
-- Fast iteration
-- No build step required
+#### ESM / tree-shakeable output (`dist/components/`, `dist/index.js`)
 
-#### Production Mode
-- CSS minified and inlined into JavaScript
-- Single file per component
-- Optimized for SSR and deployment
+- One JS file per component, one CSS file per component (copied alongside JS)
+- CSS is loaded at runtime via `<link rel="stylesheet">` using `import.meta.url`
+- Correct path resolution requires the CSS files to be co-located with the JS (satisfied automatically when consuming from `node_modules` via a dev server, or when the library is served as static files)
+- Use via: `import 'secure-ui-components/secure-input'` (individual imports) or `import 'secure-ui-components'` (all components)
 
-**Build Process:**
+#### Self-contained bundle (`dist/secure-ui.bundle.js`)
+
+- All 11 components + base class bundled into a single ESM file
+- All CSS inlined as constructable stylesheets (`CSSStyleSheet.replaceSync` / `adoptedStyleSheets`) — no external CSS file requests, no `import.meta.url` path resolution
+- Constructable stylesheets are **explicitly exempt** from CSP `style-src 'unsafe-inline'` — that restriction applies only to `<style>` elements and `style=""` attributes
+- `addComponentStyles()` auto-detects which mode it is in: CSS text (contains `{`) → `adoptedStyleSheets`; URL → `<link>`
+- Use via: `import 'secure-ui-components/bundle'` (any bundler) or `<script type="module" src="...bundle.js">` (vanilla HTML / CDN)
+
+**Build pipeline:**
 
 ```
-src/components/secure-input/
-├── secure-input.js
-└── secure-input.css
+npm run build
+  ↓
+clean         wipe dist/
+build:ts      tsc → dist/ (JS + .d.ts for all files)
+build:css     copy component CSS files to dist/components/**/
+              copy tokens.css, shared.css, secure-ui.css → dist/styles/
+              generate dist/package.json
+build:minify  esbuild transform — minify all .js in dist/ in-place
+build:bundle  esbuild bundle — src/index.ts → dist/secure-ui.bundle.js
+              (inline-css plugin rewrites new URL('./x.css', import.meta.url).href
+               to CSS text template literals before bundling)
+```
 
-↓ Build (npm run build)
+**dist/ layout:**
 
-dist/components/secure-input/
-└── secure-input.js (with inlined CSS)
+```
+dist/
+├── secure-ui.bundle.js        ← single-file, all CSS inlined (./bundle export)
+├── index.js / index.d.ts      ← ESM entry (. export)
+├── components/
+│   └── secure-input/
+│       ├── secure-input.js    ← individual component (./secure-input export)
+│       └── secure-input.css   ← co-located CSS for link-based injection
+├── core/
+│   ├── base-component.js
+│   └── base.css               ← Shadow DOM base styles
+└── styles/
+    ├── tokens.css             ← design tokens (./tokens.css export)
+    ├── shared.css
+    └── secure-ui.css          ← full light-DOM stylesheet (./secure-ui.css export)
 ```
 
 ### 4. Telemetry Layer
@@ -481,35 +508,41 @@ Clear error if valid
 ```
 1. Edit source files
    src/components/secure-input/
-   ├── secure-input.js
+   ├── secure-input.ts
    └── secure-input.css
 
-2. Test in browser
-   - CSS loaded dynamically
-   - Changes reflected immediately
-   - No build step
+2. npm run build (or npm run dev for watch mode)
+   - tsc compiles TS → dist/
+   - CSS files copied to dist/
+   - bundle produced at dist/secure-ui.bundle.js
 
-3. Iterate rapidly
+3. Test via npm run serve → /examples
 ```
 
-### Production Workflow
+### Consumer Integration
 
+**Option A — Bundle (recommended for all frameworks)**
 ```
-1. Run build
-   npm run build
+npm install secure-ui-components
+↓
+import 'secure-ui-components/bundle'   ← one line, all done
+@import 'secure-ui-components/tokens.css'  ← optional theming
+```
 
-2. Build process
-   ├── Read all .css files
-   ├── Minify CSS
-   ├── Inline into .js files
-   ├── Copy core files
-   ├── Generate dist/
+**Option B — Individual ESM imports (tree-shaking)**
+```
+import 'secure-ui-components/secure-input'
+import 'secure-ui-components/secure-form'
+...
+```
+Requires: CSS files co-located with JS at runtime (standard when consuming
+from node_modules via Vite/webpack dev server; needs asset config in some
+setups).
 
-3. Deploy dist/
-   ├── Single .js file per component
-   ├── No separate CSS requests
-   ├── Optimized for SSR
-   └── Ready for CDN
+**Option C — Vanilla HTML / CDN**
+```html
+<script type="module" src="https://unpkg.com/secure-ui-components/dist/secure-ui.bundle.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/secure-ui-components/dist/styles/tokens.css">
 ```
 
 ### SSR Deployment
@@ -598,12 +631,9 @@ class MyInput extends SecureInput {
 - CSS inlining eliminates separate requests
 - Minification in production
 
-**Typical Sizes (gzipped):**
-- secure-input: ~3-4KB
-- secure-form: ~4-5KB
-- secure-card: ~8-10KB (includes card type detection + 3D preview)
-- secure-telemetry-provider: ~3-4KB
-- All components: ~35-45KB
+**Typical Sizes:**
+- `secure-ui.bundle.js` — ~151 kB unminified+gzip-ready (all 11 components + inlined CSS)
+- Individual components (ESM): secure-input ~3-4 kB, secure-form ~4-5 kB, secure-card ~8-10 kB (gzipped)
 
 ### Runtime Performance
 

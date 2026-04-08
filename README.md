@@ -15,7 +15,7 @@ Security-first Web Component library with built-in behavioral telemetry. Zero de
 - **Signed Envelopes** — `<secure-telemetry-provider>` detects automation/headless browsers, accumulates threat signals, and signs every submission with HMAC-SHA-256 (signing key cached per session)
 - **Zero Dependencies** — Pure TypeScript, no runtime dependencies
 - **Progressive Enhancement** — All components render meaningful markup and work without JavaScript
-- **CSP-Safe** — Styles loaded via `<link>` from `'self'`; no `unsafe-inline` required
+- **CSP-Safe** — Bundle mode uses `adoptedStyleSheets` (constructable stylesheets, exempt from `unsafe-inline`); ESM/dev mode uses `<link>` from `'self'`; neither requires `unsafe-inline`
 - **SSR Friendly** — Adopts server-rendered markup on upgrade; no document access in constructors
 - **Fully Customisable** — CSS Design Tokens + `::part()` API
 - **Comprehensive Testing** — 1066 tests, 80%+ branch coverage
@@ -115,7 +115,52 @@ npm install secure-ui-components
 
 ## Quick Start
 
-### With telemetry (recommended)
+### Any bundler (Vite, webpack, Rollup, Angular CLI, Next.js, etc.)
+
+One import registers all 11 components as side effects. No CSS file required — all component styles are inlined in the bundle.
+
+```js
+import 'secure-ui-components/bundle';
+```
+
+Optionally link the design tokens stylesheet if you want to override theme values:
+
+```js
+// In your global CSS / SCSS entry
+@import 'secure-ui-components/tokens.css';
+```
+
+### Vanilla HTML / CDN
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- Optional: design tokens for theming -->
+  <link rel="stylesheet" href="https://unpkg.com/secure-ui-components/dist/styles/tokens.css">
+</head>
+<body>
+  <secure-input label="Email" name="email" type="email" required></secure-input>
+
+  <!-- Single script — all components registered, all styles inlined -->
+  <script type="module" src="https://unpkg.com/secure-ui-components/dist/secure-ui.bundle.js"></script>
+</body>
+</html>
+```
+
+### Tree-shakeable ESM (advanced)
+
+If you only need specific components and want the smallest possible bundle, import them individually. Note: this approach requires your dev server / CDN to serve the component CSS files alongside the JS (the bundle approach above has no such requirement).
+
+```js
+import 'secure-ui-components/secure-input';
+import 'secure-ui-components/secure-form';
+import 'secure-ui-components/secure-telemetry-provider';
+```
+
+---
+
+## Example: Login form with telemetry
 
 ```html
 <secure-telemetry-provider signing-key="your-per-session-secret">
@@ -133,32 +178,6 @@ document.querySelector('secure-form').addEventListener('secure-form-submit', (e)
   console.log('Risk score:', telemetry.riskScore);
   console.log('Risk signals:', telemetry.riskSignals);
 });
-```
-
-### Bundler (Vite, Webpack, Rollup)
-
-```js
-import 'secure-ui-components/secure-input';
-import 'secure-ui-components/secure-form';
-import 'secure-ui-components/secure-telemetry-provider';
-```
-
-### CDN / Vanilla HTML
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <link rel="stylesheet" href="https://unpkg.com/secure-ui-components/dist/styles/tokens.css">
-</head>
-<body>
-  <secure-input label="Email" name="email" type="email" required></secure-input>
-
-  <script type="module">
-    import 'https://unpkg.com/secure-ui-components/dist/index.js';
-  </script>
-</body>
-</html>
 ```
 
 ---

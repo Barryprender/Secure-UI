@@ -68,19 +68,36 @@ async function processComponent(componentName) {
 async function copyDesignTokens() {
   console.log(`📋 Copying design tokens and core CSS...`);
 
-  // tokens.css
-  const tokensPath = path.join(ROOT_DIR, 'src', 'styles', 'tokens.css');
   const distStylesDir = path.join(ROOT_DIR, 'dist', 'styles');
   await fs.mkdir(distStylesDir, { recursive: true });
-  await fs.copyFile(tokensPath, path.join(distStylesDir, 'tokens.css'));
 
-  // base.css — shared Shadow DOM styles referenced via import.meta.url in base-component.js
-  const baseCssPath = path.join(ROOT_DIR, 'src', 'core', 'base.css');
+  // tokens.css — public theming surface (exported as ./tokens.css)
+  await fs.copyFile(
+    path.join(ROOT_DIR, 'src', 'styles', 'tokens.css'),
+    path.join(distStylesDir, 'tokens.css')
+  );
+
+  // shared.css — required by secure-ui.css (@import)
+  await fs.copyFile(
+    path.join(ROOT_DIR, 'src', 'styles', 'shared.css'),
+    path.join(distStylesDir, 'shared.css')
+  );
+
+  // secure-ui.css — full light-DOM stylesheet (tokens + shared); exported as ./secure-ui.css
+  await fs.copyFile(
+    path.join(ROOT_DIR, 'src', 'styles', 'secure-ui.css'),
+    path.join(distStylesDir, 'secure-ui.css')
+  );
+
+  // base.css — Shadow DOM base styles referenced via import.meta.url in base-component.js
   const distCoreDir = path.join(ROOT_DIR, 'dist', 'core');
   await fs.mkdir(distCoreDir, { recursive: true });
-  await fs.copyFile(baseCssPath, path.join(distCoreDir, 'base.css'));
+  await fs.copyFile(
+    path.join(ROOT_DIR, 'src', 'core', 'base.css'),
+    path.join(distCoreDir, 'base.css')
+  );
 
-  console.log(`   ✅ Design tokens and base.css copied to dist`);
+  console.log(`   ✅ tokens.css, shared.css, secure-ui.css, base.css copied to dist`);
 }
 
 /**
@@ -113,6 +130,8 @@ async function generateDistPackageJson() {
   distPackageJson.exports['./base-component'] = './core/base-component.js';
   distPackageJson.exports['./security-config'] = './core/security-config.js';
   distPackageJson.exports['./tokens.css'] = './styles/tokens.css';
+  distPackageJson.exports['./secure-ui.css'] = './styles/secure-ui.css';
+  distPackageJson.exports['./bundle'] = './secure-ui.bundle.js';
 
   await fs.writeFile(distPackageJsonPath, JSON.stringify(distPackageJson, null, 2), 'utf-8');
 

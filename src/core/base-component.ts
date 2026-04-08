@@ -196,15 +196,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
 
   #render(): void {
     this.#shadow.innerHTML = '';
-
-    // Base styles via <link> — loads from 'self', fully CSP-safe.
-    // Using adoptedStyleSheets + replaceSync(inlineString) triggers CSP violations
-    // when style-src lacks 'unsafe-inline'. A <link> element loading from 'self'
-    // is always permitted.
-    const baseLink = document.createElement('link');
-    baseLink.rel = 'stylesheet';
-    baseLink.href = new URL('./base.css', import.meta.url).href;
-    this.#shadow.appendChild(baseLink);
+    this.addComponentStyles(new URL('./base.css', import.meta.url).href);
 
     const content = this.render();
     if (content) {
@@ -213,9 +205,8 @@ export abstract class SecureBaseComponent extends HTMLElement {
   }
 
   /**
-   * Returns the URL of the shared base stylesheet.
-   * Components that manage their own rendering (e.g. secure-table) can use
-   * this to inject the base <link> themselves.
+   * Returns the base stylesheet URL or inlined CSS text (bundle mode).
+   * Pass the return value directly to addComponentStyles().
    * @protected
    */
   protected getBaseStylesheetUrl(): string {
@@ -223,17 +214,32 @@ export abstract class SecureBaseComponent extends HTMLElement {
   }
 
   /**
-   * Inject a component stylesheet into the shadow root via <link>.
-   * Accepts a URL (use import.meta.url to derive it, e.g.
-   *   new URL('./my-component.css', import.meta.url).href
-   * ). Loading from 'self' satisfies strict CSP without unsafe-inline.
+   * Inject a component stylesheet into the shadow root.
+   *
+   * Accepts either:
+   * - A URL string (from import.meta.url) → injected as <link rel="stylesheet">
+   *   which satisfies strict CSP style-src 'self' without unsafe-inline.
+   * - Inlined CSS text (bundle mode) → applied via CSSStyleSheet.replaceSync() /
+   *   adoptedStyleSheets. Constructable stylesheets are explicitly exempt from the
+   *   style-src 'unsafe-inline' restriction (that restriction applies only to
+   *   <style> elements and inline style="" attributes).
+   *
+   * Detection: CSS text always contains `{`; resolved URLs never do.
    * @protected
    */
-  protected addComponentStyles(cssUrl: string): void {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = cssUrl;
-    this.#shadow.appendChild(link);
+  protected addComponentStyles(cssInput: string): void {
+    if (cssInput.includes('{')) {
+      // CSS text — bundle mode.
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(cssInput);
+      this.#shadow.adoptedStyleSheets = [...this.#shadow.adoptedStyleSheets, sheet];
+    } else {
+      // URL — link-based injection (dev / ESM mode).
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = cssInput;
+      this.#shadow.appendChild(link);
+    }
   }
 
   /**
