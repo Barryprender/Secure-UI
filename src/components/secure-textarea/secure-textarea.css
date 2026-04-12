@@ -182,19 +182,6 @@ label {
   white-space: nowrap;
 }
 
-.threat-tier {
-  display: inline-block;
-  padding: var(--secure-ui-badge-padding);
-  font-size: var(--secure-ui-badge-font-size);
-  font-weight: var(--secure-ui-font-weight-semibold);
-  border-radius: var(--secure-ui-badge-border-radius);
-  background-color: var(--secure-ui-color-bg-tertiary);
-  color: var(--secure-ui-color-text-secondary);
-  border: var(--secure-ui-border-width-thin) solid var(--secure-ui-color-border);
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
 /* Threat state on the textarea field */
 .textarea-field.threat {
   border-color: var(--secure-ui-color-warning) !important;

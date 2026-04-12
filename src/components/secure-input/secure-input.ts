@@ -31,7 +31,6 @@
 
 import { SecureBaseComponent } from '../../core/base-component.js';
 import { SecurityTier } from '../../core/security-config.js';
-import type { SecurityTierValue } from '../../core/types.js';
 
 /**
  * Secure Input Web Component
@@ -928,7 +927,7 @@ export class SecureInput extends SecureBaseComponent {
    * clobber an active threat message.
    * @protected
    */
-  protected override showThreatFeedback(patternId: string, tier: SecurityTierValue): void {
+  protected override showThreatFeedback(patternId: string): void {
     if (!this.#threatContainer || !this.#inputElement) return;
 
     // Build content with DOM methods — CSP-safe, no innerHTML
@@ -942,13 +941,8 @@ export class SecureInput extends SecureBaseComponent {
     patternBadge.className = 'threat-badge';
     patternBadge.textContent = patternId;
 
-    const tierBadge = document.createElement('span');
-    tierBadge.className = `threat-tier threat-tier--${tier}`;
-    tierBadge.textContent = tier;
-
     this.#threatContainer.appendChild(msg);
     this.#threatContainer.appendChild(patternBadge);
-    this.#threatContainer.appendChild(tierBadge);
 
     // Force reflow so the browser registers the hidden state before removing it,
     // ensuring the CSS transition fires correctly.

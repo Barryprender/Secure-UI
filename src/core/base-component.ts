@@ -445,7 +445,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
           composed: true,
         }));
         if (this.hasAttribute('threat-feedback')) {
-          this.showThreatFeedback(id, this.securityTier);
+          this.showThreatFeedback(id);
         }
         return; // first match only
       }
@@ -462,7 +462,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
    * Override in child classes that render a threat UI container.
    * @protected
    */
-  protected showThreatFeedback(_patternId: string, _tier: SecurityTierValue): void {
+  protected showThreatFeedback(_patternId: string): void {
     // No-op — child classes override when they support inline threat UI
   }
 

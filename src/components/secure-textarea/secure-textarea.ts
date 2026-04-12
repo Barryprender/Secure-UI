@@ -30,7 +30,6 @@
  */
 
 import { SecureBaseComponent } from '../../core/base-component.js';
-import type { SecurityTierValue } from '../../core/types.js';
 
 /**
  * Secure Textarea Web Component
@@ -538,7 +537,7 @@ export class SecureTextarea extends SecureBaseComponent {
    * Show inline threat feedback inside the component's shadow DOM.
    * @protected
    */
-  protected override showThreatFeedback(patternId: string, tier: SecurityTierValue): void {
+  protected override showThreatFeedback(patternId: string): void {
     if (!this.#threatContainer || !this.#textareaElement) return;
 
     this.#threatContainer.textContent = '';
@@ -551,13 +550,8 @@ export class SecureTextarea extends SecureBaseComponent {
     patternBadge.className = 'threat-badge';
     patternBadge.textContent = patternId;
 
-    const tierBadge = document.createElement('span');
-    tierBadge.className = `threat-tier threat-tier--${tier}`;
-    tierBadge.textContent = tier;
-
     this.#threatContainer.appendChild(msg);
     this.#threatContainer.appendChild(patternBadge);
-    this.#threatContainer.appendChild(tierBadge);
 
     void this.#threatContainer.offsetHeight;
     this.#threatContainer.classList.remove('hidden');
