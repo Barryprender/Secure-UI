@@ -914,8 +914,7 @@ describe('SecureInput — threat-feedback UI', () => {
     expect(container?.classList.contains('hidden')).toBe(false);
     expect(container?.querySelector('.threat-message')?.textContent).toBe('Script injection blocked');
     expect(container?.querySelector('.threat-badge')?.textContent).toBe('script-tag');
-    expect(container?.querySelector('.threat-tier')?.textContent).toBe('critical');
-    expect(container?.querySelector('.threat-tier')?.classList.contains('threat-tier--critical')).toBe(true);
+    expect(container?.querySelector('.threat-tier')).toBeNull();
   });
 
   it('sets threat class on input element when threat shown', async () => {

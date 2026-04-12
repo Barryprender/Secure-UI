@@ -479,8 +479,7 @@ describe('SecureTextarea — threat-feedback UI', () => {
     expect(container?.classList.contains('hidden')).toBe(false);
     expect(container?.querySelector('.threat-message')?.textContent).toBe('JavaScript protocol blocked');
     expect(container?.querySelector('.threat-badge')?.textContent).toBe('js-protocol');
-    expect(container?.querySelector('.threat-tier')?.textContent).toBe('critical');
-    expect(container?.querySelector('.threat-tier')?.classList.contains('threat-tier--critical')).toBe(true);
+    expect(container?.querySelector('.threat-tier')).toBeNull();
   });
 
   it('sets threat class on textarea element when threat shown', async () => {
