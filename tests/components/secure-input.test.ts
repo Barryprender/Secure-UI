@@ -947,12 +947,12 @@ describe('SecureInput — threat-feedback UI', () => {
     expect(container?.classList.contains('hidden')).toBe(true);
   });
 
-  it('does not show UI when threat-feedback attribute is absent', async () => {
+  it('does not show UI when threat-feedback attribute is absent (email type)', async () => {
     await setup(false);
     await fireInput('<script>alert(1)</script>');
 
     const container = input.shadowRoot?.querySelector('[part="threat"]');
-    // Container is always in DOM but must stay hidden when attribute is absent
+    // email is not in the default-feedback set — container must stay hidden
     expect(container?.classList.contains('hidden')).toBe(true);
   });
 
@@ -964,5 +964,97 @@ describe('SecureInput — threat-feedback UI', () => {
     const container = input.shadowRoot?.querySelector('[part="threat"]');
     expect(container?.querySelector('.threat-message')?.textContent).toBe('VBScript injection blocked');
     expect(container?.querySelector('.threat-badge')?.textContent).toBe('vbscript');
+  });
+});
+
+// ── Default threat-feedback by type ──────────────────────────────────────────
+
+describe('SecureInput — default threat-feedback by type', () => {
+  let input: SecureInput;
+
+  const setupType = async (type: string) => {
+    input = document.createElement('secure-input') as SecureInput;
+    input.setAttribute('name', 'field');
+    input.setAttribute('label', 'Field');
+    input.setAttribute('type', type);
+    input.setAttribute('security-tier', 'public');
+    // Deliberately no threat-feedback attribute
+    document.body.appendChild(input);
+    await new Promise(r => setTimeout(r, 50));
+  };
+
+  afterEach(() => { input.remove(); });
+
+  const fireInput = async (value: string) => {
+    const el = input.shadowRoot?.querySelector('input');
+    if (el) {
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    await new Promise(r => setTimeout(r, 50));
+  };
+
+  for (const type of ['text', 'url', 'search']) {
+    it(`type="${type}" shows threat feedback without threat-feedback attribute`, async () => {
+      await setupType(type);
+      await fireInput('<script>alert(1)</script>');
+
+      const container = input.shadowRoot?.querySelector('[part="threat"]');
+      expect(container?.classList.contains('hidden')).toBe(false);
+      expect(container?.querySelector('.threat-message')?.textContent).toBe('Script injection blocked');
+    });
+
+    it(`type="${type}" clears threat feedback when input becomes clean`, async () => {
+      await setupType(type);
+      await fireInput('<script>x</script>');
+      await fireInput('safe text');
+
+      const container = input.shadowRoot?.querySelector('[part="threat"]');
+      expect(container?.classList.contains('hidden')).toBe(true);
+    });
+  }
+
+  for (const type of ['email', 'tel', 'password']) {
+    it(`type="${type}" does not show feedback without attribute`, async () => {
+      await setupType(type);
+      await fireInput('<script>alert(1)</script>');
+
+      const container = input.shadowRoot?.querySelector('[part="threat"]');
+      expect(container?.classList.contains('hidden')).toBe(true);
+    });
+  }
+
+  it('type="url" specifically catches javascript: protocol without attribute', async () => {
+    await setupType('url');
+    await fireInput('javascript:alert(1)');
+
+    const container = input.shadowRoot?.querySelector('[part="threat"]');
+    expect(container?.classList.contains('hidden')).toBe(false);
+    expect(container?.querySelector('.threat-badge')?.textContent).toBe('js-protocol');
+  });
+
+  it('type="url" specifically catches data:text/html without attribute', async () => {
+    await setupType('url');
+    await fireInput('data:text/html,<h1>hi</h1>');
+
+    const container = input.shadowRoot?.querySelector('[part="threat"]');
+    expect(container?.classList.contains('hidden')).toBe(false);
+    expect(container?.querySelector('.threat-badge')?.textContent).toBe('data-uri-html');
+  });
+
+  it('type="number" does not dispatch secure-threat-detected at all', async () => {
+    await setupType('number');
+    const handler = vi.fn();
+    document.addEventListener('secure-threat-detected', handler);
+
+    // Fire a numeric value — no injection possible, detection is skipped entirely
+    const el = input.shadowRoot?.querySelector('input');
+    if (el) {
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    await new Promise(r => setTimeout(r, 50));
+
+    document.removeEventListener('secure-threat-detected', handler);
+    expect(handler).not.toHaveBeenCalled();
   });
 });

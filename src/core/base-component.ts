@@ -425,7 +425,8 @@ export abstract class SecureBaseComponent extends HTMLElement {
    * @param value   - Raw field value (unmodified user input)
    * @param fieldName - The field's name attribute
    */
-  protected detectInjection(value: string, fieldName: string): void {
+  protected detectInjection(value: string, fieldName: string, showFeedback = false): void {
+    const feedbackEnabled = showFeedback || this.hasAttribute('threat-feedback');
     for (const { id, pattern } of SecureBaseComponent.#INJECTION_PATTERNS) {
       if (pattern.test(value)) {
         this.audit('threat_detected', {
@@ -444,14 +445,14 @@ export abstract class SecureBaseComponent extends HTMLElement {
           bubbles: true,
           composed: true,
         }));
-        if (this.hasAttribute('threat-feedback')) {
+        if (feedbackEnabled) {
           this.showThreatFeedback(id);
         }
         return; // first match only
       }
     }
     // No threat found — clear any lingering feedback
-    if (this.hasAttribute('threat-feedback')) {
+    if (feedbackEnabled) {
       this.clearThreatFeedback();
     }
   }

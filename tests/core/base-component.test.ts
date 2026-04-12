@@ -51,8 +51,8 @@ class TestComponent extends SecureBaseComponent {
     this.rerender();
   }
 
-  public testDetectInjection(value: string, fieldName: string): void {
-    this.detectInjection(value, fieldName);
+  public testDetectInjection(value: string, fieldName: string, showFeedback = false): void {
+    this.detectInjection(value, fieldName, showFeedback);
   }
 
   public testGetBaseStylesheetUrl(): string {
@@ -63,8 +63,8 @@ class TestComponent extends SecureBaseComponent {
     return this.getThreatLabel(patternId);
   }
 
-  public testShowThreatFeedback(patternId: string, tier: import('../../src/core/types.js').SecurityTierValue): void {
-    this.showThreatFeedback(patternId, tier);
+  public testShowThreatFeedback(patternId: string): void {
+    this.showThreatFeedback(patternId);
   }
 
   public testClearThreatFeedback(): void {
@@ -646,6 +646,32 @@ describe('SecureBaseComponent', () => {
 
       expect(component.hasAttribute('threat-feedback')).toBe(true);
     });
+
+    it('triggers feedback via showFeedback param even when threat-feedback attribute is absent', () => {
+      // Attribute is absent; showFeedback=true must activate the feedback path.
+      // showThreatFeedback() is a no-op on the base class but the event must still fire.
+      const handler = vi.fn();
+      document.addEventListener('secure-threat-detected', handler);
+
+      component.testDetectInjection('<script>', 'field', true);
+
+      document.removeEventListener('secure-threat-detected', handler);
+      expect(handler).toHaveBeenCalledOnce();
+      expect(component.hasAttribute('threat-feedback')).toBe(false); // attribute untouched
+    });
+
+    it('does not trigger feedback via showFeedback=false without attribute', () => {
+      // Explicit false + no attribute = no feedback, but event still fires.
+      const handler = vi.fn();
+      document.addEventListener('secure-threat-detected', handler);
+
+      component.testDetectInjection('<script>', 'field', false);
+
+      document.removeEventListener('secure-threat-detected', handler);
+      // Detection event always fires — only UI feedback is gated
+      expect(handler).toHaveBeenCalledOnce();
+      expect(component.hasAttribute('threat-feedback')).toBe(false);
+    });
   });
 
   describe('getBaseStylesheetUrl()', () => {
@@ -692,7 +718,7 @@ describe('SecureBaseComponent', () => {
     });
 
     it('showThreatFeedback() is a no-op and does not throw', () => {
-      expect(() => component.testShowThreatFeedback('script-tag', 'critical')).not.toThrow();
+      expect(() => component.testShowThreatFeedback('script-tag')).not.toThrow();
     });
 
     it('clearThreatFeedback() is a no-op and does not throw', () => {

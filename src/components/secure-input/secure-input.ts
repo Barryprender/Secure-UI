@@ -43,6 +43,16 @@ import { SecurityTier } from '../../core/security-config.js';
  */
 export class SecureInput extends SecureBaseComponent {
   /**
+   * Input types that show threat feedback by default (no attribute required).
+   * - text/search: free-form strings, highest XSS/template injection surface
+   * - url: javascript: and data:text/html are live URL-injection vectors
+   * password/email/tel are excluded: password feedback is confusing on masked fields;
+   * email/tel have browser-enforced character restrictions.
+   * number is excluded entirely — detectInjection is skipped for it (see #handleInput).
+   */
+  static readonly #FEEDBACK_DEFAULT_TYPES: ReadonlySet<string> = new Set(['text', 'url', 'search']);
+
+  /**
    * Input element reference
    * @private
    */
@@ -499,7 +509,16 @@ export class SecureInput extends SecureBaseComponent {
       this.#actualValue = this.#inputElement!.value;
     }
 
-    this.detectInjection(this.#actualValue, this.#inputElement!.name);
+    // number inputs have browser-enforced numeric values — no injection surface.
+    // For all other types, run detection; default feedback to on for text/url/search.
+    const inputType = this.#inputElement!.type;
+    if (inputType !== 'number') {
+      this.detectInjection(
+        this.#actualValue,
+        this.#inputElement!.name,
+        SecureInput.#FEEDBACK_DEFAULT_TYPES.has(inputType)
+      );
+    }
 
     // Clear previous errors on input (improve UX)
     this.#clearErrors();
