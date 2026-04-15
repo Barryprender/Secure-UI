@@ -186,7 +186,7 @@ export class SecureTextarea extends SecureBaseComponent {
     this.#updateCharCount();
     this.#clearErrors();
     this.dispatchEvent(
-      new CustomEvent('secure-textarea', {
+      new CustomEvent('secure-textarea-change', {
         detail: {
           name: this.#textareaElement!.name,
           value: this.#textareaElement!.value,
