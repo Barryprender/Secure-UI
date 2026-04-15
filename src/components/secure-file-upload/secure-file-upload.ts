@@ -549,7 +549,7 @@ export class SecureFileUpload extends SecureBaseComponent {
 
     // Dispatch custom event
     this.dispatchEvent(
-      new CustomEvent('secure-file-upload', {
+      new CustomEvent('secure-file-change', {
         detail: {
           name: this.#fileInput!.name,
           files: Array.from(files),
