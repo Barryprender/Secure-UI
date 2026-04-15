@@ -384,5 +384,3 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
 }
 
 customElements.define('secure-password-confirm', SecurePasswordConfirm);
-
-export default SecurePasswordConfirm;
