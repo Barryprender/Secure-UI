@@ -17,7 +17,7 @@ This is **Secure-UI**: a zero-dependency, security-first Web Component library b
 ```
 src/
   core/
-    base-component.ts   # Abstract SecureBaseComponent — extend this
+    base-component.ts   # Abstract SecureBaseComponent — internal only, do NOT extend externally
     security-config.ts  # SecurityTier enum + TIER_CONFIG + helpers
     types.ts            # All shared TypeScript interfaces
     base.css            # Shadow DOM base styles (loaded via <link>)
@@ -45,6 +45,8 @@ src/
 - All field components extend `SecureBaseComponent` from `src/core/base-component.ts`
 - **Exception**: `SecureTelemetryProvider` extends `HTMLElement` directly — it is a light-DOM orchestration layer, not a form field, and must not inherit shadow DOM or security-tier machinery from `SecureBaseComponent`
 - **Exception**: `SecureCard` is locked to `CRITICAL` tier unconditionally — do not expose `security-tier` as a configurable attribute; reject any attempt to change it
+- **Exception**: `SecurePasswordConfirm` is locked to `CRITICAL` tier unconditionally — silently removes any `security-tier` attribute set before mount and warns if a non-critical tier is attempted
+- **`SecureBaseComponent` is NOT exported** — extension is intentionally unsupported. Security invariants (closed shadow DOM, tier immutability, sanitization order) are too easy to break via subclassing. Consumers who need custom components should wrap a `<secure-input>` (or other component) inside their own custom element rather than extending the base class.
 - Private fields use ES2022 `#field` syntax — never `_field` or `private` keyword alone
 - `static get observedAttributes()` must spread `...super.observedAttributes`
 - Override `protected render(): DocumentFragment | HTMLElement | null` — never touch `connectedCallback` directly unless you need to bypass the base render (see `secure-table` pattern)
@@ -80,7 +82,7 @@ Every component must expose named `part` attributes on key internal elements:
 ### Custom Events
 - All events use `CustomEvent` with a typed `detail` — see `src/core/types.ts` for event detail interfaces
 - Always set `{ bubbles: true, composed: true }` so events cross shadow boundaries
-- Naming convention: `secure-<action>` (e.g. `secure-input`, `secure-change`, `secure-audit`)
+- Naming convention: `secure-<component>-change` for value events (e.g. `secure-input-change`, `secure-select-change`); `secure-<component>-<verb>` for lifecycle events (e.g. `secure-form-submit`, `secure-form-success`, `secure-table-action`); `secure-audit` and `secure-threat-detected` are global signals
 
 ## Security Architecture
 
