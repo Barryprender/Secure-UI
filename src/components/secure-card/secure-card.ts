@@ -755,7 +755,8 @@ export class SecureCard extends SecureBaseComponent {
           cardType: this.#cardTypeConfig?.type ?? 'unknown',
           last4: this.#cardDigits.slice(-4),
           expiryMonth: parseInt(rawMonth ?? '0', 10) || 0,
-          expiryYear: parseInt(rawYear ?? '0', 10) || 0,
+          // Normalise 2-digit year (from MM/YY input) to full 4-digit year.
+          expiryYear: (() => { const y = parseInt(rawYear ?? '0', 10); return y > 0 ? 2000 + y : 0; })(),
           cardholderName: this.#cardholderName,
           valid: this.valid,
           tier: this.securityTier,
