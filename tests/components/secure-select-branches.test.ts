@@ -159,7 +159,7 @@ describe('SecureSelect branch coverage', () => {
     select.addOption('b', 'B');
 
     const handler = vi.fn();
-    select.addEventListener('secure-select', handler);
+    select.addEventListener('secure-select-change', handler);
 
     const internalSelect = select.shadowRoot!.querySelector<HTMLSelectElement>('select')!;
     const optA = internalSelect.options[0]!;
