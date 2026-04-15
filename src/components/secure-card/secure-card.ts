@@ -747,7 +747,7 @@ export class SecureCard extends SecureBaseComponent {
   #dispatchChangeEvent(): void {
     const [rawMonth, rawYear] = this.#expiryValue.split('/');
     this.dispatchEvent(
-      new CustomEvent('secure-card', {
+      new CustomEvent('secure-card-change', {
         bubbles: true,
         composed: true,
         detail: {
