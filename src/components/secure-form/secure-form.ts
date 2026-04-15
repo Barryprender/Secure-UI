@@ -205,15 +205,15 @@ export class SecureForm extends HTMLElement {
     });
 
     // Listen for secure field events
-    this.addEventListener('secure-input', (e: Event) => {
+    this.addEventListener('secure-input-change', (e: Event) => {
       this.#handleFieldChange(e);
     });
 
-    this.addEventListener('secure-textarea', (e: Event) => {
+    this.addEventListener('secure-textarea-change', (e: Event) => {
       this.#handleFieldChange(e);
     });
 
-    this.addEventListener('secure-select', (e: Event) => {
+    this.addEventListener('secure-select-change', (e: Event) => {
       this.#handleFieldChange(e);
     });
   }
@@ -223,7 +223,7 @@ export class SecureForm extends HTMLElement {
   }
 
   async #handleSubmit(event: Event): Promise<void> {
-    const shouldEnhance = this.hasAttribute('enhance');
+    const shouldEnhance = this.hasAttribute('use-fetch');
 
     if (this.#isSubmitting) {
       event.preventDefault();
