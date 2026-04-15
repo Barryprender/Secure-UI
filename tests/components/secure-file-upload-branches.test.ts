@@ -147,7 +147,7 @@ describe('SecureFileUpload — branch coverage', () => {
 
     it('selecting a valid file dispatches secure-file-upload event', async () => {
       const handler = vi.fn();
-      upload.addEventListener('secure-file-upload', handler);
+      upload.addEventListener('secure-file-change', handler);
 
       await selectFiles(upload, [makeTxtFile()]);
 
@@ -243,7 +243,7 @@ describe('SecureFileUpload — branch coverage', () => {
 
     it('accepts JPEG file with correct magic bytes [0xFF, 0xD8, 0xFF]', async () => {
       const handler = vi.fn();
-      upload.addEventListener('secure-file-upload', handler);
+      upload.addEventListener('secure-file-change', handler);
 
       await selectFiles(upload, [makeJpegFile(true)]);
 
@@ -269,7 +269,7 @@ describe('SecureFileUpload — branch coverage', () => {
 
     it('accepts PDF with correct %PDF magic bytes', async () => {
       const handler = vi.fn();
-      upload.addEventListener('secure-file-upload', handler);
+      upload.addEventListener('secure-file-change', handler);
 
       await selectFiles(upload, [makePdfFile(true)]);
 
@@ -283,7 +283,7 @@ describe('SecureFileUpload — branch coverage', () => {
       document.body.appendChild(upload);
 
       const handler = vi.fn();
-      upload.addEventListener('secure-file-upload', handler);
+      upload.addEventListener('secure-file-change', handler);
 
       // txt is in critical default accept (.pdf,.txt); text/plain has no magic numbers
       await selectFiles(upload, [makeTxtFile()]);
@@ -377,7 +377,7 @@ describe('SecureFileUpload — branch coverage', () => {
       upload.setScanHook(async () => ({ valid: true }));
 
       const handler = vi.fn();
-      upload.addEventListener('secure-file-upload', handler);
+      upload.addEventListener('secure-file-change', handler);
 
       await selectFiles(upload, [makeTxtFile()]);
 
