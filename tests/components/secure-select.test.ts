@@ -268,7 +268,7 @@ describe('SecureSelect', () => {
 
     it('should dispatch secure-select event on change', async () => {
       const eventHandler = vi.fn();
-      select.addEventListener('secure-select', eventHandler);
+      select.addEventListener('secure-select-change', eventHandler);
 
       // Simulate change
       const internalSelect = select.shadowRoot?.querySelector('select');
