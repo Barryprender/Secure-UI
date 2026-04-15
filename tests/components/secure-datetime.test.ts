@@ -455,7 +455,7 @@ describe('SecureDatetime', () => {
 
     it('should dispatch secure-datetime event on input', async () => {
       const eventHandler = vi.fn();
-      datetime.addEventListener('secure-datetime', eventHandler);
+      datetime.addEventListener('secure-datetime-change', eventHandler);
 
       const input = datetime.shadowRoot?.querySelector('input');
       if (input) {
