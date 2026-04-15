@@ -212,7 +212,7 @@ describe('SecureFileUpload', () => {
 
     it('should dispatch secure-file-upload event when files selected', async () => {
       const eventHandler = vi.fn();
-      upload.addEventListener('secure-file-upload', eventHandler);
+      upload.addEventListener('secure-file-change', eventHandler);
 
       // Simulate file selection
       const internalInput = upload.shadowRoot?.querySelector('input[type="file"]');
