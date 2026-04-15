@@ -275,7 +275,7 @@ describe('SecureDateTime branch coverage', () => {
     document.body.appendChild(dt);
 
     const handler = vi.fn();
-    dt.addEventListener('secure-datetime', handler);
+    dt.addEventListener('secure-datetime-change', handler);
 
     const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
     input.dispatchEvent(new Event('input', { bubbles: true }));
