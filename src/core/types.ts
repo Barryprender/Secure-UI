@@ -1,8 +1,4 @@
-/**
- * @fileoverview Shared type definitions for the Secure-UI component library.
- * @module types
- * @license MIT
- */
+/** Shared type definitions for the Secure-UI component library. */
 
 // ========== Security Tier Types ==========
 
@@ -113,16 +109,14 @@ export interface RateLimitState {
 
 // ========== Audit Types ==========
 
-/**
- * Audit log entry
- */
 export interface AuditLogEntry {
   event: string;
   tier: SecurityTierValue;
   timestamp: string;
   userAgent?: string;
   language?: string;
-  [key: string]: unknown;
+  /** Additional event-specific data attached at audit time. */
+  data?: Record<string, unknown>;
 }
 
 // ========== CSP & Security Headers ==========
@@ -158,12 +152,10 @@ export interface SecureTextareaEventDetail {
   tier: SecurityTierValue;
 }
 
-/**
- * Custom event detail for secure-select events
- */
 export interface SecureSelectEventDetail {
   name: string;
-  value: string;
+  /** string for single-select; string[] for multi-select */
+  value: string | string[];
   tier: SecurityTierValue;
 }
 
@@ -186,14 +178,16 @@ export interface SecureDatetimeEventDetail {
   tier: SecurityTierValue;
 }
 
-/**
- * Custom event detail for secure-form-submit events
- */
 export interface SecureFormSubmitEventDetail {
   formData: Record<string, string>;
-  formElement: HTMLFormElement;
-  preventDefault: () => void;
-  /** Behavioral telemetry collected from all secure fields */
+  /**
+   * Call to cancel the library's internal fetch submission.
+   * Distinct from `event.preventDefault()` (which also cancels, via the
+   * cancelable event flag) — this additionally re-enables the form and
+   * resets submitting state so the UI recovers cleanly.
+   */
+  cancelSubmission: () => void;
+  /** Behavioral telemetry collected from all secure fields. */
   telemetry: SessionTelemetry;
 }
 
@@ -214,9 +208,6 @@ export type SecureAuditEventDetail = AuditLogEntry;
 
 // ========== Table Types ==========
 
-/**
- * Table column definition
- */
 export interface TableColumnDefinition {
   key: string;
   label: string;
@@ -224,6 +215,12 @@ export interface TableColumnDefinition {
   filterable?: boolean;
   tier?: SecurityTierValue;
   width?: string;
+  /**
+   * Custom cell renderer. Return value is treated as an HTML string and run
+   * through the library's DOMParser-based sanitizer before insertion — event
+   * handlers and disallowed tags are stripped. Safe data-* attributes and
+   * common inline elements are preserved.
+   */
   render?: (value: unknown, row: Record<string, unknown>, columnKey: string) => string;
 }
 
