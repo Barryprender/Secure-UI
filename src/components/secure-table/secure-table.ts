@@ -186,14 +186,11 @@ export class SecureTable extends SecureBaseComponent {
     }
   }
 
-  /**
-   * Create a render function for HTML content
-   * @private
-   */
   #createRenderFunction(_th: HTMLElement): (value: unknown, row: Record<string, unknown>, columnKey: string) => string {
     return (value: unknown, row: Record<string, unknown>, columnKey: string): string => {
       const htmlKey = `${columnKey}_html`;
-      return (Object.hasOwn(row, htmlKey) ? row[htmlKey] as string : null) || this.#sanitize(value);
+      const raw = Object.hasOwn(row, htmlKey) ? row[htmlKey] as string : null;
+      return raw ? this.#sanitizeHtml(raw) : this.#sanitize(value);
     };
   }
 
@@ -279,9 +276,18 @@ export class SecureTable extends SecureBaseComponent {
       const aVal = Object.hasOwn(a, columnKey) ? a[columnKey] : undefined;
       const bVal = Object.hasOwn(b, columnKey) ? b[columnKey] : undefined;
 
+      const aNull = aVal === undefined || aVal === null;
+      const bNull = bVal === undefined || bVal === null;
+      if (aNull && bNull) return 0;
+      if (aNull) return 1;
+      if (bNull) return -1;
+
+      // Coerce to a comparable primitive: numbers sort numerically, everything else lexically.
+      const aPrim = typeof aVal === 'number' ? aVal : String(aVal);
+      const bPrim = typeof bVal === 'number' ? bVal : String(bVal);
       let comparison = 0;
-      if (aVal! > bVal!) comparison = 1;
-      if (aVal! < bVal!) comparison = -1;
+      if (aPrim > bPrim) comparison = 1;
+      else if (aPrim < bPrim) comparison = -1;
 
       return this.#sortConfig.direction === 'asc' ? comparison : -comparison;
     });
@@ -307,7 +313,8 @@ export class SecureTable extends SecureBaseComponent {
   }
 
   /**
-   * Simple HTML sanitization to prevent XSS
+   * Escape a plain-text string for safe insertion into HTML.
+   * Never use this for HTML pass-through — use #sanitizeHtml() for that.
    * @private
    */
   #sanitize(str: unknown): string {
@@ -318,6 +325,69 @@ export class SecureTable extends SecureBaseComponent {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#x27;');
+  }
+
+  // Tags allowed inside table cells when HTML pass-through is used.
+  static readonly #ALLOWED_CELL_TAGS: ReadonlySet<string> = new Set([
+    'a', 'abbr', 'b', 'br', 'button', 'code', 'em', 'i',
+    's', 'small', 'span', 'strong', 'time', 'u'
+  ]);
+
+  // Attributes allowed on the above tags.
+  static readonly #ALLOWED_CELL_ATTRS: ReadonlySet<string> = new Set([
+    'class', 'href', 'title', 'aria-label', 'aria-hidden', 'type', 'datetime'
+  ]);
+
+  /**
+   * Sanitize an HTML string using a strict tag/attribute allowlist.
+   * Uses DOMParser (does not execute scripts) and walks the result tree,
+   * stripping disallowed elements and attributes.
+   * data-* attributes are preserved for action delegation; event handlers
+   * and javascript:/data: URIs are always stripped.
+   * @private
+   */
+  #sanitizeHtml(html: string): string {
+    if (!html) return '';
+    const doc = new DOMParser().parseFromString(`<!DOCTYPE html><body>${html}`, 'text/html');
+    this.#sanitizeDomNode(doc.body);
+    return doc.body.innerHTML;
+  }
+
+  #sanitizeDomNode(node: Node): void {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === Node.TEXT_NODE) continue;
+      if (child.nodeType !== Node.ELEMENT_NODE) {
+        node.removeChild(child);
+        continue;
+      }
+      const el = child as Element;
+      const tag = el.tagName.toLowerCase();
+      if (!SecureTable.#ALLOWED_CELL_TAGS.has(tag)) {
+        // Replace element with its children (unwrap, don't discard text)
+        const frag = document.createDocumentFragment();
+        while (el.firstChild) frag.appendChild(el.firstChild);
+        node.replaceChild(frag, el);
+        // The moved children are already in the parent — recurse from parent
+        continue;
+      }
+      // Strip disallowed or dangerous attributes
+      for (const attr of Array.from(el.attributes)) {
+        const name = attr.name.toLowerCase();
+        if (name.startsWith('on')) {
+          el.removeAttribute(attr.name);
+          continue;
+        }
+        if ((name === 'href' || name === 'src' || name === 'action') &&
+            /^\s*(javascript|data)\s*:/i.test(attr.value)) {
+          el.removeAttribute(attr.name);
+          continue;
+        }
+        if (!SecureTable.#ALLOWED_CELL_ATTRS.has(name) && !name.startsWith('data-')) {
+          el.removeAttribute(attr.name);
+        }
+      }
+      this.#sanitizeDomNode(el);
+    }
   }
 
   /**
@@ -340,24 +410,16 @@ export class SecureTable extends SecureBaseComponent {
     return this.#sanitize(strValue);
   }
 
-  /**
-   * Render cell content with custom render function if available
-   * @private
-   */
   #renderCell(value: unknown, row: Record<string, unknown>, column: TableColumnDefinition): string {
-    // If column has custom render function, use it
     if (typeof column.render === 'function') {
-      return column.render(value, row, column.key);
+      return this.#sanitizeHtml(column.render(value, row, column.key));
     }
 
-    // Check if we have stored HTML content from server-rendered table
     const htmlKey = `${column.key}_html`;
     if (Object.hasOwn(row, htmlKey) && row[htmlKey]) {
-      // Don't mask HTML content, it's already rendered
-      return row[htmlKey] as string;
+      return this.#sanitizeHtml(row[htmlKey] as string);
     }
 
-    // Otherwise, mask value based on security tier
     return this.#maskValue(value, column.tier);
   }
 

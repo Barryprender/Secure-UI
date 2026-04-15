@@ -25,6 +25,22 @@ import { SecureBaseComponent } from '../../core/base-component.js';
 import { getTierConfig } from '../../core/security-config.js';
 import type { SecurityTierValue, TierConfig } from '../../core/types.js';
 
+// Structural interface for the parent <secure-form> element.
+// Avoids a circular import while still providing type safety and a runtime guard.
+interface SecureFormLike extends Element {
+  readonly securityTier: SecurityTierValue;
+  readonly valid: boolean;
+  submit(): void;
+}
+
+function isSecureFormLike(el: Element | null): el is SecureFormLike {
+  if (el === null) return false;
+  const obj = el as unknown as Record<string, unknown>;
+  return typeof obj['securityTier'] === 'string' &&
+    typeof obj['valid'] === 'boolean' &&
+    typeof obj['submit'] === 'function';
+}
+
 /**
  * Secure Submit Button Web Component
  *
@@ -88,17 +104,9 @@ export class SecureSubmitButton extends SecureBaseComponent {
    */
   #instanceId: string = `secure-submit-button-${Math.random().toString(36).substring(2, 11)}`;
 
-  /**
-   * Bound event handler for field change events
-   * @private
-   */
   #boundHandleFieldChange: (e: Event) => void;
-
-  /**
-   * Bound click handler
-   * @private
-   */
   #boundHandleClick: () => void;
+  #boundHandleFormSuccess: () => void;
 
   /**
    * Observed attributes
@@ -117,6 +125,7 @@ export class SecureSubmitButton extends SecureBaseComponent {
     this.#effectiveConfig = getTierConfig(this.#effectiveTier);
     this.#boundHandleFieldChange = this.#handleFieldChange.bind(this);
     this.#boundHandleClick = this.#handleClick.bind(this);
+    this.#boundHandleFormSuccess = () => { this.#setLoading(false); };
   }
 
   /**
@@ -222,9 +231,8 @@ export class SecureSubmitButton extends SecureBaseComponent {
   #resolveEffectiveTier(): void {
     const ownTier = this.getAttribute('security-tier');
 
-    if (!ownTier && this.#parentForm) {
-      // Inherit from parent form
-      this.#effectiveTier = (this.#parentForm as unknown as { securityTier: SecurityTierValue }).securityTier;
+    if (!ownTier && isSecureFormLike(this.#parentForm)) {
+      this.#effectiveTier = this.#parentForm.securityTier;
     } else {
       this.#effectiveTier = this.securityTier;
     }
@@ -248,6 +256,8 @@ export class SecureSubmitButton extends SecureBaseComponent {
     target.addEventListener('secure-textarea', this.#boundHandleFieldChange);
     target.addEventListener('secure-select', this.#boundHandleFieldChange);
     target.addEventListener('secure-datetime', this.#boundHandleFieldChange);
+    // Reset loading state when the form reports successful submission.
+    target.addEventListener('secure-form-success', this.#boundHandleFormSuccess);
   }
 
   /**
@@ -282,8 +292,8 @@ export class SecureSubmitButton extends SecureBaseComponent {
     }
 
     // Authenticated / Sensitive / Critical: check form validity
-    if (this.#parentForm && typeof (this.#parentForm as unknown as { valid: boolean }).valid === 'boolean') {
-      this.#isFormValid = (this.#parentForm as unknown as { valid: boolean }).valid;
+    if (isSecureFormLike(this.#parentForm)) {
+      this.#isFormValid = this.#parentForm.valid;
     } else {
       // Fallback: manually query fields
       this.#isFormValid = this.#checkFieldsValid();
@@ -351,16 +361,16 @@ export class SecureSubmitButton extends SecureBaseComponent {
       formValid: this.#isFormValid
     });
 
-    // Show loading state
     this.#setLoading(true);
 
-    // Trigger form submission via parent secure-form
-    if (this.#parentForm) {
-      (this.#parentForm as unknown as { submit: () => void }).submit();
+    // Trigger form submission. #handleSubmit is async — loading state is cleared
+    // by the secure-form-success listener or on disconnect, not here.
+    if (isSecureFormLike(this.#parentForm)) {
+      this.#parentForm.submit();
+    } else {
+      // No parent form — nothing to submit, reset immediately.
+      this.#setLoading(false);
     }
-    this.#setLoading(false);
-    // Loading state remains until explicitly reset via setLoading(false)
-    // or the form's success/error response handler resets it.
   }
 
   /**
@@ -454,12 +464,14 @@ export class SecureSubmitButton extends SecureBaseComponent {
   disconnectedCallback(): void {
     super.disconnectedCallback();
 
+    this.#setLoading(false);
     const target = this.#parentForm || this.parentElement;
     if (target) {
       target.removeEventListener('secure-input', this.#boundHandleFieldChange);
       target.removeEventListener('secure-textarea', this.#boundHandleFieldChange);
       target.removeEventListener('secure-select', this.#boundHandleFieldChange);
       target.removeEventListener('secure-datetime', this.#boundHandleFieldChange);
+      target.removeEventListener('secure-form-success', this.#boundHandleFormSuccess);
     }
   }
 }

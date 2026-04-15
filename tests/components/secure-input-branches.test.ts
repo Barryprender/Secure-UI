@@ -577,47 +577,43 @@ describe('SecureInput — fallback masked input (unknown inputType)', () => {
     return si.shadowRoot!.querySelector('input') as HTMLInputElement;
   }
 
-  it('covers newLength > oldLength branch when an exotic inputType is dispatched on a masked input', () => {
+  it('clears value when an unhandled inputType fires on a masked input (was: newLength > oldLength)', () => {
     input = document.createElement('secure-input') as SecureInput;
     input.setAttribute('security-tier', 'critical');
     input.setAttribute('type', 'text');
     input.setAttribute('name', 'secret');
     document.body.appendChild(input);
 
-    // Seed: actual value 'abc', display '•••'
     input.value = 'abc';
     const el = getInternalInput(input);
 
-    // Fake the display growing by one masked char (cursor at end = 4)
+    // Unhandled inputType (e.g. historyRedo) on a masked field: value cannot be
+    // reconstructed from masked display — field is cleared to prevent corrupt state.
     el.value = '••••';
     el.setSelectionRange(4, 4);
     el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'historyRedo' }));
 
-    // Actual value length must grow by 1
-    expect(input.value.length).toBe(4);
+    expect(input.value.length).toBe(0);
   });
 
-  it('covers newLength < oldLength branch when an exotic inputType is dispatched on a masked input', () => {
+  it('clears value when an unhandled inputType fires on a masked input (was: newLength < oldLength)', () => {
     input = document.createElement('secure-input') as SecureInput;
     input.setAttribute('security-tier', 'critical');
     input.setAttribute('type', 'text');
     input.setAttribute('name', 'secret');
     document.body.appendChild(input);
 
-    // Seed: actual value 'abcde', display '•••••'
     input.value = 'abcde';
     const el = getInternalInput(input);
 
-    // Fake the display shrinking by one char (cursor at position 4)
     el.value = '••••';
     el.setSelectionRange(4, 4);
     el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'historyRedo' }));
 
-    // Actual value length must shrink by 1
-    expect(input.value.length).toBe(4);
+    expect(input.value.length).toBe(0);
   });
 
-  it('covers newLength === oldLength no-op branch on a masked input', () => {
+  it('clears value when an unhandled inputType fires on a masked input (was: newLength === oldLength)', () => {
     input = document.createElement('secure-input') as SecureInput;
     input.setAttribute('security-tier', 'critical');
     input.setAttribute('type', 'text');
@@ -627,12 +623,11 @@ describe('SecureInput — fallback masked input (unknown inputType)', () => {
     input.value = 'abc';
     const el = getInternalInput(input);
 
-    // Same length as actual value — neither add nor remove branch fires
     el.value = '•••';
     el.setSelectionRange(3, 3);
     el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'historyRedo' }));
 
-    expect(input.value.length).toBe(3);
+    expect(input.value.length).toBe(0);
   });
 });
 

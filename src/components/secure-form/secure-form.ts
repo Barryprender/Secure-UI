@@ -32,7 +32,7 @@
  * @license MIT
  */
 
-import { SecurityTier } from '../../core/security-config.js';
+import { SecurityTier, TIER_CONFIG, isValidTier } from '../../core/security-config.js';
 import type {
   SecurityTierValue,
   FieldTelemetry,
@@ -55,8 +55,7 @@ import type {
  * @extends HTMLElement
  */
 export class SecureForm extends HTMLElement {
-  /** @private Whether component styles have been added to the document */
-  static __stylesAdded: boolean = false;
+  static #stylesAdded: boolean = false;
 
   /**
    * Form element reference
@@ -88,6 +87,11 @@ export class SecureForm extends HTMLElement {
    * @private
    */
   #sessionStart: number = Date.now();
+
+  #rateLimitState: { attempts: number; windowStart: number } = {
+    attempts: 0,
+    windowStart: Date.now()
+  };
 
   /**
    * Unique ID for this form instance
@@ -147,8 +151,8 @@ export class SecureForm extends HTMLElement {
     // attributeChangedCallback fires before connectedCallback but early-returns
     // when #formElement is null, so the tier needs to be read here.
     const tierAttr = this.getAttribute('security-tier');
-    if (tierAttr) {
-      this.#securityTier = tierAttr as SecurityTierValue;
+    if (tierAttr && isValidTier(tierAttr)) {
+      this.#securityTier = tierAttr;
     }
 
     // Progressive enhancement: check for server-rendered <form> in light DOM
@@ -166,7 +170,7 @@ export class SecureForm extends HTMLElement {
 
       // Check if CSRF field already exists in the server-rendered form
       const csrfFieldName = this.getAttribute('csrf-field-name') || 'csrf_token';
-      const existingCsrf = existingForm.querySelector<HTMLInputElement>(`input[name="${csrfFieldName}"]`);
+      const existingCsrf = existingForm.querySelector<HTMLInputElement>(`input[name="${CSS.escape(csrfFieldName)}"]`);
       if (existingCsrf) {
         this.#csrfInput = existingCsrf;
         // Update token value from attribute if it differs
@@ -227,21 +231,19 @@ export class SecureForm extends HTMLElement {
    * @private
    */
   #addInlineStyles(): void {
-    if (!SecureForm.__stylesAdded) {
+    if (!SecureForm.#stylesAdded) {
       const cssInput = new URL('./secure-form.css', import.meta.url).href;
       if (cssInput.includes('{')) {
-        // Bundle mode — CSS text; document.adoptedStyleSheets is CSP-safe (no unsafe-inline).
         const sheet = new CSSStyleSheet();
         sheet.replaceSync(cssInput);
         document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
       } else {
-        // ESM/dev mode — URL; <link> in document head loads from 'self'.
         const link = document.createElement('link');
         link.rel = 'stylesheet';
         link.href = cssInput;
         document.head.appendChild(link);
       }
-      SecureForm.__stylesAdded = true;
+      SecureForm.#stylesAdded = true;
     }
   }
 
@@ -576,8 +578,9 @@ export class SecureForm extends HTMLElement {
       }
     });
 
-    // Collect from standard form inputs (for non-secure fields)
-    const standardInputs = this.#formElement!.querySelectorAll('input:not([type="hidden"]), textarea:not(.textarea-field), select:not(.select-field)');
+    // Collect from standard form inputs (for non-secure fields).
+    // Shadow DOM inputs inside secure components are not reachable by this query.
+    const standardInputs = this.#formElement!.querySelectorAll('input:not([type="hidden"]), textarea, select');
 
     standardInputs.forEach((input) => {
       const typedInput = input as HTMLInputElement;
@@ -602,56 +605,50 @@ export class SecureForm extends HTMLElement {
    *
    * @private
    */
+  #submitAbortController: AbortController | null = null;
+
   async #submitForm(
     formData: Record<string, string>,
     telemetry: SessionTelemetry
   ): Promise<Response> {
+    // Abort any in-flight request before starting a new one
+    this.#submitAbortController?.abort();
+    this.#submitAbortController = new AbortController();
+
     const action = this.#formElement!.action;
     const method = this.#formElement!.method;
 
-    // Prepare headers
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
     };
 
-    // Add CSRF token to header if specified
     const csrfHeaderName = this.getAttribute('csrf-header-name');
     if (csrfHeaderName && this.#csrfInput) {
       headers[csrfHeaderName] = this.#csrfInput.value;
     }
 
-    // Bundle telemetry alongside form data in a single request.
-    // The server receives both the user's input and behavioral context in one
-    // atomic payload, enabling server-side risk evaluation without a second round-trip.
-    // Using a prefixed key (_telemetry) avoids collisions with form field names.
     const payload: Record<string, unknown> = { ...formData, _telemetry: telemetry };
 
-    // Perform fetch
     const response = await fetch(action, {
       method: method,
       headers: headers,
       body: JSON.stringify(payload),
-      credentials: 'same-origin', // Include cookies for CSRF validation
+      credentials: 'same-origin',
       mode: 'cors',
       cache: 'no-cache',
-      redirect: 'follow'
+      redirect: 'follow',
+      signal: this.#submitAbortController.signal
     });
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    // Success
     this.#showStatus('Form submitted successfully!', 'success');
 
-    // Dispatch success event
     this.dispatchEvent(
       new CustomEvent('secure-form-success', {
-        detail: {
-          formData,
-          response,
-          telemetry
-        },
+        detail: { formData, response, telemetry },
         bubbles: true,
         composed: true
       })
@@ -889,7 +886,7 @@ export class SecureForm extends HTMLElement {
    * Cleanup on disconnect
    */
   disconnectedCallback(): void {
-    // Clear any sensitive form data
+    this.#submitAbortController?.abort();
     if (this.#formElement) {
       this.#formElement.reset();
     }
@@ -898,13 +895,21 @@ export class SecureForm extends HTMLElement {
   /**
    * Handle attribute changes
    */
-  attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null): void {
+  attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
     if (!this.#formElement) return;
 
     switch (name) {
       case 'security-tier':
-        this.#securityTier = (newValue || SecurityTier.PUBLIC) as SecurityTierValue;
-        break;
+        // Tier is immutable after connectedCallback to prevent privilege escalation.
+        // We intentionally do NOT revert the DOM attribute — doing so would trigger
+        // attributeChangedCallback again and cause infinite recursion. The internal
+        // #securityTier field is never updated here, so component behaviour stays correct
+        // regardless of what the DOM attribute shows.
+        console.warn(
+          `SecureForm: security-tier cannot be changed after initialization. ` +
+          `Attempted change from "${oldValue}" to "${newValue}" blocked.`
+        );
+        return;
       case 'action':
         this.#formElement.action = newValue!;
         break;
@@ -948,10 +953,26 @@ export class SecureForm extends HTMLElement {
     }
   }
 
-  /**
-   * Check rate limit (stub - implement proper rate limiting in production)
-   */
   checkRateLimit(): { allowed: boolean; retryAfter: number } {
+    const tierConfig = TIER_CONFIG[this.#securityTier];
+    if (!tierConfig.rateLimit.enabled) {
+      return { allowed: true, retryAfter: 0 };
+    }
+
+    const { maxAttempts, windowMs } = tierConfig.rateLimit;
+    const now = Date.now();
+
+    if (now - this.#rateLimitState.windowStart > windowMs) {
+      this.#rateLimitState.attempts = 0;
+      this.#rateLimitState.windowStart = now;
+    }
+
+    if (this.#rateLimitState.attempts >= maxAttempts) {
+      const retryAfter = windowMs - (now - this.#rateLimitState.windowStart);
+      return { allowed: false, retryAfter };
+    }
+
+    this.#rateLimitState.attempts++;
     return { allowed: true, retryAfter: 0 };
   }
 }

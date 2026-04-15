@@ -158,10 +158,15 @@ describe('SecureForm branch coverage', () => {
     expect(csrfField?.value).toBe('updated-token');
   });
 
-  it('attributeChangedCallback: updates security-tier', () => {
+  it('attributeChangedCallback: blocks security-tier change after init', () => {
     document.body.appendChild(form);
+    const tierBefore = form.securityTier;
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     form.setAttribute('security-tier', 'authenticated');
-    expect(form.securityTier).toBe('authenticated');
+    // Tier must be unchanged — change is blocked post-init
+    expect(form.securityTier).toBe(tierBefore);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('cannot be changed after initialization'));
+    warnSpy.mockRestore();
   });
 
   it('attributeChangedCallback: no-op before form created', () => {

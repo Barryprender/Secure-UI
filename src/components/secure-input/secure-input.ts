@@ -95,6 +95,10 @@ export class SecureInput extends SecureBaseComponent {
    */
   #hiddenInput: HTMLInputElement | null = null;
 
+  // Clipboard text captured on the paste event so that #handleInput can use
+  // the real pasted string even when InputEvent.data is null (Firefox).
+  #pendingPaste: string | null = null;
+
   /**
    * Unique ID for this input instance
    * @private
@@ -425,6 +429,15 @@ export class SecureInput extends SecureBaseComponent {
       });
     });
 
+    // Paste event — capture clipboard text before the browser masks it.
+    // InputEvent.data is null in Firefox for paste, so we read it here and
+    // stash it for #handleInput to consume.
+    this.#inputElement!.addEventListener('paste', (e: ClipboardEvent) => {
+      if (this.#isMasked) {
+        this.#pendingPaste = e.clipboardData?.getData('text/plain') ?? null;
+      }
+    });
+
     // Change event - audit logging
     this.#inputElement!.addEventListener('change', () => {
       this.audit('input_changed', {
@@ -451,8 +464,6 @@ export class SecureInput extends SecureBaseComponent {
       const inputType = inputEvent.inputType;
       const data = inputEvent.data || '';
 
-      // Get current state before we modify
-      const currentDisplayValue = this.#inputElement!.value;
       const cursorPos = this.#inputElement!.selectionStart || 0;
 
       // Handle different input types by reconstructing the actual value
@@ -472,30 +483,22 @@ export class SecureInput extends SecureBaseComponent {
                            data +
                            this.#actualValue.substring(cursorPos - data.length);
       } else if (inputType === 'insertFromPaste') {
-        // User pasted - the data might be the full pasted content
-        if (data) {
-          this.#actualValue = this.#actualValue.substring(0, cursorPos - data.length) +
-                             data +
-                             this.#actualValue.substring(cursorPos - data.length);
+        // Use the text captured from the paste event. InputEvent.data is null in
+        // Firefox, so #pendingPaste is the reliable cross-browser source.
+        const pasted = this.#pendingPaste ?? data;
+        this.#pendingPaste = null;
+        if (pasted) {
+          this.#actualValue = this.#actualValue.substring(0, cursorPos - pasted.length) +
+                             pasted +
+                             this.#actualValue.substring(cursorPos - pasted.length);
         }
       } else {
-        // For any other input type, use a simpler approach:
-        // The display shows masked chars, but we can infer changes by comparing lengths
-        const oldLength = this.#actualValue.length;
-        const newLength = currentDisplayValue.length;
-
-        if (newLength > oldLength) {
-          // Something was added
-          const diff = newLength - oldLength;
-          const insertPos = cursorPos - diff;
-          this.#actualValue = this.#actualValue.substring(0, insertPos) +
-                             currentDisplayValue.substring(insertPos, cursorPos) +
-                             this.#actualValue.substring(insertPos);
-        } else if (newLength < oldLength) {
-          // Something was removed (fallback)
-          this.#actualValue = this.#actualValue.substring(0, cursorPos) +
-                             this.#actualValue.substring(cursorPos + (oldLength - newLength));
-        }
+        // Unhandled inputType (IME composition, cut, drag-and-drop, etc.) on a masked
+        // field. We cannot reconstruct the actual value from the masked display — the
+        // display shows only '•' characters. Clear the field to prevent storing mask
+        // characters as real data.
+        this.#actualValue = '';
+        this.#inputElement!.value = '';
       }
 
       // Now apply masking to the display
@@ -993,8 +996,8 @@ export class SecureInput extends SecureBaseComponent {
   disconnectedCallback(): void {
     super.disconnectedCallback();
 
-    // Clear sensitive data from memory
     this.#actualValue = '';
+    this.#pendingPaste = null;
     if (this.#inputElement) {
       this.#inputElement.value = '';
     }

@@ -18,9 +18,16 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
   #hiddenInput: HTMLInputElement | null = null;
   #instanceId: string = `secure-password-confirm-${Math.random().toString(36).substring(2, 11)}`;
 
-  // Strip any pre-set security-tier before the base reads it,
-  // guaranteeing this component is always CRITICAL.
+  // This component is locked to CRITICAL tier unconditionally.
+  // Warn if a caller attempts to set a different tier, then remove it so
+  // initializeSecurity() falls through to the CRITICAL default.
   connectedCallback(): void {
+    const requested = this.getAttribute('security-tier');
+    if (requested && requested !== 'critical') {
+      console.warn(
+        `secure-password-confirm: security-tier="${requested}" ignored — this component is locked to CRITICAL.`
+      );
+    }
     this.removeAttribute('security-tier');
     super.connectedCallback();
   }
