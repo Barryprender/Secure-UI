@@ -18,7 +18,7 @@ Security-first Web Component library with built-in behavioral telemetry. Zero de
 - **CSP-Safe** — Bundle mode uses `adoptedStyleSheets` (constructable stylesheets, exempt from `unsafe-inline`); ESM/dev mode uses `<link>` from `'self'`; neither requires `unsafe-inline`
 - **SSR Friendly** — Adopts server-rendered markup on upgrade; no document access in constructors
 - **Fully Customisable** — CSS Design Tokens + `::part()` API
-- **Comprehensive Testing** — 1066 tests, 80%+ branch coverage
+- **Comprehensive Testing** — 1176 tests, 84%+ branch coverage
 
 ---
 
@@ -164,7 +164,7 @@ import 'secure-ui-components/secure-telemetry-provider';
 
 ```html
 <secure-telemetry-provider signing-key="your-per-session-secret">
-  <secure-form action="/api/login" method="POST" csrf-token="..." enhance>
+  <secure-form action="/api/login" method="POST" csrf-token="..." use-fetch>
     <secure-input label="Email" name="email" type="email" required security-tier="authenticated"></secure-input>
     <secure-input label="Password" name="password" type="password" required security-tier="critical"></secure-input>
     <secure-submit-button label="Sign in" loading-label="Signing in…"></secure-submit-button>
@@ -237,7 +237,6 @@ el.value = 'foo'      // set value programmatically
 el.valid              // boolean — passes all validation rules
 el.name               // field name string
 el.getAuditLog()      // AuditLogEntry[]
-el.clearAuditLog()
 el.getFieldTelemetry() // FieldTelemetry — behavioral signals for this field
 el.focus()
 el.blur()
@@ -247,8 +246,8 @@ el.blur()
 
 | Event | Detail |
 |-------|--------|
-| `secure-input` | `{ name, value, masked, tier }` |
-| `secure-audit` | `{ event, tier, timestamp, … }` |
+| `secure-input-change` | `{ name, value, masked, tier }` |
+| `secure-audit` | `{ event, tier, timestamp, data? }` |
 | `secure-threat-detected` | `{ fieldName, threatType: 'injection', patternId, tier, timestamp }` — fired when a known injection pattern is detected in the field value |
 
 **Example**
@@ -271,9 +270,9 @@ Multi-line input with real-time character counter, rate limiting, and automatic 
 
 **Attributes:** `label`, `name`, `placeholder`, `required`, `disabled`, `readonly`, `minlength`, `maxlength`, `rows`, `cols`, `wrap`, `value`, `security-tier`
 
-**Properties & Methods:** `value`, `name`, `valid`, `getAuditLog()`, `clearAuditLog()`, `getFieldTelemetry()`, `focus()`, `blur()`
+**Properties & Methods:** `value`, `name`, `valid`, `getAuditLog()`, `getFieldTelemetry()`, `focus()`, `blur()`
 
-**Events:** `secure-textarea` → `{ name, value, tier }`
+**Events:** `secure-textarea-change` → `{ name, value, tier }`
 
 ```html
 <secure-textarea
@@ -295,7 +294,7 @@ Dropdown with option whitelist validation — prevents value injection. Telemetr
 **Properties & Methods**
 
 ```js
-el.value              // current value (comma-separated for multiple)
+el.value              // string for single-select; string[] for multi-select
 el.selectedOptions    // string[] of selected values
 el.valid
 el.name
@@ -308,7 +307,7 @@ el.focus()
 el.blur()
 ```
 
-**Events:** `secure-select` → `{ name, value, tier }`
+**Events:** `secure-select-change` → `{ name, value: string | string[], tier }` — `value` is `string[]` for multi-select, `string` for single
 
 ```html
 <secure-select label="Country" name="country" required>
@@ -339,7 +338,7 @@ Form container with CSRF protection, field validation, behavioral telemetry aggr
 | `csrf-field-name` | Hidden field name (default `csrf_token`) |
 | `csrf-header-name` | Also send CSRF token in this request header |
 | `novalidate` | Disable browser constraint validation |
-| `enhance` | Enable fetch-based JSON submission instead of native |
+| `use-fetch` | Enable fetch-based JSON submission instead of native HTML form submission |
 | `security-tier` | Security tier |
 
 **Properties & Methods**
@@ -356,8 +355,8 @@ el.submit()       // programmatic submit (triggers validation + telemetry)
 
 | Event | Detail |
 |-------|--------|
-| `secure-form-submit` | `{ formData, formElement, telemetry, preventDefault() }` — cancelable |
-| `secure-form-success` | `{ formData, response, telemetry }` — only when `enhance` is set |
+| `secure-form-submit` | `{ formData, telemetry, cancelSubmission() }` — cancelable. Call `e.detail.cancelSubmission()` to abort the library's fetch submission and re-enable the form, or call `e.preventDefault()` (native) to prevent the `fetch` from being sent. |
+| `secure-form-success` | `{ formData, response, telemetry }` — only when `use-fetch` is set |
 | `secure-threat-detected` | `{ fieldName, threatType: 'csrf-token-absent', patternId, tier, timestamp }` — fired on `sensitive`/`critical` tiers when CSRF token is absent at submission |
 
 **`telemetry` shape** (`SessionTelemetry`):
@@ -375,13 +374,13 @@ el.submit()       // programmatic submit (triggers validation + telemetry)
 
 **Submission modes**
 
-- **Without `enhance`** — native browser form submission. Values from shadow DOM inputs are synced to hidden `<input type="hidden">` fields automatically. Telemetry is available in `secure-form-submit` but not sent to the server.
-- **With `enhance`** — intercepts submit, validates all fields, sends `{ ...formData, _telemetry }` as JSON via `fetch`. Full telemetry payload travels to the server in the same request.
+- **Without `use-fetch`** — native browser form submission. Values from shadow DOM inputs are synced to hidden `<input type="hidden">` fields automatically. Telemetry is available in `secure-form-submit` but not sent to the server.
+- **With `use-fetch`** — intercepts submit, validates all fields, sends `{ ...formData, _telemetry }` as JSON via `fetch`. Full telemetry payload travels to the server in the same request.
 
 **Example**
 
 ```html
-<secure-form action="/api/register" method="POST" csrf-token="abc123" enhance>
+<secure-form action="/api/register" method="POST" csrf-token="abc123" use-fetch>
   <secure-input label="Email" name="email" type="email" required></secure-input>
   <secure-input label="Password" name="password" type="password" required security-tier="critical"></secure-input>
   <secure-submit-button label="Register"></secure-submit-button>
@@ -394,7 +393,7 @@ form.addEventListener('secure-form-submit', (e) => {
 
   // Block high-risk submissions before they reach your server
   if (telemetry.riskScore >= 50) {
-    e.detail.preventDefault();
+    e.detail.cancelSubmission(); // aborts fetch, re-enables form
     showChallenge();
     return;
   }
@@ -471,7 +470,7 @@ The provider listens for `secure-form-submit` on itself (bubbles from the nested
 
 ```html
 <secure-telemetry-provider signing-key="per-session-server-issued-key">
-  <secure-form action="/api/login" enhance csrf-token="...">
+  <secure-form action="/api/login" use-fetch csrf-token="...">
     <secure-input label="Email" name="email" type="email" required></secure-input>
     <secure-input label="Password" name="password" type="password" required security-tier="critical"></secure-input>
     <secure-submit-button label="Sign in"></secure-submit-button>
@@ -544,7 +543,7 @@ upload.setScanHook(async (file) => {
 });
 ```
 
-**Events:** `secure-file-upload` → `{ name, files: File[], tier }`
+**Events:** `secure-file-change` → `{ name, files: File[], tier }`
 
 **Content validation (critical tier):** Magic number verification for JPEG, PNG, and PDF files.
 
@@ -598,7 +597,7 @@ el.focus()
 el.blur()
 ```
 
-**Events:** `secure-datetime` → `{ name, value, type, tier }`
+**Events:** `secure-datetime-change` → `{ name, value, type, tier }`
 
 **CRITICAL tier:** Year must be between 1900 and 2100.
 
@@ -642,7 +641,7 @@ table.columns = [
 | `filterable` | boolean | Include in global search |
 | `tier` | string | Mask values at this tier level |
 | `width` | string | CSS column width |
-| `render` | `(value, row, key) => string` | Custom cell renderer |
+| `render` | `(value, row, key) => string` | Custom cell renderer — return value is treated as HTML and sanitized before insertion (event handlers and disallowed tags stripped) |
 
 **Column masking**
 
@@ -651,7 +650,7 @@ table.columns = [
 | `sensitive` | Last 4 characters visible, rest masked (`••••4567`) |
 | `critical` | Fully masked (`••••••••`) |
 
-**Events:** `table-action` → `{ action, …data-attributes }` — fired when an element with `[data-action]` inside a cell is clicked.
+**Events:** `secure-table-action` → `{ action, …data-attributes }` — fired when an element with `[data-action]` inside a cell is clicked.
 
 **Progressive enhancement:** Place a `<table slot="table">` with `data-key` attributes on `<th>` elements inside `<secure-table>` — the component reads columns and data from the server-rendered markup.
 
@@ -711,10 +710,10 @@ card.getAuditLog()
 
 | Event | Detail |
 |-------|--------|
-| `secure-card` | `{ name, cardType, last4, expiryMonth, expiryYear, cardholderName, valid, tier }` |
-| `secure-audit` | `{ event, tier, timestamp, … }` |
+| `secure-card-change` | `{ name, cardType, last4, expiryMonth: number (1–12), expiryYear: number (4-digit, e.g. 2027), cardholderName, valid, tier }` |
+| `secure-audit` | `{ event, tier, timestamp, data? }` |
 
-Note: the `secure-card` event detail intentionally omits the full PAN and CVC.
+Note: the `secure-card-change` event detail intentionally omits the full PAN and CVC.
 
 **CSS Parts**
 
@@ -791,7 +790,6 @@ el.name
 el.getPasswordValue()      // string — raw password; use only for form handoff
 el.getFieldTelemetry()     // composite FieldTelemetry across both inputs
 el.getAuditLog()
-el.clearAuditLog()
 el.focus()
 ```
 
