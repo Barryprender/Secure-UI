@@ -55,10 +55,6 @@
       "types": "./dist/components/secure-password-confirm/secure-password-confirm.d.ts",
       "import": "./dist/components/secure-password-confirm/secure-password-confirm.js"
     },
-    "./base-component": {
-      "types": "./dist/core/base-component.d.ts",
-      "import": "./dist/core/base-component.js"
-    },
     "./security-config": {
       "types": "./dist/core/security-config.d.ts",
       "import": "./dist/core/security-config.js"
