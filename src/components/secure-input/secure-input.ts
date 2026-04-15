@@ -1,115 +1,27 @@
-/**
- * @fileoverview Secure Input Component
- *
- * A security-first input field component that implements progressive enhancement,
- * tier-based validation, masking, and audit logging.
- *
- * Progressive Enhancement Strategy:
- * 1. Without JavaScript: Falls back to native HTML5 input with attributes
- * 2. With JavaScript: Enhances with masking, real-time validation, rate limiting
- *
- * Usage:
- * <secure-input
- *   security-tier="critical"
- *   name="password"
- *   label="Password"
- *   type="password"
- *   required
- * ></secure-input>
- *
- * Security Features:
- * - XSS prevention via sanitization
- * - Configurable masking based on security tier
- * - Rate limiting for sensitive/critical tiers
- * - Autocomplete control based on tier
- * - Comprehensive audit logging
- * - Visual security indicators
- *
- * @module secure-input
- * @license MIT
- */
 
 import { SecureBaseComponent } from '../../core/base-component.js';
 import { SecurityTier } from '../../core/security-config.js';
 
-/**
- * Secure Input Web Component
- *
- * Provides a security-hardened input field with progressive enhancement.
- * The component works as a standard form input without JavaScript and
- * enhances with security features when JavaScript is available.
- *
- * @extends SecureBaseComponent
- */
 export class SecureInput extends SecureBaseComponent {
-  /**
-   * Input types that show threat feedback by default (no attribute required).
-   * - text/search: free-form strings, highest XSS/template injection surface
-   * - url: javascript: and data:text/html are live URL-injection vectors
-   * password/email/tel are excluded: password feedback is confusing on masked fields;
-   * email/tel have browser-enforced character restrictions.
-   * number is excluded entirely — detectInjection is skipped for it (see #handleInput).
-   */
+  // text/search/url get threat feedback on by default.
+  // password: feedback is confusing on masked fields.
+  // email/tel: browser-enforced character restrictions limit injection surface.
+  // number: detectInjection is skipped entirely (browser enforces numeric).
   static readonly #FEEDBACK_DEFAULT_TYPES: ReadonlySet<string> = new Set(['text', 'url', 'search']);
 
-  /**
-   * Input element reference
-   * @private
-   */
   #inputElement: HTMLInputElement | null = null;
-
-  /**
-   * Label element reference
-   * @private
-   */
   #labelElement: HTMLLabelElement | null = null;
-
-  /**
-   * Error container element reference
-   * @private
-   */
   #errorContainer: HTMLDivElement | null = null;
-
-  /**
-   * Threat feedback container — separate from validation errors so
-   * #clearErrors() never clobbers an active threat message.
-   * @private
-   */
+  // Separate from #errorContainer so #clearErrors() never clobbers an active threat message.
   #threatContainer: HTMLDivElement | null = null;
-
-  /**
-   * The actual unmasked value
-   * @private
-   */
   #actualValue: string = '';
-
-  /**
-   * Whether the input is currently masked
-   * @private
-   */
   #isMasked: boolean = false;
-
-  /**
-   * Hidden input element in light DOM for form submission
-   * @private
-   */
   #hiddenInput: HTMLInputElement | null = null;
-
-  // Clipboard text captured on the paste event so that #handleInput can use
-  // the real pasted string even when InputEvent.data is null (Firefox).
+  // Clipboard text captured on paste so #handleInput has the real string even
+  // when InputEvent.data is null (Firefox).
   #pendingPaste: string | null = null;
-
-  /**
-   * Unique ID for this input instance
-   * @private
-   */
   #instanceId: string = `secure-input-${Math.random().toString(36).substring(2, 11)}`;
 
-  /**
-   * Observed attributes for this component
-   *
-   * @static
-   */
   static get observedAttributes(): string[] {
     return [
       ...super.observedAttributes,
@@ -126,22 +38,6 @@ export class SecureInput extends SecureBaseComponent {
     ];
   }
 
-  /**
-   * Constructor
-   */
-  constructor() {
-    super();
-  }
-
-  /**
-   * Render the input component
-   *
-   * Security Note: We use a native <input> element wrapped in our web component
-   * to ensure progressive enhancement. The native input works without JavaScript,
-   * and we enhance it with security features when JS is available.
-   *
-   * @protected
-   */
   protected render(): DocumentFragment | HTMLElement | null {
     const fragment = document.createDocumentFragment();
 
@@ -214,7 +110,6 @@ export class SecureInput extends SecureBaseComponent {
     // 3. They still have 'name' attributes causing duplicate empty form fields
     this.#neutralizeFallbackInputs();
 
-    // Add component styles (CSP-compliant via adoptedStyleSheets)
     this.addComponentStyles(this.#getComponentStyles());
 
     fragment.appendChild(container);
@@ -222,31 +117,14 @@ export class SecureInput extends SecureBaseComponent {
     return fragment;
   }
 
-  /**
-   * Create hidden input in light DOM for native form submission
-   *
-   * CRITICAL: The actual input is in Shadow DOM and can't participate in
-   * native form submission. We create a hidden input in light DOM that syncs
-   * with the Shadow DOM input value.
-   *
-   * IMPORTANT: Only create hidden input if NOT inside a <secure-form> component.
-   * The secure-form component handles its own hidden input creation.
-   *
-   * @private
-   */
+  // Creates a light-DOM hidden input to sync the shadow input value for native
+  // form submission. Skipped when inside <secure-form>, which handles its own sync.
   #createHiddenInputForForm(): void {
     const name = this.getAttribute('name');
     if (!name) return;
 
-    // Check if this input is inside a <secure-form> component
-    // If yes, the secure-form will handle hidden input creation
-    const isInsideSecureForm = this.closest('secure-form');
-    if (isInsideSecureForm) {
-      // Don't create hidden input - secure-form will handle it
-      return;
-    }
+    if (this.closest('secure-form')) return;
 
-    // Create hidden input in light DOM
     this.#hiddenInput = document.createElement('input');
     this.#hiddenInput.type = 'hidden';
     this.#hiddenInput.name = name;
@@ -256,28 +134,14 @@ export class SecureInput extends SecureBaseComponent {
     this.appendChild(this.#hiddenInput);
   }
 
-  /**
-   * Sync hidden input value with the actual input value
-   *
-   * @private
-   */
   #syncHiddenInput(): void {
     if (this.#hiddenInput) {
       this.#hiddenInput.value = this.#actualValue || '';
     }
   }
 
-  /**
-   * Neutralize native fallback inputs in light DOM
-   *
-   * When the component initializes with JavaScript, the shadow DOM input takes
-   * over. The server-rendered native fallback inputs (for no-JS progressive
-   * enhancement) must be neutralized to prevent:
-   * - HTML5 constraint validation blocking form submission silently
-   * - Duplicate form field values on native form submission
-   *
-   * @private
-   */
+  // Server-rendered fallback inputs must be neutralised after JS upgrade:
+  // active required/name attributes cause silent validation blocks and duplicate fields.
   #neutralizeFallbackInputs(): void {
     const fallbacks = this.querySelectorAll('input, textarea, select');
     fallbacks.forEach((el) => {
@@ -297,55 +161,39 @@ export class SecureInput extends SecureBaseComponent {
     });
   }
 
-  /**
-   * Apply attributes from the web component to the native input
-   *
-   * Security Note: This is where we enforce tier-specific security controls
-   * like autocomplete, caching, and validation rules.
-   *
-   * @private
-   */
   #applyInputAttributes(): void {
     const config = this.config;
 
-    // Name attribute (required for form submission)
     const name = this.getAttribute('name');
     if (name) {
       this.#inputElement!.name = this.sanitizeValue(name);
     }
 
-    // Accessible name fallback: when no visible label is provided, use the name
-    // attribute as aria-label so screen readers can identify the field
+    // Accessible name fallback when no visible label is provided.
     if (!this.getAttribute('label') && name) {
       this.#inputElement!.setAttribute('aria-label', this.sanitizeValue(name));
     }
 
-    // Link input to its error container for screen readers
     this.#inputElement!.setAttribute('aria-describedby', `${this.#instanceId}-error`);
 
-    // Type attribute
     const type = this.getAttribute('type') || 'text';
     this.#inputElement!.type = type;
 
-    // Placeholder
     const placeholder = this.getAttribute('placeholder');
     if (placeholder) {
       this.#inputElement!.placeholder = this.sanitizeValue(placeholder);
     }
 
-    // Required attribute
     if (this.hasAttribute('required') || config.validation.required) {
       this.#inputElement!.required = true;
       this.#inputElement!.setAttribute('aria-required', 'true');
     }
 
-    // Pattern validation
     const pattern = this.getAttribute('pattern');
     if (pattern) {
       this.#inputElement!.pattern = pattern;
     }
 
-    // Length constraints
     const minLength = this.getAttribute('minlength');
     if (minLength) {
       this.#inputElement!.minLength = parseInt(minLength, 10);
@@ -356,33 +204,26 @@ export class SecureInput extends SecureBaseComponent {
       this.#inputElement!.maxLength = parseInt(String(maxLength), 10);
     }
 
-    // CRITICAL SECURITY: Autocomplete control based on tier
-    // For SENSITIVE and CRITICAL tiers, we disable autocomplete to prevent
-    // browser storage of sensitive data
+    // SENSITIVE/CRITICAL: disable autocomplete to prevent browser storage of sensitive data.
     if (config.storage.allowAutocomplete) {
       const autocomplete = this.getAttribute('autocomplete') || 'on';
       this.#inputElement!.autocomplete = autocomplete as AutoFill;
     } else {
       // Explicitly disable autocomplete for sensitive data
       this.#inputElement!.autocomplete = 'off';
-      // Also set autocomplete="new-password" for password fields to prevent
-      // password managers from auto-filling
       if (this.#inputElement!.type === 'password') {
         this.#inputElement!.autocomplete = 'new-password';
       }
     }
 
-    // Disabled state
     if (this.hasAttribute('disabled')) {
       this.#inputElement!.disabled = true;
     }
 
-    // Readonly state
     if (this.hasAttribute('readonly')) {
       this.#inputElement!.readOnly = true;
     }
 
-    // Initial value
     const value = this.getAttribute('value');
     if (value) {
       this.#setValue(value);
@@ -399,13 +240,7 @@ export class SecureInput extends SecureBaseComponent {
     }
   }
 
-  /**
-   * Attach event listeners to the input
-   *
-   * @private
-   */
   #attachEventListeners(): void {
-    // Focus event - audit logging + telemetry
     this.#inputElement!.addEventListener('focus', () => {
       this.recordTelemetryFocus();
       this.audit('input_focused', {
@@ -413,13 +248,11 @@ export class SecureInput extends SecureBaseComponent {
       });
     });
 
-    // Input event - real-time validation, change tracking + telemetry
     this.#inputElement!.addEventListener('input', (e: Event) => {
       this.recordTelemetryInput(e);
       this.#handleInput(e);
     });
 
-    // Blur event - final validation + telemetry
     this.#inputElement!.addEventListener('blur', () => {
       this.recordTelemetryBlur();
       this.#validateAndShowErrors();
@@ -438,7 +271,6 @@ export class SecureInput extends SecureBaseComponent {
       }
     });
 
-    // Change event - audit logging
     this.#inputElement!.addEventListener('change', () => {
       this.audit('input_changed', {
         name: this.#inputElement!.name,
@@ -447,16 +279,7 @@ export class SecureInput extends SecureBaseComponent {
     });
   }
 
-  /**
-   * Handle input events
-   *
-   * Security Note: This is where we implement real-time masking and validation.
-   * We never expose the actual value in the DOM for CRITICAL tier fields.
-   *
-   * @private
-   */
   #handleInput(event: Event): void {
-
     // For masked inputs (except password which browser handles), we need to track
     // the actual unmasked value separately because the input element shows masked chars
     if (this.#isMasked && this.#inputElement!.type !== 'password') {
@@ -512,8 +335,6 @@ export class SecureInput extends SecureBaseComponent {
       this.#actualValue = this.#inputElement!.value;
     }
 
-    // number inputs have browser-enforced numeric values — no injection surface.
-    // For all other types, run detection; default feedback to on for text/url/search.
     const inputType = this.#inputElement!.type;
     if (inputType !== 'number') {
       this.detectInjection(
@@ -523,13 +344,8 @@ export class SecureInput extends SecureBaseComponent {
       );
     }
 
-    // Clear previous errors on input (improve UX)
     this.#clearErrors();
-
-    // Sync hidden input for form submission
     this.#syncHiddenInput();
-
-    // Dispatch custom event for parent forms
     this.dispatchEvent(
       new CustomEvent('secure-input', {
         detail: {
@@ -544,14 +360,6 @@ export class SecureInput extends SecureBaseComponent {
     );
   }
 
-  /**
-   * Mask a value based on tier configuration
-   *
-   * Security Note: For CRITICAL tier, we mask everything. For SENSITIVE tier,
-   * we can optionally reveal last few characters (e.g., last 4 digits of phone).
-   *
-   * @private
-   */
   #maskValue(value: string): string {
     const config = this.config;
     const maskChar = config.masking.character;
@@ -571,18 +379,6 @@ export class SecureInput extends SecureBaseComponent {
     return maskedPart + visiblePart;
   }
 
-  /**
-   * Validate password strength based on security tier
-   *
-   * Tier rules:
-   * - CRITICAL: uppercase + lowercase + digit + symbol, 8+ chars
-   * - SENSITIVE: uppercase + lowercase + digit, 8+ chars
-   * - AUTHENTICATED: 6+ chars
-   * - PUBLIC: no strength requirement
-   *
-   * @private
-   * @returns null if valid or not a password, error message string if invalid
-   */
   #validatePasswordStrength(value: string): string | null {
     if (!this.#inputElement || this.#inputElement.type !== 'password') {
       return null;
@@ -613,15 +409,6 @@ export class SecureInput extends SecureBaseComponent {
     return null;
   }
 
-  /**
-   * Validate number input for overflow and safe integer range
-   *
-   * Prevents JavaScript precision loss by checking against Number.MAX_SAFE_INTEGER.
-   * Also enforces min/max attribute constraints.
-   *
-   * @private
-   * @returns null if valid or not a number, error message string if invalid
-   */
   #validateNumberOverflow(value: string): string | null {
     if (!this.#inputElement || this.#inputElement.type !== 'number') {
       return null;
@@ -664,13 +451,7 @@ export class SecureInput extends SecureBaseComponent {
     return null;
   }
 
-  /**
-   * Validate the input and show error messages
-   *
-   * @private
-   */
   #validateAndShowErrors(): void {
-    // Check rate limit first
     const rateLimitCheck = this.checkRateLimit();
     if (!rateLimitCheck.allowed) {
       this.#showError(
@@ -679,7 +460,6 @@ export class SecureInput extends SecureBaseComponent {
       return;
     }
 
-    // Perform base validation
     const patternAttr = this.getAttribute('pattern');
     const minLength = this.getAttribute('minlength');
     const maxLength = this.getAttribute('maxlength');
@@ -706,14 +486,12 @@ export class SecureInput extends SecureBaseComponent {
       return;
     }
 
-    // Type-specific validation: password strength
     const passwordError = this.#validatePasswordStrength(this.#actualValue);
     if (passwordError) {
       this.#showError(passwordError);
       return;
     }
 
-    // Type-specific validation: number overflow
     const numberError = this.#validateNumberOverflow(this.#actualValue);
     if (numberError) {
       this.#showError(numberError);
@@ -744,11 +522,6 @@ export class SecureInput extends SecureBaseComponent {
     }
   }
 
-  /**
-   * Show error message
-   *
-   * @private
-   */
   #showError(message: string): void {
     this.#errorContainer!.textContent = message;
     // Force reflow so browser registers the hidden state with content,
@@ -759,11 +532,6 @@ export class SecureInput extends SecureBaseComponent {
     this.#inputElement!.setAttribute('aria-invalid', 'true');
   }
 
-  /**
-   * Clear error messages
-   *
-   * @private
-   */
   #clearErrors(): void {
     // Start the hide animation first, clear text only after transition ends
     this.#errorContainer!.classList.add('hidden');
@@ -776,11 +544,6 @@ export class SecureInput extends SecureBaseComponent {
     this.#inputElement!.removeAttribute('aria-invalid');
   }
 
-  /**
-   * Set the input value
-   *
-   * @private
-   */
   #setValue(value: string): void {
     this.#actualValue = value;
 
@@ -794,20 +557,10 @@ export class SecureInput extends SecureBaseComponent {
     this.#syncHiddenInput();
   }
 
-  /**
-   * Get component-specific styles
-   *
-   * @private
-   */
   #getComponentStyles(): string {
     return new URL('./secure-input.css', import.meta.url).href;
   }
 
-  /**
-   * Handle attribute changes
-   *
-   * @protected
-   */
   protected handleAttributeChange(name: string, _oldValue: string | null, newValue: string | null): void {
     if (!this.#inputElement) return;
 
@@ -826,41 +579,18 @@ export class SecureInput extends SecureBaseComponent {
     }
   }
 
-  /**
-   * Get the current value (unmasked)
-   *
-   * Security Note: This exposes the actual value. Only call this when
-   * submitting the form or when you have proper authorization.
-   *
-   * @public
-   */
   get value(): string {
     return this.#actualValue;
   }
 
-  /**
-   * Set the value
-   *
-   * @public
-   */
   set value(value: string) {
     this.#setValue(value || '');
   }
 
-  /**
-   * Get the input name
-   *
-   * @public
-   */
   get name(): string {
     return this.#inputElement ? this.#inputElement.name : '';
   }
 
-  /**
-   * Check if the input is valid
-   *
-   * @public
-   */
   get valid(): boolean {
     const patternAttr = this.getAttribute('pattern');
     const minLength = this.getAttribute('minlength');
@@ -887,12 +617,10 @@ export class SecureInput extends SecureBaseComponent {
       return false;
     }
 
-    // Type-specific: password strength
     if (this.#validatePasswordStrength(this.#actualValue) !== null) {
       return false;
     }
 
-    // Type-specific: number overflow
     if (this.#validateNumberOverflow(this.#actualValue) !== null) {
       return false;
     }
@@ -920,35 +648,18 @@ export class SecureInput extends SecureBaseComponent {
     return true;
   }
 
-  /**
-   * Focus the input
-   *
-   * @public
-   */
   focus(): void {
     if (this.#inputElement) {
       this.#inputElement.focus();
     }
   }
 
-  /**
-   * Blur the input
-   *
-   * @public
-   */
   blur(): void {
     if (this.#inputElement) {
       this.#inputElement.blur();
     }
   }
 
-  /**
-   * Show inline threat feedback inside the component's shadow DOM.
-   * Called by the base class when a threat is detected and threat-feedback is set.
-   * Uses a separate container from validation errors so #clearErrors() does not
-   * clobber an active threat message.
-   * @protected
-   */
   protected override showThreatFeedback(patternId: string): void {
     if (!this.#threatContainer || !this.#inputElement) return;
 
@@ -974,10 +685,6 @@ export class SecureInput extends SecureBaseComponent {
     this.#inputElement.setAttribute('aria-invalid', 'true');
   }
 
-  /**
-   * Clear the threat feedback container.
-   * @protected
-   */
   protected override clearThreatFeedback(): void {
     if (!this.#threatContainer || !this.#inputElement) return;
     this.#threatContainer.classList.add('hidden');
@@ -990,9 +697,6 @@ export class SecureInput extends SecureBaseComponent {
     this.#inputElement.removeAttribute('aria-invalid');
   }
 
-  /**
-   * Cleanup on disconnect
-   */
   disconnectedCallback(): void {
     super.disconnectedCallback();
 
@@ -1004,7 +708,4 @@ export class SecureInput extends SecureBaseComponent {
   }
 }
 
-// Define the custom element
 customElements.define('secure-input', SecureInput);
-
-export default SecureInput;
