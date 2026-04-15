@@ -1,13 +1,13 @@
-/**
- * Secure-UI Component Library
- *
- * @module @anthropic/secure-ui-components
- * @license MIT
- */
-
 // Core
 export { SecureBaseComponent } from './core/base-component.js';
-export { SecurityTier, TIER_CONFIG, getTierConfig, isValidTier, compareTiers, getMoreSecureTier, CSP_RECOMMENDATIONS, SECURITY_HEADERS } from './core/security-config.js';
+export {
+  SecurityTier,
+  TIER_CONFIG,
+  getTierConfig,
+  isValidTier,
+  compareTiers,
+  getMoreSecureTier,
+} from './core/security-config.js';
 
 // Components
 export { SecureInput } from './components/secure-input/secure-input.js';
@@ -34,10 +34,7 @@ export type {
   ValidationResult,
   ValidationOptions,
   RateLimitResult,
-  RateLimitState,
   AuditLogEntry,
-  CSPDirectives,
-  SecurityHeaders,
   SecureInputEventDetail,
   SecureTextareaEventDetail,
   SecureSelectEventDetail,
@@ -46,6 +43,7 @@ export type {
   SecureFormSubmitEventDetail,
   SecureFormSuccessEventDetail,
   SecureAuditEventDetail,
+  ThreatDetectedDetail,
   TableColumnDefinition,
   TableSortConfig,
   TablePaginationState,
@@ -53,10 +51,9 @@ export type {
   CardType,
   SecureCardEventDetail,
   FieldTelemetry,
-  FieldTelemetryState,
   FieldTelemetrySnapshot,
   SessionTelemetry,
   EnvironmentalSignals,
   SignedTelemetryEnvelope,
-  SecurePasswordConfirmEventDetail
+  SecurePasswordConfirmEventDetail,
 } from './core/types.js';
