@@ -205,7 +205,7 @@ describe('SecureForm branch coverage', () => {
 
   // ── #handleSubmit: double-submit prevention ───────────────────────────────
   it('prevents double submission', async () => {
-    form.setAttribute('enhance', '');
+    form.setAttribute('use-fetch', '');
     form.setAttribute('action', '/test');
     document.body.appendChild(form);
 
@@ -284,7 +284,7 @@ describe('SecureForm branch coverage', () => {
 
   // ── #handleSubmit: enhanced submission cancelled via event ────────────────
   it('cancels enhanced submission when secure-form-submit is cancelled', async () => {
-    form.setAttribute('enhance', '');
+    form.setAttribute('use-fetch', '');
     form.setAttribute('action', '/test');
     form.setAttribute('csrf-token', 'tok');
     document.body.appendChild(form);
@@ -305,7 +305,7 @@ describe('SecureForm branch coverage', () => {
 
   // ── #handleSubmit: fetch error ────────────────────────────────────────────
   it('shows error message when fetch fails', async () => {
-    form.setAttribute('enhance', '');
+    form.setAttribute('use-fetch', '');
     form.setAttribute('action', 'http://localhost/test');
     document.body.appendChild(form);
 
@@ -369,7 +369,7 @@ describe('SecureForm branch coverage', () => {
     (statusEl as HTMLElement).className = 'form-status form-status-error';
 
     // Dispatch a secure-input event which should trigger #handleFieldChange → #clearStatus
-    form.dispatchEvent(new CustomEvent('secure-input', { bubbles: true }));
+    form.dispatchEvent(new CustomEvent('secure-input-change', { bubbles: true }));
 
     expect((statusEl as HTMLElement).textContent).toBe('');
   });
