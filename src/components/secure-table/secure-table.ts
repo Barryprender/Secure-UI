@@ -1,98 +1,26 @@
-/**
- * Secure Table Component
- *
- * A security-aware data table component with filtering, sorting, and pagination.
- *
- * Features:
- * - Real-time filtering/search across all columns
- * - Column sorting (ascending/descending)
- * - Pagination
- * - Security tier-based column masking
- * - XSS prevention via sanitization
- * - Audit logging for data access
- *
- * @example
- * <secure-table
- *   id="userTable"
- *   security-tier="sensitive"
- * ></secure-table>
- *
- * // Set data programmatically
- * const table = document.getElementById('userTable');
- * table.data = [
- *   { id: 1, name: 'John', email: 'john@example.com' },
- *   { id: 2, name: 'Jane', email: 'jane@example.com' }
- * ];
- * table.columns = [
- *   { key: 'id', label: 'ID', sortable: true },
- *   { key: 'name', label: 'Name', sortable: true, filterable: true },
- *   { key: 'email', label: 'Email', sortable: true, filterable: true, tier: 'sensitive' }
- * ];
- */
 
 import { SecureBaseComponent } from '../../core/base-component.js';
 import { SecurityTier } from '../../core/security-config.js';
 import type { TableColumnDefinition, TableSortConfig, TablePaginationState } from '../../core/types.js';
 
 export class SecureTable extends SecureBaseComponent {
-  /**
-   * Data array for the table
-   * @private
-   */
   #data: Record<string, unknown>[] = [];
-
-  /**
-   * Column configuration
-   * @private
-   */
   #columns: TableColumnDefinition[] = [];
-
-  /**
-   * Filtered data after applying search
-   * @private
-   */
   #filteredData: Record<string, unknown>[] = [];
-
-  /**
-   * Current filter/search term
-   * @private
-   */
   #filterTerm: string = '';
-
-  /**
-   * Current sort configuration
-   * @private
-   */
   #sortConfig: TableSortConfig = { column: null, direction: 'asc' };
-
-  /**
-   * Pagination state
-   * @private
-   */
   #pagination: TablePaginationState = { currentPage: 1, pageSize: 10 };
-
-  /**
-   * Whether the component is using slotted server-rendered content
-   * @private
-   */
   #usingSlottedContent: boolean = false;
 
   constructor() {
     super();
   }
 
-  /**
-   * Required by abstract base class, but this component manages its own rendering
-   * via the private #render() method.
-   * @protected
-   */
+  // render() required by base class; this component manages its own DOM via #render().
   protected render(): DocumentFragment | HTMLElement | null {
     return null;
   }
 
-  /**
-   * Component lifecycle - called when added to DOM
-   */
   connectedCallback(): void {
     // Initialize security tier, config, and audit - but skip the base render
     // lifecycle since the table manages its own innerHTML-based rendering for
@@ -123,10 +51,6 @@ export class SecureTable extends SecureBaseComponent {
     });
   }
 
-  /**
-   * Parse server-rendered table from light DOM slot
-   * @private
-   */
   #parseSlottedTable(): { columns: TableColumnDefinition[]; data: Record<string, unknown>[] } | null {
     const slottedTable = this.querySelector('table[slot="table"]');
     if (!slottedTable) return null;
@@ -194,9 +118,6 @@ export class SecureTable extends SecureBaseComponent {
     };
   }
 
-  /**
-   * Set table data
-   */
   set data(data: Record<string, unknown>[]) {
     if (!Array.isArray(data)) {
       return;
@@ -206,16 +127,10 @@ export class SecureTable extends SecureBaseComponent {
     this.#render();
   }
 
-  /**
-   * Get table data
-   */
   get data(): Record<string, unknown>[] {
     return this.#data;
   }
 
-  /**
-   * Set column configuration
-   */
   set columns(columns: TableColumnDefinition[]) {
     if (!Array.isArray(columns)) {
       return;
@@ -224,17 +139,10 @@ export class SecureTable extends SecureBaseComponent {
     this.#render();
   }
 
-  /**
-   * Get column configuration
-   */
   get columns(): TableColumnDefinition[] {
     return this.#columns;
   }
 
-  /**
-   * Apply filter to data
-   * @private
-   */
   #applyFilter(term: string): void {
     this.#filterTerm = term.toLowerCase();
 
@@ -259,10 +167,6 @@ export class SecureTable extends SecureBaseComponent {
     });
   }
 
-  /**
-   * Apply sorting to data
-   * @private
-   */
   #applySort(columnKey: string): void {
     if (this.#sortConfig.column === columnKey) {
       // Toggle direction
@@ -300,10 +204,6 @@ export class SecureTable extends SecureBaseComponent {
     });
   }
 
-  /**
-   * Change page
-   * @private
-   */
   #goToPage(pageNumber: number): void {
     const totalPages = Math.ceil(this.#filteredData.length / this.#pagination.pageSize);
     if (pageNumber < 1 || pageNumber > totalPages) return;
@@ -390,10 +290,6 @@ export class SecureTable extends SecureBaseComponent {
     }
   }
 
-  /**
-   * Mask sensitive column values based on tier
-   * @private
-   */
   #maskValue(value: unknown, tier: string | undefined): string {
     if (value === null || value === undefined || value === '') return '-';
 
@@ -423,10 +319,6 @@ export class SecureTable extends SecureBaseComponent {
     return this.#maskValue(value, column.tier);
   }
 
-  /**
-   * Generate the table body, thead, and pagination HTML
-   * @private
-   */
   #renderTableContent(): { tableHtml: string; paginationHtml: string } {
     const totalPages = Math.ceil(this.#filteredData.length / this.#pagination.pageSize);
     const startIndex = (this.#pagination.currentPage - 1) * this.#pagination.pageSize;
@@ -503,10 +395,6 @@ export class SecureTable extends SecureBaseComponent {
     return { tableHtml, paginationHtml };
   }
 
-  /**
-   * Full initial render of the table
-   * @private
-   */
   #render(): void {
     if (!this.shadowRoot) return;
 
@@ -546,10 +434,7 @@ export class SecureTable extends SecureBaseComponent {
     this.#attachEventListeners();
   }
 
-  /**
-   * Partial update — only replaces table body and pagination, preserving search input focus.
-   * @private
-   */
+  // Partial re-render: replaces table body and pagination without touching the search input.
   #updateTableContent(): void {
     if (!this.shadowRoot) return;
 
@@ -572,10 +457,6 @@ export class SecureTable extends SecureBaseComponent {
     this.#attachTableEventListeners();
   }
 
-  /**
-   * Render page number buttons
-   * @private
-   */
   #renderPageNumbers(totalPages: number): string {
     const maxButtons = 5;
     let startPage = Math.max(1, this.#pagination.currentPage - Math.floor(maxButtons / 2));
@@ -599,12 +480,8 @@ export class SecureTable extends SecureBaseComponent {
     return buttons;
   }
 
-  /**
-   * Attach all event listeners (called on full render only)
-   * @private
-   */
+  // Only called on full render; search input listener survives partial updates.
   #attachEventListeners(): void {
-    // Search input — only attached once on full render, preserved across partial updates
     const searchInput = this.shadowRoot.getElementById('searchInput');
     if (searchInput) {
       searchInput.addEventListener('input', (e: Event) => {
@@ -616,12 +493,7 @@ export class SecureTable extends SecureBaseComponent {
     this.#attachTableEventListeners();
   }
 
-  /**
-   * Attach event listeners for table headers and pagination (called on every update)
-   * @private
-   */
   #attachTableEventListeners(): void {
-    // Column sorting
     const headers = this.shadowRoot.querySelectorAll('th.sortable');
     headers.forEach(th => {
       th.addEventListener('click', () => {
@@ -631,7 +503,6 @@ export class SecureTable extends SecureBaseComponent {
       });
     });
 
-    // Pagination
     const prevBtn = this.shadowRoot.getElementById('prevBtn');
     const nextBtn = this.shadowRoot.getElementById('nextBtn');
 
@@ -647,7 +518,6 @@ export class SecureTable extends SecureBaseComponent {
       });
     }
 
-    // Page number buttons
     const pageButtons = this.shadowRoot.querySelectorAll('.pagination-button[data-page]');
     pageButtons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -682,7 +552,7 @@ export class SecureTable extends SecureBaseComponent {
           }
         }
 
-        this.dispatchEvent(new CustomEvent('table-action', {
+        this.dispatchEvent(new CustomEvent('secure-table-action', {
           bubbles: true,
           composed: true,
           detail
@@ -694,5 +564,4 @@ export class SecureTable extends SecureBaseComponent {
   }
 }
 
-// Register the custom element
 customElements.define('secure-table', SecureTable);
