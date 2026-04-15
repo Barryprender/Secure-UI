@@ -1,20 +1,9 @@
 /**
- * @fileoverview Base Component Class for Secure-UI
+ * Base component class for Secure-UI. All field components extend this.
  *
- * This module provides the foundational class that all Secure-UI web components
- * extend. It implements core security features, progressive enhancement,
- * and standardized lifecycle management.
- *
- * Security Features:
- * - Closed Shadow DOM (prevents external JavaScript access)
- * - Automatic XSS sanitization
- * - Security tier enforcement
- * - Audit logging infrastructure
- * - Rate limiting support
- * - Progressive enhancement (works without JS)
- *
- * @module base-component
- * @license MIT
+ * Provides: closed Shadow DOM, security tier enforcement (fail-secure default
+ * CRITICAL, immutable after init), XSS sanitization, rate limiting, audit
+ * logging, injection detection, and field-level behavioural telemetry.
  */
 
 import {
@@ -36,31 +25,12 @@ import type {
   ThreatDetectedDetail
 } from './types.js';
 
-/**
- * Base class for all Secure-UI components
- *
- * All components in the Secure-UI library should extend this class to inherit
- * core security functionality and standardized behavior.
- *
- * Security Architecture:
- * - Closed Shadow DOM prevents external tampering
- * - All attributes are sanitized on read
- * - Security tier is immutable after initial set
- * - Default tier is CRITICAL (fail secure)
- */
 export abstract class SecureBaseComponent extends HTMLElement {
   /** Maximum number of entries retained in the in-memory audit log */
   static readonly #MAX_AUDIT_LOG_SIZE = 1000;
 
-  /**
-   * Injection detection patterns applied to raw input values on every input event.
-   * Ordered by descending severity. Only the first match is reported per event.
-   * Raw values are never included in the resulting threat event.
-   */
-  /**
-   * Human-readable labels for each injection pattern ID.
-   * Used by components that render threat feedback UI (threat-feedback attribute).
-   */
+  // Human-readable labels for each injection pattern ID.
+  // Used by components that opt into inline threat feedback UI.
   static readonly #THREAT_LABELS: Readonly<Record<string, string>> = {
     'script-tag':      'Script injection blocked',
     'js-protocol':     'JavaScript protocol blocked',
@@ -108,28 +78,17 @@ export abstract class SecureBaseComponent extends HTMLElement {
     lastInputLength: 0,
   };
 
-  /**
-   * Constructor
-   *
-   * Security Note: Creates a CLOSED shadow DOM to prevent external JavaScript
-   * from accessing or modifying the component's internal DOM.
-   */
+  // Closed shadow DOM prevents external JS from accessing internal DOM.
   constructor() {
     super();
     this.#shadow = this.attachShadow({ mode: 'closed' });
     this.#config = getTierConfig(this.#securityTier);
   }
 
-  /**
-   * Observed attributes - must be overridden by child classes
-   */
   static get observedAttributes(): string[] {
     return ['security-tier', 'disabled', 'readonly', 'threat-feedback'];
   }
 
-  /**
-   * Called when element is added to DOM
-   */
   connectedCallback(): void {
     if (!this.#initialized) {
       this.#initialize();
@@ -164,12 +123,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
     });
   }
 
-  /**
-   * Called when an observed attribute changes
-   *
-   * Security Note: security-tier attribute is immutable after initialization
-   * to prevent privilege escalation.
-   */
+  // security-tier is immutable after init to prevent privilege escalation.
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
     if (name === 'security-tier' && this.#initialized) {
       console.warn(
@@ -187,11 +141,8 @@ export abstract class SecureBaseComponent extends HTMLElement {
     }
   }
 
-  /**
-   * Handle attribute changes - to be overridden by child classes
-   */
   protected handleAttributeChange(_name: string, _oldValue: string | null, _newValue: string | null): void {
-    // Child classes should override this method
+    // Override in child classes to react to attribute changes.
   }
 
   #render(): void {
@@ -242,14 +193,9 @@ export abstract class SecureBaseComponent extends HTMLElement {
     }
   }
 
-  /**
-   * Render method to be implemented by child classes
-   */
   protected abstract render(): DocumentFragment | HTMLElement | null;
 
-  /**
-   * Sanitize a string value to prevent XSS
-   */
+  /** div.textContent round-trip — safe HTML-entity encoding, no innerHTML needed. */
   protected sanitizeValue(value: string): string {
     if (typeof value !== 'string') {
       return '';
@@ -260,9 +206,6 @@ export abstract class SecureBaseComponent extends HTMLElement {
     return div.innerHTML;
   }
 
-  /**
-   * Validate input against tier-specific rules
-   */
   protected validateInput(value: string, options: ValidationOptions = {}): ValidationResult {
     const errors: string[] = [];
     const config = this.#config;
@@ -300,9 +243,6 @@ export abstract class SecureBaseComponent extends HTMLElement {
     };
   }
 
-  /**
-   * Check rate limit for this component
-   */
   protected checkRateLimit(): RateLimitResult {
     if (!this.#config.rateLimit.enabled) {
       return { allowed: true, retryAfter: 0 };
@@ -350,7 +290,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
       event,
       tier: this.#securityTier,
       timestamp: new Date().toISOString(),
-      ...data
+      data: Object.keys(data).length > 0 ? data : undefined,
     };
 
     if (config.includeMetadata) {
@@ -373,58 +313,32 @@ export abstract class SecureBaseComponent extends HTMLElement {
     );
   }
 
-  /**
-   * Get the shadow root (protected access for child classes)
-   */
   get shadowRoot(): ShadowRoot {
     return this.#shadow;
   }
 
-  /**
-   * Get the current security tier
-   */
   get securityTier(): SecurityTierValue {
     return this.#securityTier;
   }
 
-  /**
-   * Get the tier configuration
-   */
   get config(): TierConfig {
     return this.#config;
   }
 
-  /**
-   * Get all audit log entries
-   */
   getAuditLog(): AuditLogEntry[] {
     return [...this.#auditLog];
   }
 
-  /**
-   * Clear the local audit log
-   */
-  clearAuditLog(): void {
+  protected clearAuditLog(): void {
     this.#auditLog = [];
   }
 
-  /**
-   * Trigger an audit event from child classes
-   */
   protected audit(event: string, data: Record<string, unknown>): void {
     this.#audit(event, data);
   }
 
-  /**
-   * Check a raw input value for injection patterns and signal if one is found.
-   *
-   * Called by input components on every input event, after the raw value is captured.
-   * Only the first matching pattern is reported to avoid event flooding.
-   * The raw value is never included in the dispatched event detail.
-   *
-   * @param value   - Raw field value (unmodified user input)
-   * @param fieldName - The field's name attribute
-   */
+  // Scans value against known injection patterns. First match wins; raw value
+  // is never included in the dispatched event. showFeedback activates inline UI.
   protected detectInjection(value: string, fieldName: string, showFeedback = false): void {
     const feedbackEnabled = showFeedback || this.hasAttribute('threat-feedback');
     for (const { id, pattern } of SecureBaseComponent.#INJECTION_PATTERNS) {
@@ -457,46 +371,18 @@ export abstract class SecureBaseComponent extends HTMLElement {
     }
   }
 
-  /**
-   * Show an inline threat feedback message inside the component.
-   * Called by detectInjection() when threat-feedback attribute is present.
-   * Override in child classes that render a threat UI container.
-   * @protected
-   */
-  protected showThreatFeedback(_patternId: string): void {
-    // No-op — child classes override when they support inline threat UI
-  }
+  // Override in child classes that render inline threat UI.
+  protected showThreatFeedback(_patternId: string): void {}
+  protected clearThreatFeedback(): void {}
 
-  /**
-   * Clear any visible threat feedback.
-   * Called by detectInjection() when input is clean and threat-feedback is set.
-   * @protected
-   */
-  protected clearThreatFeedback(): void {
-    // No-op — child classes override when they support inline threat UI
-  }
-
-  /**
-   * Returns a human-readable label for the given injection pattern ID.
-   * @protected
-   */
   protected getThreatLabel(patternId: string): string {
     return SecureBaseComponent.#THREAT_LABELS[patternId] ?? `Injection blocked: ${patternId}`;
   }
 
-  /**
-   * Force re-render of the component
-   */
   protected rerender(): void {
     this.#render();
   }
 
-  // ── Telemetry collection ────────────────────────────────────────────────────
-
-  /**
-   * Call from the field's `focus` event handler to start a telemetry session.
-   * @protected
-   */
   protected recordTelemetryFocus(): void {
     const t = this.#telemetryState;
     t.focusAt = Date.now();
@@ -509,11 +395,6 @@ export abstract class SecureBaseComponent extends HTMLElement {
     t.lastInputLength = el ? el.value.length : 0;
   }
 
-  /**
-   * Call from the field's `input` event handler.
-   * Pass the native `InputEvent` so inputType can be inspected.
-   * @protected
-   */
   protected recordTelemetryInput(event: Event): void {
     const t = this.#telemetryState;
     const now = Date.now();
@@ -544,10 +425,6 @@ export abstract class SecureBaseComponent extends HTMLElement {
     if (el) t.lastInputLength = el.value.length;
   }
 
-  /**
-   * Call from the field's `blur` event handler to finalise the telemetry session.
-   * @protected
-   */
   protected recordTelemetryBlur(): void {
     const t = this.#telemetryState;
     t.blurAt = Date.now();
@@ -561,11 +438,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
     }
   }
 
-  /**
-   * Returns computed behavioral signals for the current (or last completed)
-   * interaction session. Safe to include in server payloads — contains no
-   * raw field values or PII.
-   */
+  /** Computed behavioural signals for this field. No raw values or PII. */
   getFieldTelemetry(): FieldTelemetry {
     const t = this.#telemetryState;
     const focusAt = t.focusAt ?? Date.now();
@@ -604,9 +477,6 @@ export abstract class SecureBaseComponent extends HTMLElement {
     };
   }
 
-  /**
-   * Clean up when component is removed from DOM
-   */
   disconnectedCallback(): void {
     this.#rateLimitState = { attempts: 0, windowStart: Date.now() };
     this.#resetTelemetryState();
