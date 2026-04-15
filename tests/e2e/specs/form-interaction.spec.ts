@@ -99,7 +99,7 @@ test.describe('Form Interaction', () => {
       document.getElementById('test-form')!.addEventListener('secure-form-submit', (e: any) => {
         (window as any).__submitted = true;
         (window as any).__formData = e.detail.formData;
-        e.detail.preventDefault();
+        e.detail.cancelSubmission();
       }, { once: true });
     });
 
@@ -127,7 +127,7 @@ test.describe('Form Interaction', () => {
       (window as any).__telemetry = null;
       document.getElementById('test-form')!.addEventListener('secure-form-submit', (e: any) => {
         (window as any).__telemetry = e.detail.telemetry;
-        e.detail.preventDefault();
+        e.detail.cancelSubmission();
       }, { once: true });
     });
 
@@ -153,7 +153,7 @@ test.describe('Form Interaction', () => {
       (window as any).__submitted = false;
       document.getElementById('test-form')!.addEventListener('secure-form-submit', (e: any) => {
         (window as any).__submitted = true;
-        e.detail.preventDefault();
+        e.detail.cancelSubmission();
       }, { once: true });
     });
 
