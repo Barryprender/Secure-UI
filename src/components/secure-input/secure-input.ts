@@ -347,7 +347,7 @@ export class SecureInput extends SecureBaseComponent {
     this.#clearErrors();
     this.#syncHiddenInput();
     this.dispatchEvent(
-      new CustomEvent('secure-input', {
+      new CustomEvent('secure-input-change', {
         detail: {
           name: this.#inputElement!.name,
           value: this.#actualValue, // Parent can access actual value
