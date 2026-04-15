@@ -224,7 +224,7 @@ describe('SecureSubmitButton', () => {
       input.value = 'testuser';
 
       // Dispatch event to trigger re-evaluation
-      container.dispatchEvent(new CustomEvent('secure-input', {
+      container.dispatchEvent(new CustomEvent('secure-input-change', {
         bubbles: true,
         detail: { name: 'username', value: 'testuser', tier: 'public', masked: false }
       }));
@@ -356,7 +356,7 @@ describe('SecureSubmitButton', () => {
       input.value = 'hello';
 
       // Dispatch a field event to re-evaluate validity
-      container.dispatchEvent(new CustomEvent('secure-input', { bubbles: true }));
+      container.dispatchEvent(new CustomEvent('secure-input-change', { bubbles: true }));
       await flushMicrotasks();
 
       // Clear audit log to isolate click entries
