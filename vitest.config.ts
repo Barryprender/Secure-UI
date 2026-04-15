@@ -28,18 +28,17 @@ export default defineConfig({
       // Thresholds act as a ratchet: set just below current actuals to
       // prevent regressions.  Raise these as coverage improves.
       thresholds: {
-        // Global minimums (ratchet). Raised after branch coverage improvements.
-        statements: 89,
-        branches: 79,
-        functions: 92,
-        lines: 90,
+        // Global minimums (ratchet — set just below actuals, raise as coverage improves)
+        statements: 94,
+        branches: 83,
+        functions: 96,
+        lines: 95,
 
-        // Per-file overrides for critical core modules
         'src/core/base-component.ts': {
-          statements: 96,
-          branches: 93,
-          functions: 95,
-          lines: 96
+          statements: 97,
+          branches: 95,
+          functions: 96,
+          lines: 97
         },
         'src/core/security-config.ts': {
           statements: 100,
@@ -48,58 +47,70 @@ export default defineConfig({
           lines: 100
         },
         'src/components/secure-submit-button/secure-submit-button.ts': {
-          statements: 92,
-          branches: 77,
+          statements: 97,
+          branches: 85,
           functions: 100,
-          lines: 94
+          lines: 99
         },
         'src/components/secure-table/secure-table.ts': {
-          statements: 83,
-          branches: 74,
-          functions: 87,
-          lines: 86
-        },
-        'src/components/secure-file-upload/secure-file-upload.ts': {
-          statements: 93,
-          branches: 76,
-          functions: 100,
-          lines: 94
-        },
-        'src/components/secure-input/secure-input.ts': {
-          statements: 88,
-          branches: 82,
-          functions: 92,
-          lines: 89
-        },
-        'src/components/secure-select/secure-select.ts': {
-          statements: 93,
-          branches: 82,
+          statements: 90,
+          branches: 86,
           functions: 97,
           lines: 93
+        },
+        'src/components/secure-file-upload/secure-file-upload.ts': {
+          statements: 94,
+          branches: 76,
+          functions: 100,
+          lines: 95
+        },
+        'src/components/secure-input/secure-input.ts': {
+          statements: 91,
+          branches: 84,
+          functions: 94,
+          lines: 92
+        },
+        'src/components/secure-select/secure-select.ts': {
+          statements: 97,
+          branches: 85,
+          functions: 100,
+          lines: 98
         },
         'src/components/secure-datetime/secure-datetime.ts': {
           statements: 94,
           branches: 82,
           functions: 96,
-          lines: 94
+          lines: 95
         },
         'src/components/secure-card/secure-card.ts': {
           statements: 97,
           branches: 78,
-          functions: 97,
+          functions: 98,
           lines: 100
         },
         'src/components/secure-telemetry-provider/secure-telemetry-provider.ts': {
-          statements: 94,
-          branches: 78,
-          functions: 94,
-          lines: 97
+          statements: 96,
+          branches: 83,
+          functions: 95,
+          lines: 98
         },
         'src/components/secure-form/secure-form.ts': {
           statements: 88,
-          branches: 77,
-          functions: 87,
+          branches: 80,
+          functions: 88,
           lines: 88
+        },
+        'src/components/secure-password-confirm/secure-password-confirm.ts': {
+          statements: 96,
+          branches: 86,
+          functions: 100,
+          lines: 97
+        },
+        'src/components/secure-textarea/secure-textarea.ts': {
+          statements: 93,
+          branches: 87,
+          functions: 88,
+          lines: 95
         }
       }
     },
