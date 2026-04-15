@@ -746,3 +746,62 @@ describe('SecureInput — transitionend callback in #clearErrors', () => {
     expect(err.textContent!.length).toBeGreaterThan(0);
   });
 });
+
+// ── Coverage gaps ─────────────────────────────────────────────────────────────
+
+describe('SecureInput — invalid regex pattern catch block (lines 469–471)', () => {
+  let input: SecureInput;
+
+  afterEach(() => input.remove());
+
+  it('handles a syntactically invalid pattern attribute without throwing', () => {
+    input = document.createElement('secure-input') as SecureInput;
+    input.setAttribute('security-tier', 'public');
+    input.setAttribute('name', 'q');
+    // Unclosed character class — invalid regex
+    input.setAttribute('pattern', '[invalid');
+    document.body.appendChild(input);
+
+    // Leave value empty so checkValidity() is not called (avoids happy-dom
+    // throwing on the invalid pattern in the native element). The catch block
+    // is still exercised when new RegExp('[invalid') is attempted.
+    const internal = input.shadowRoot?.querySelector('input') as HTMLInputElement;
+    internal.dispatchEvent(new FocusEvent('blur'));
+
+    // No value + no required → valid despite the broken pattern
+    expect(input.valid).toBe(true);
+  });
+});
+
+describe('SecureInput — clearThreatFeedback transitionend callback (lines 692–693)', () => {
+  let input: SecureInput;
+
+  afterEach(() => input.remove());
+
+  it('clears threat container text after transitionend when hidden', () => {
+    input = document.createElement('secure-input') as SecureInput;
+    input.setAttribute('security-tier', 'sensitive');
+    input.setAttribute('name', 'msg');
+    input.setAttribute('type', 'url');
+    input.setAttribute('threat-feedback', '');
+    document.body.appendChild(input);
+
+    const internal = input.shadowRoot?.querySelector('input') as HTMLInputElement;
+
+    // 1. Show threat feedback
+    internal.value = 'javascript:alert(1)';
+    internal.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const threatContainer = input.shadowRoot?.querySelector('.threat-container') as HTMLElement;
+    expect(threatContainer.textContent!.length).toBeGreaterThan(0);
+
+    // 2. Trigger the clear cycle via the protected method so the transitionend
+    //    listener is registered (clearThreatFeedback adds 'hidden' and wires the listener)
+    (input as unknown as { clearThreatFeedback(): void }).clearThreatFeedback();
+
+    // 3. Fire transitionend — 'hidden' is present so the callback clears the text
+    threatContainer.dispatchEvent(new Event('transitionend'));
+
+    expect(threatContainer.textContent).toBe('');
+  });
+});
