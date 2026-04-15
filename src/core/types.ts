@@ -136,7 +136,7 @@ export type SecurityHeaders = Record<string, string>;
 /**
  * Custom event detail for secure-input events
  */
-export interface SecureInputEventDetail {
+export interface SecureInputChangeDetail {
   name: string;
   value: string;
   masked: boolean;
@@ -146,13 +146,13 @@ export interface SecureInputEventDetail {
 /**
  * Custom event detail for secure-textarea events
  */
-export interface SecureTextareaEventDetail {
+export interface SecureTextareaChangeDetail {
   name: string;
   value: string;
   tier: SecurityTierValue;
 }
 
-export interface SecureSelectEventDetail {
+export interface SecureSelectChangeDetail {
   name: string;
   /** string for single-select; string[] for multi-select */
   value: string | string[];
@@ -162,7 +162,7 @@ export interface SecureSelectEventDetail {
 /**
  * Custom event detail for secure-file-upload events
  */
-export interface SecureFileUploadEventDetail {
+export interface SecureFileChangeDetail {
   name: string;
   files: File[];
   tier: SecurityTierValue;
@@ -171,7 +171,7 @@ export interface SecureFileUploadEventDetail {
 /**
  * Custom event detail for secure-datetime events
  */
-export interface SecureDatetimeEventDetail {
+export interface SecureDatetimeChangeDetail {
   name: string;
   value: string;
   type: string;
@@ -426,7 +426,7 @@ export type CardType =
  * Security note: full PAN and CVC are intentionally absent.
  * Use element.getCardData() to obtain raw values for SDK tokenisation.
  */
-export interface SecureCardEventDetail {
+export interface SecureCardChangeDetail {
   name: string;
   cardType: CardType;
   last4: string;
