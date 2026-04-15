@@ -1,5 +1,3 @@
-// Core
-export { SecureBaseComponent } from './core/base-component.js';
 export {
   SecurityTier,
   TIER_CONFIG,
