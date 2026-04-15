@@ -351,7 +351,7 @@ export class SecureDateTime extends SecureBaseComponent {
 
     // Dispatch custom event for parent forms
     this.dispatchEvent(
-      new CustomEvent('secure-datetime', {
+      new CustomEvent('secure-datetime-change', {
         detail: {
           name: this.#inputElement!.name,
           value: this.#inputElement!.value,
