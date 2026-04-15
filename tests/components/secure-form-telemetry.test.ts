@@ -24,7 +24,7 @@ if (!customElements.get('secure-input')) customElements.define('secure-input', S
 function buildForm(fields: { name: string; value?: string }[] = []): SecureForm {
   const form = document.createElement('secure-form') as SecureForm;
   form.setAttribute('action', '/api/test');
-  form.setAttribute('enhance', '');
+  form.setAttribute('use-fetch', '');
   form.setAttribute('security-tier', 'public');
 
   for (const f of fields) {
@@ -477,7 +477,7 @@ describe('SecureForm — telemetry aggregation', () => {
   it('gracefully handles a form with no secure fields', () => {
     form = document.createElement('secure-form') as SecureForm;
     form.setAttribute('action', '/api/test');
-    form.setAttribute('enhance', '');
+    form.setAttribute('use-fetch', '');
     document.body.appendChild(form);
 
     let telemetry: SessionTelemetry | null = null;
