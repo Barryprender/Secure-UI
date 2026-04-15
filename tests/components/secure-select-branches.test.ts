@@ -328,3 +328,135 @@ describe('SecureSelect branch coverage', () => {
     expect(unconnected.selectedOptions).toEqual([]);
   });
 });
+
+// ── Coverage gaps ─────────────────────────────────────────────────────────────
+
+describe('SecureSelect — disabled option transfer (line 136)', () => {
+  let select: SecureSelect;
+
+  afterEach(() => select.remove());
+
+  it('marks a light-DOM option with disabled attribute as disabled in shadow select', async () => {
+    select = document.createElement('secure-select') as SecureSelect;
+    select.setAttribute('security-tier', 'public');
+    select.setAttribute('name', 'choice');
+
+    const opt1 = document.createElement('option');
+    opt1.value = 'active';
+    opt1.textContent = 'Active';
+
+    const opt2 = document.createElement('option');
+    opt2.value = 'inactive';
+    opt2.textContent = 'Inactive';
+    opt2.setAttribute('disabled', '');
+
+    select.appendChild(opt1);
+    select.appendChild(opt2);
+    document.body.appendChild(select);
+
+    await new Promise(r => setTimeout(r, 20));
+
+    const internalSelect = select.shadowRoot?.querySelector('select');
+    const disabledOpt = Array.from(internalSelect?.options ?? []).find(o => o.value === 'inactive');
+    expect(disabledOpt?.disabled).toBe(true);
+  });
+});
+
+describe('SecureSelect — single-select validation branches (lines 249–257)', () => {
+  let select: SecureSelect;
+
+  afterEach(() => select.remove());
+
+  it('shows error on blur when required and no value selected', async () => {
+    select = document.createElement('secure-select') as SecureSelect;
+    select.setAttribute('security-tier', 'public');
+    select.setAttribute('name', 'tier');
+    select.setAttribute('required', '');
+
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'Select…';
+    select.appendChild(opt);
+    document.body.appendChild(select);
+
+    await new Promise(r => setTimeout(r, 20));
+
+    const internalSelect = select.shadowRoot?.querySelector('select') as HTMLSelectElement;
+    internalSelect.dispatchEvent(new FocusEvent('blur'));
+
+    const errorContainer = select.shadowRoot?.querySelector('[part="error"]');
+    expect(errorContainer?.classList.contains('hidden')).toBe(false);
+  });
+});
+
+describe('SecureSelect — #clearErrors transitionend callback (lines 275–276)', () => {
+  let select: SecureSelect;
+
+  afterEach(() => select.remove());
+
+  it('clears error text after transitionend when hidden class is present', async () => {
+    select = document.createElement('secure-select') as SecureSelect;
+    select.setAttribute('security-tier', 'public');
+    select.setAttribute('name', 'choice');
+    select.setAttribute('required', '');
+
+    const emptyOpt = document.createElement('option');
+    emptyOpt.value = '';
+    emptyOpt.textContent = 'Pick one';
+
+    const validOpt = document.createElement('option');
+    validOpt.value = 'a';
+    validOpt.textContent = 'A';
+
+    select.appendChild(emptyOpt);
+    select.appendChild(validOpt);
+    document.body.appendChild(select);
+    await new Promise(r => setTimeout(r, 20));
+
+    const internalSelect = select.shadowRoot?.querySelector('select') as HTMLSelectElement;
+
+    // 1. Trigger a validation error via blur with no value
+    internalSelect.dispatchEvent(new FocusEvent('blur'));
+    const errorContainer = select.shadowRoot?.querySelector('[part="error"]') as HTMLElement;
+    expect(errorContainer.textContent!.length).toBeGreaterThan(0);
+
+    // 2. Select a valid option and fire change — #handleChange calls #clearErrors(),
+    //    which adds 'hidden' and wires the transitionend listener
+    internalSelect.value = 'a';
+    internalSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+    // 3. Fire transitionend — 'hidden' is present so the callback clears the text
+    errorContainer.dispatchEvent(new Event('transitionend'));
+
+    expect(errorContainer.textContent).toBe('');
+  });
+});
+
+describe('SecureSelect — valid getter with tampered selected value (line 362)', () => {
+  let select: SecureSelect;
+
+  afterEach(() => select.remove());
+
+  it('returns false when internal select value is not in validOptions', async () => {
+    select = document.createElement('secure-select') as SecureSelect;
+    select.setAttribute('security-tier', 'public');
+    select.setAttribute('name', 'choice');
+
+    const opt = document.createElement('option');
+    opt.value = 'legit';
+    opt.textContent = 'Legit';
+    select.appendChild(opt);
+    document.body.appendChild(select);
+    await new Promise(r => setTimeout(r, 20));
+
+    const internalSelect = select.shadowRoot?.querySelector('select') as HTMLSelectElement;
+    // Bypass validation by directly setting the internal select value to something
+    // not in #validOptions — simulates a tampered DOM value
+    const bogusOpt = document.createElement('option');
+    bogusOpt.value = 'tampered';
+    internalSelect.appendChild(bogusOpt);
+    internalSelect.value = 'tampered';
+
+    expect(select.valid).toBe(false);
+  });
+});
