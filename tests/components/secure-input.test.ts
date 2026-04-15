@@ -379,7 +379,7 @@ describe('SecureInput', () => {
 
     it('should dispatch secure-input event on input', async () => {
       const eventHandler = vi.fn();
-      input.addEventListener('secure-input', eventHandler);
+      input.addEventListener('secure-input-change', eventHandler);
 
       const internalInput = input.shadowRoot?.querySelector('input');
       if (internalInput) {
@@ -397,7 +397,7 @@ describe('SecureInput', () => {
       input.setAttribute('name', 'testInput');
 
       let eventDetail: Record<string, unknown> | null = null;
-      input.addEventListener('secure-input', ((e: CustomEvent) => {
+      input.addEventListener('secure-input-change', ((e: CustomEvent) => {
         eventDetail = e.detail;
       }) as EventListener);
 
@@ -415,7 +415,7 @@ describe('SecureInput', () => {
 
     it('should include tier in event detail', async () => {
       let eventDetail: Record<string, unknown> | null = null;
-      input.addEventListener('secure-input', ((e: CustomEvent) => {
+      input.addEventListener('secure-input-change', ((e: CustomEvent) => {
         eventDetail = e.detail;
       }) as EventListener);
 
