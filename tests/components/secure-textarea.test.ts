@@ -234,7 +234,7 @@ describe('SecureTextarea', () => {
 
     it('should dispatch secure-textarea event on input', async () => {
       const eventHandler = vi.fn();
-      textarea.addEventListener('secure-textarea', eventHandler);
+      textarea.addEventListener('secure-textarea-change', eventHandler);
 
       // Simulate input by setting value and triggering internal change
       const internalTextarea = textarea.shadowRoot?.querySelector('textarea');
