@@ -395,7 +395,7 @@ describe('SecureBaseComponent', () => {
 
       expect(component.getAuditLog().length).toBeGreaterThan(0);
 
-      component.clearAuditLog();
+      (component as unknown as { clearAuditLog(): void }).clearAuditLog();
 
       expect(component.getAuditLog()).toHaveLength(0);
     });
@@ -587,20 +587,18 @@ describe('SecureBaseComponent', () => {
     });
 
     it('records a threat_detected audit entry', () => {
-      component.clearAuditLog();
+      (component as unknown as { clearAuditLog(): void }).clearAuditLog();
       component.testDetectInjection('<script>', 'audit-field');
 
       const log = component.getAuditLog();
       const entry = log.find(e => e.event === 'threat_detected');
       expect(entry).toBeDefined();
-      // #audit spreads data directly into the log entry (no nested 'data' key)
-      expect(entry!['threatType']).toBe('injection');
-      expect(entry!['fieldName']).toBe('audit-field');
+      expect(entry!.data?.['threatType']).toBe('injection');
+      expect(entry!.data?.['fieldName']).toBe('audit-field');
     });
 
     it('threat_detected audit entries are logged (shouldLog check)', () => {
-      // Verify the audit log stores threat events by checking log grows
-      component.clearAuditLog();
+      (component as unknown as { clearAuditLog(): void }).clearAuditLog();
       component.testDetectInjection('{{payload}}', 'f');
       expect(component.getAuditLog().length).toBeGreaterThan(0);
     });
