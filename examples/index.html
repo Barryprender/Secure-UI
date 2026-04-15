@@ -845,7 +845,7 @@
         </div>
         <span class="nav-logo-text">Secure-UI</span>
       </div>
-      <div class="nav-meta">v0.1.2 &middot; Custom Elements V1</div>
+      <div class="nav-meta">v0.3.0 &middot; Custom Elements V1</div>
     </div>
 
     <div class="nav-section">
@@ -905,7 +905,7 @@
       <h1 class="page-title">Component Gallery</h1>
       <p class="page-desc">Live examples of every component across all four security tiers. Interact with fields to observe validation, masking, rate limiting, and audit behaviors.</p>
       <div class="page-pills">
-        <span class="pill pill-accent">v0.1.2</span>
+        <span class="pill pill-accent">v0.3.0</span>
         <span class="pill">Zero dependencies</span>
         <span class="pill">TypeScript strict</span>
         <span class="pill">Shadow DOM V1</span>
@@ -1489,7 +1489,7 @@
       <div class="wide-grid">
         <div class="wide-cell">
           <div class="wide-label">Contact form &mdash; public tier &mdash; all fields validate on blur</div>
-          <secure-form action="/api/contact" method="POST" security-tier="public">
+          <secure-form action="/api/contact" method="POST" security-tier="public" use-fetch>
             <secure-input label="Name" name="f_name" required placeholder="Your name" security-tier="public"></secure-input>
             <secure-input label="Email" name="f_email" type="email" required pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" placeholder="you@example.com" security-tier="public"></secure-input>
             <secure-textarea label="Message" name="f_message" required minlength="10" placeholder="At least 10 characters..." security-tier="public"></secure-textarea>
@@ -1498,7 +1498,7 @@
         </div>
         <div class="wide-cell">
           <div class="wide-label">Profile form &mdash; sensitive tier &mdash; CSRF token injected</div>
-          <secure-form action="/api/profile" method="POST" csrf-token="abc123demo" security-tier="sensitive">
+          <secure-form action="/api/profile" method="POST" csrf-token="abc123demo" security-tier="sensitive" use-fetch>
             <secure-input label="Legal Name" name="f_legal" required security-tier="sensitive"></secure-input>
             <secure-input label="Tax ID" name="f_taxid" required security-tier="critical"></secure-input>
             <secure-select label="Country" name="f_country" required security-tier="sensitive">
@@ -1549,7 +1549,7 @@
 
           <div class="wide-cell">
             <div class="wide-label">Demo form &mdash; submit to inspect telemetry + signed _env envelope</div>
-            <secure-form id="tp-form" action="/api/telemetry-demo" method="POST" csrf-token="tp-csrf-demo" security-tier="authenticated">
+            <secure-form id="tp-form" action="/api/telemetry-demo" method="POST" csrf-token="tp-csrf-demo" security-tier="authenticated" use-fetch>
               <secure-input label="Username" name="tp_user" required placeholder="Enter username" security-tier="authenticated"></secure-input>
               <secure-input label="Email" name="tp_email" type="email" required pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" placeholder="you@example.com" security-tier="authenticated"></secure-input>
               <secure-submit-button label="Submit &amp; Inspect Telemetry"></secure-submit-button>
@@ -1586,7 +1586,7 @@
 
         <div class="wide-cell">
           <div class="wide-label">Custom labels — inside a form</div>
-          <secure-form id="pcd-form" action="/api/change-password" method="POST" csrf-token="pcd-csrf-demo" security-tier="critical">
+          <secure-form id="pcd-form" action="/api/change-password" method="POST" csrf-token="pcd-csrf-demo" security-tier="critical" use-fetch>
             <secure-password-confirm
               id="pcd-form-field"
               name="password"
@@ -1601,7 +1601,7 @@
 
       </div>
 
-      <div class="state-grid">
+      <div class="states-grid">
 
         <div class="state-cell">
           <div class="state-label">Event log — match / mismatch</div>
@@ -1701,17 +1701,19 @@
 
     dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
 
-    document.querySelectorAll('secure-form').forEach(form => {
-      form.addEventListener('submit', e => {
-        e.preventDefault();
-        const data = form.getData();
+    // tp-form and pcd-form have their own dedicated handlers below
+    document.querySelectorAll('secure-form:not(#tp-form):not(#pcd-form)').forEach(form => {
+      form.addEventListener('secure-form-submit', e => {
+        e.preventDefault(); // cancels the fetch; re-enables the form
+        document.getElementById('dialog-heading').textContent = 'Form Payload';
+        const data = e.detail.formData;
         dialogRows.innerHTML = '';
         for (const [key, value] of Object.entries(data)) {
           const tr = document.createElement('tr');
           const th = document.createElement('th');
           th.textContent = key;
           const td = document.createElement('td');
-          td.textContent = (value !== '' && value != null) ? value : '(empty)';
+          td.textContent = (value !== '' && value != null) ? String(value) : '(empty)';
           tr.append(th, td);
           dialogRows.appendChild(tr);
         }
@@ -1745,7 +1747,7 @@
     pcdStandalone?.addEventListener('secure-password-mismatch', e => logEvent('secure-password-mismatch', e.detail));
 
     // Prevent the demo form from making a real request
-    document.getElementById('pcd-form')?.addEventListener('submit', e => e.preventDefault());
+    document.getElementById('pcd-form')?.addEventListener('secure-form-submit', e => e.preventDefault());
 
     // ── Telemetry provider: scan signals ─────────────────────────────────────
     const tp = document.getElementById('tp-demo');
@@ -1782,15 +1784,11 @@
     });
 
     // ── Telemetry provider: intercept form submit ───────────────────────────
-    const tpForm = document.getElementById('tp-form');
-    if (tpForm) {
-      // Prevent the real fetch for demo purposes
-      tpForm.addEventListener('submit', e => e.preventDefault());
-    }
-
     if (tp) {
       tp.addEventListener('secure-form-submit', async (e) => {
-        // Wait one tick for the async HMAC signing to complete
+        // Prevent the fetch synchronously — must happen before the first await
+        e.preventDefault();
+        // Wait for async HMAC signing to complete
         await new Promise(r => setTimeout(r, 100));
 
         const detail = e.detail;
