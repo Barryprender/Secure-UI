@@ -1,25 +1,3 @@
-/**
- * @fileoverview Secure Submit Button Component
- *
- * A security-aware form submit button that integrates with <secure-form>.
- * The button's enabled/disabled state is driven by the parent form's security
- * tier and field validation state.
- *
- * Tier behaviour:
- * - public:        Button enabled by default (validation.required = false)
- * - authenticated: Button disabled until all required fields are valid
- * - sensitive:     Button disabled until all required fields are valid
- * - critical:      Button disabled until all required fields are valid
- *
- * Usage:
- * <secure-form action="/api/data" method="POST" security-tier="sensitive">
- *   <secure-input label="Name" name="name" required></secure-input>
- *   <secure-submit-button label="Submit"></secure-submit-button>
- * </secure-form>
- *
- * @module secure-submit-button
- * @license MIT
- */
 
 import { SecureBaseComponent } from '../../core/base-component.js';
 import { getTierConfig } from '../../core/security-config.js';
@@ -41,76 +19,20 @@ function isSecureFormLike(el: Element | null): el is SecureFormLike {
     typeof obj['submit'] === 'function';
 }
 
-/**
- * Secure Submit Button Web Component
- *
- * Provides a security-aware submit button that monitors parent form validity
- * and enables/disables based on the form's security tier requirements.
- *
- * @extends SecureBaseComponent
- */
 export class SecureSubmitButton extends SecureBaseComponent {
-  /**
-   * Button element reference inside shadow DOM
-   * @private
-   */
   #buttonElement: HTMLButtonElement | null = null;
-
-  /**
-   * Label span element
-   * @private
-   */
   #labelElement: HTMLSpanElement | null = null;
-
-  /**
-   * Loading indicator element
-   * @private
-   */
   #loadingElement: HTMLSpanElement | null = null;
-
-  /**
-   * Reference to the parent <secure-form> element
-   * @private
-   */
   #parentForm: HTMLElement | null = null;
-
-  /**
-   * Whether the parent form is currently valid
-   * @private
-   */
   #isFormValid: boolean = false;
-
-  /**
-   * Whether a submission is in progress
-   * @private
-   */
   #isSubmitting: boolean = false;
-
-  /**
-   * Effective security tier (inherited from form or explicit)
-   * @private
-   */
   #effectiveTier: SecurityTierValue = 'critical';
-
-  /**
-   * Effective tier config
-   * @private
-   */
   #effectiveConfig: TierConfig;
-
-  /**
-   * Unique instance ID for aria attribute association
-   * @private
-   */
   #instanceId: string = `secure-submit-button-${Math.random().toString(36).substring(2, 11)}`;
-
   #boundHandleFieldChange: (e: Event) => void;
   #boundHandleClick: () => void;
   #boundHandleFormSuccess: () => void;
 
-  /**
-   * Observed attributes
-   */
   static get observedAttributes(): string[] {
     return [
       ...super.observedAttributes,
@@ -128,9 +50,6 @@ export class SecureSubmitButton extends SecureBaseComponent {
     this.#boundHandleFormSuccess = () => { this.#setLoading(false); };
   }
 
-  /**
-   * Connected to DOM — discover form, attach listeners, evaluate state
-   */
   connectedCallback(): void {
     super.connectedCallback();
 
@@ -148,9 +67,6 @@ export class SecureSubmitButton extends SecureBaseComponent {
     });
   }
 
-  /**
-   * Render the button inside shadow DOM
-   */
   protected render(): DocumentFragment | HTMLElement | null {
     const fragment = document.createDocumentFragment();
 
@@ -210,24 +126,11 @@ export class SecureSubmitButton extends SecureBaseComponent {
     return fragment;
   }
 
-  // ---------------------------------------------------------------------------
-  // Form discovery & tier resolution
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Find the parent <secure-form> element
-   * @private
-   */
   #discoverParentForm(): void {
     this.#parentForm = this.closest('secure-form');
   }
 
-  /**
-   * Determine the effective security tier.
-   * If the button has an explicit security-tier attribute, use it.
-   * Otherwise, inherit from the parent form.
-   * @private
-   */
+  // Inherit tier from parent form unless an explicit security-tier is set on the button.
   #resolveEffectiveTier(): void {
     const ownTier = this.getAttribute('security-tier');
 
@@ -240,14 +143,6 @@ export class SecureSubmitButton extends SecureBaseComponent {
     this.#effectiveConfig = getTierConfig(this.#effectiveTier);
   }
 
-  // ---------------------------------------------------------------------------
-  // Validation monitoring
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Attach event listeners on the parent form to monitor field changes
-   * @private
-   */
   #attachFormListeners(): void {
     const target = this.#parentForm || this.parentElement;
     if (!target) return;
@@ -260,38 +155,26 @@ export class SecureSubmitButton extends SecureBaseComponent {
     target.addEventListener('secure-form-success', this.#boundHandleFormSuccess);
   }
 
-  /**
-   * Handle a field change event — re-evaluate form validity
-   * @private
-   */
   #handleFieldChange(_event: Event): void {
     this.#evaluateValidity();
   }
 
-  /**
-   * Evaluate form validity and enable/disable the button accordingly
-   * @private
-   */
   #evaluateValidity(): void {
-    // If manually disabled via attribute, stay disabled
     if (this.hasAttribute('disabled')) {
       this.#setButtonDisabled(true);
       return;
     }
 
-    // If currently submitting, stay disabled
     if (this.#isSubmitting) {
       return;
     }
 
-    // Public tier: validation not required, button always enabled
     if (!this.#effectiveConfig.validation.required) {
       this.#isFormValid = true;
       this.#setButtonDisabled(false);
       return;
     }
 
-    // Authenticated / Sensitive / Critical: check form validity
     if (isSecureFormLike(this.#parentForm)) {
       this.#isFormValid = this.#parentForm.valid;
     } else {
@@ -302,10 +185,6 @@ export class SecureSubmitButton extends SecureBaseComponent {
     this.#setButtonDisabled(!this.#isFormValid);
   }
 
-  /**
-   * Fallback field validation when no parent form is found
-   * @private
-   */
   #checkFieldsValid(): boolean {
     const container = this.#parentForm || this.parentElement;
     if (!container) return false;
@@ -321,14 +200,9 @@ export class SecureSubmitButton extends SecureBaseComponent {
       }
     }
 
-    // If there are no fields and validation is required, stay disabled
     return fields.length > 0;
   }
 
-  /**
-   * Update the button's disabled state
-   * @private
-   */
   #setButtonDisabled(disabled: boolean): void {
     if (!this.#buttonElement) return;
 
@@ -336,18 +210,9 @@ export class SecureSubmitButton extends SecureBaseComponent {
     this.#buttonElement.setAttribute('aria-disabled', String(disabled));
   }
 
-  // ---------------------------------------------------------------------------
-  // Click & submission
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Handle button click — rate limit, audit, trigger form submission
-   * @private
-   */
   #handleClick(): void {
     if (this.#isSubmitting || this.#buttonElement?.disabled) return;
 
-    // Rate limit check
     const rateLimitCheck = this.checkRateLimit();
     if (!rateLimitCheck.allowed) {
       this.audit('submit_button_rate_limited', {
@@ -373,10 +238,6 @@ export class SecureSubmitButton extends SecureBaseComponent {
     }
   }
 
-  /**
-   * Toggle loading/submitting state
-   * @private
-   */
   #setLoading(loading: boolean): void {
     this.#isSubmitting = loading;
 
@@ -392,10 +253,6 @@ export class SecureSubmitButton extends SecureBaseComponent {
       this.#loadingElement.setAttribute('aria-hidden', String(!loading));
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Attribute changes
-  // ---------------------------------------------------------------------------
 
   protected handleAttributeChange(name: string, _oldValue: string | null, newValue: string | null): void {
     switch (name) {
@@ -418,13 +275,6 @@ export class SecureSubmitButton extends SecureBaseComponent {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Public API
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Whether the button is disabled
-   */
   get disabled(): boolean {
     return this.#buttonElement ? this.#buttonElement.disabled : true;
   }
@@ -438,9 +288,6 @@ export class SecureSubmitButton extends SecureBaseComponent {
     this.#evaluateValidity();
   }
 
-  /**
-   * The button label text
-   */
   get label(): string {
     return this.getAttribute('label') || 'Submit';
   }
@@ -449,17 +296,9 @@ export class SecureSubmitButton extends SecureBaseComponent {
     this.setAttribute('label', value);
   }
 
-  // ---------------------------------------------------------------------------
-  // Styles
-  // ---------------------------------------------------------------------------
-
   #getComponentStyles(): string {
     return new URL('./secure-submit-button.css', import.meta.url).href;
   }
-
-  // ---------------------------------------------------------------------------
-  // Cleanup
-  // ---------------------------------------------------------------------------
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
@@ -476,7 +315,4 @@ export class SecureSubmitButton extends SecureBaseComponent {
   }
 }
 
-// Register the custom element
 customElements.define('secure-submit-button', SecureSubmitButton);
-
-export default SecureSubmitButton;
