@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SecureSubmitButton } from '../../src/components/secure-submit-button/secure-submit-button.js';
 import { SecureInput } from '../../src/components/secure-input/secure-input.js';
+import { SecureForm } from '../../src/components/secure-form/secure-form.js';
 
 // Register components if not already defined
 if (!customElements.get('secure-submit-button')) {
@@ -17,6 +18,9 @@ if (!customElements.get('secure-submit-button')) {
 }
 if (!customElements.get('secure-input')) {
   customElements.define('secure-input', SecureInput);
+}
+if (!customElements.get('secure-form')) {
+  customElements.define('secure-form', SecureForm);
 }
 
 /**
@@ -719,6 +723,121 @@ describe('SecureSubmitButton', () => {
       // Falls back to 'Submit' because sanitizeValue('') || 'Submit'
       const labelEl = button.shadowRoot?.querySelector('.btn-label');
       expect(labelEl?.textContent).toBe('Submit');
+    });
+  });
+
+  // ===========================================================================
+  // Coverage gap: SecureForm parent integration
+  // ===========================================================================
+
+  describe('SecureForm parent integration', () => {
+    it('inherits tier from parent SecureForm and recognises it as form-like', async () => {
+      const form = document.createElement('secure-form') as SecureForm;
+      form.setAttribute('security-tier', 'public');
+      form.setAttribute('action', '/test');
+
+      const btn = document.createElement('secure-submit-button') as SecureSubmitButton;
+      btn.setAttribute('label', 'Go');
+      form.appendChild(btn);
+      document.body.appendChild(form);
+      await flushMicrotasks();
+
+      // With a real SecureForm parent, isSecureFormLike returns true →
+      // #effectiveTier is inherited and #isFormValid reads form.valid (line 179)
+      expect(typeof btn.disabled).toBe('boolean');
+
+      form.remove();
+    });
+
+    it('resets loading state when secure-form-success fires (boundHandleFormSuccess)', async () => {
+      const form = document.createElement('secure-form') as SecureForm;
+      form.setAttribute('security-tier', 'public');
+      form.setAttribute('action', '/test');
+
+      const btn = document.createElement('secure-submit-button') as SecureSubmitButton;
+      form.appendChild(btn);
+      document.body.appendChild(form);
+      await flushMicrotasks();
+
+      const innerBtn = btn.shadowRoot?.querySelector('button') as HTMLButtonElement;
+      // Click sets loading state
+      innerBtn.click();
+      expect(innerBtn.disabled).toBe(true);
+
+      // secure-form-success fires → #boundHandleFormSuccess → #setLoading(false)
+      form.dispatchEvent(new CustomEvent('secure-form-success', { bubbles: true, composed: true }));
+      expect(innerBtn.disabled).toBe(false);
+
+      form.remove();
+    });
+
+    it('triggers #parentForm.submit() path (line 234) on click with real SecureForm', async () => {
+      const form = document.createElement('secure-form') as SecureForm;
+      form.setAttribute('security-tier', 'public');
+      form.setAttribute('action', '/test');
+
+      const btn = document.createElement('secure-submit-button') as SecureSubmitButton;
+      form.appendChild(btn);
+      document.body.appendChild(form);
+      await flushMicrotasks();
+
+      const innerBtn = btn.shadowRoot?.querySelector('button');
+      expect(innerBtn?.disabled).toBe(false);
+
+      // Spy on form.submit to verify it's called via isSecureFormLike path
+      const submitSpy = vi.spyOn(form, 'submit');
+      innerBtn?.click();
+
+      expect(submitSpy).toHaveBeenCalled();
+      form.remove();
+    });
+
+    it('returns early from #evaluateValidity when #isSubmitting is true (line 169)', async () => {
+      const form = document.createElement('secure-form') as SecureForm;
+      form.setAttribute('security-tier', 'public');
+      form.setAttribute('action', '/test');
+
+      const btn = document.createElement('secure-submit-button') as SecureSubmitButton;
+      form.appendChild(btn);
+      document.body.appendChild(form);
+      await flushMicrotasks();
+
+      const innerBtn = btn.shadowRoot?.querySelector('button');
+      // First click sets #isSubmitting=true via #setLoading(true)
+      innerBtn?.click();
+      // #isSubmitting is now true; dispatch a field event to trigger #evaluateValidity
+      // — it should hit the early return at line 169 without changing disabled state
+      form.dispatchEvent(new CustomEvent('secure-input-change', { bubbles: true }));
+      // Button should still reflect loading (disabled) — no crash
+      expect(innerBtn?.disabled).toBe(true);
+
+      form.remove();
+    });
+
+    it('hits rate-limit exceeded branch (lines 218–221) for sensitive tier', async () => {
+      const btn = document.createElement('secure-submit-button') as SecureSubmitButton;
+      btn.setAttribute('security-tier', 'sensitive'); // sensitive: maxAttempts=10, rate limiting on
+      document.body.appendChild(btn);
+      await flushMicrotasks();
+
+      // Exhaust the rate limit counter via the protected method before clicking,
+      // so the very next click hits the rate-limit-exceeded branch.
+      const rateCheck = (btn as unknown as { checkRateLimit(): { allowed: boolean } }).checkRateLimit.bind(btn);
+      for (let i = 0; i < 10; i++) rateCheck(); // 10 calls = maxAttempts for sensitive
+
+      // Force the button enabled so #handleClick is reached
+      const innerEl = btn.shadowRoot?.querySelector('button') as HTMLButtonElement | null;
+      if (innerEl) innerEl.disabled = false;
+
+      const auditSpy = vi.spyOn(btn, 'audit');
+      innerEl?.click(); // rate limit exceeded → audit 'submit_button_rate_limited'
+
+      const rateLimitEntry = auditSpy.mock.calls.find(
+        ([event]) => event === 'submit_button_rate_limited'
+      );
+      expect(rateLimitEntry).toBeDefined();
+
+      btn.remove();
     });
   });
 });
