@@ -192,7 +192,7 @@ export class SecureSelect extends SecureBaseComponent {
 
       this.#clearErrors();
       this.audit('select_changed', { name: this.#selectElement!.name, values: selectedValues });
-      this.dispatchEvent(new CustomEvent('secure-select', {
+      this.dispatchEvent(new CustomEvent('secure-select-change', {
         detail: { name: this.#selectElement!.name, value: selectedValues, tier: this.securityTier },
         bubbles: true, composed: true
       }));
@@ -212,7 +212,7 @@ export class SecureSelect extends SecureBaseComponent {
 
       this.#clearErrors();
       this.audit('select_changed', { name: this.#selectElement!.name, value: selectedValue });
-      this.dispatchEvent(new CustomEvent('secure-select', {
+      this.dispatchEvent(new CustomEvent('secure-select-change', {
         detail: { name: this.#selectElement!.name, value: selectedValue, tier: this.securityTier },
         bubbles: true, composed: true
       }));
