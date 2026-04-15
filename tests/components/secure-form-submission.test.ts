@@ -98,7 +98,7 @@ describe('SecureForm — submission', () => {
     form = document.createElement('secure-form') as SecureForm;
     form.setAttribute('security-tier', 'public');
     form.setAttribute('csrf-token', 'test-token');
-    form.setAttribute('enhance', ''); // enables JS-enhanced submission & secure-form-submit event
+    form.setAttribute('use-fetch', ''); // enables JS-enhanced submission & secure-form-submit event
     form.setAttribute('action', '/api/submit');
     document.body.appendChild(form);
   });
@@ -223,7 +223,7 @@ describe('SecureForm — CSRF threat detection on submission', () => {
   function makeForm(tier: string, withToken: boolean): SecureForm {
     const f = document.createElement('secure-form') as SecureForm;
     f.setAttribute('security-tier', tier);
-    f.setAttribute('enhance', '');
+    f.setAttribute('use-fetch', '');
     f.setAttribute('action', '/api/submit');
     if (withToken) f.setAttribute('csrf-token', 'valid-token-xyz');
     document.body.appendChild(f);
