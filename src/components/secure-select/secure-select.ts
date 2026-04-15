@@ -1,101 +1,15 @@
-/**
- * @fileoverview Secure Select Component
- *
- * A security-first select dropdown component that implements progressive enhancement,
- * tier-based validation, and audit logging.
- *
- * Progressive Enhancement Strategy:
- * 1. Without JavaScript: Falls back to native HTML5 select with options
- * 2. With JavaScript: Enhances with validation, audit logging, rate limiting
- *
- * Usage:
- * <secure-select
- *   security-tier="authenticated"
- *   name="country"
- *   label="Country"
- *   required
- * >
- *   <option value="">Select a country</option>
- *   <option value="us">United States</option>
- *   <option value="uk">United Kingdom</option>
- * </secure-select>
- *
- * Multiple selection:
- * <secure-select label="Languages" name="langs" multiple size="4">
- *   <option value="en">English</option>
- *   <option value="es">Spanish</option>
- * </secure-select>
- *
- * Security Features:
- * - XSS prevention via sanitization
- * - Option value validation
- * - Rate limiting for sensitive/critical tiers
- * - Comprehensive audit logging
- * - Visual security indicators
- *
- * @module secure-select
- * @license MIT
- */
 
 import { SecureBaseComponent } from '../../core/base-component.js';
 
-/**
- * Secure Select Web Component
- *
- * Provides a security-hardened select dropdown with progressive enhancement.
- * The component works as a standard form select without JavaScript and
- * enhances with security features when JavaScript is available.
- *
- * @extends SecureBaseComponent
- */
 export class SecureSelect extends SecureBaseComponent {
-  /**
-   * Select element reference
-   * @private
-   */
   #selectElement: HTMLSelectElement | null = null;
-
-  /**
-   * Label element reference
-   * @private
-   */
   #labelElement: HTMLLabelElement | null = null;
-
-  /**
-   * Error container element reference
-   * @private
-   */
   #errorContainer: HTMLDivElement | null = null;
-
-  /**
-   * Unique ID for this select instance
-   * @private
-   */
   #instanceId: string = `secure-select-${Math.random().toString(36).substring(2, 11)}`;
-
-  /**
-   * Valid option values
-   * @private
-   */
   #validOptions: Set<string> = new Set();
-
-  /**
-   * Flag to track if options have been transferred from light DOM
-   * @private
-   */
   #optionsTransferred: boolean = false;
-
-  /**
-   * Whether this is a multi-select instance
-   * @private
-   */
   #isMultiple: boolean = false;
 
-  /**
-   * Observed attributes for this component
-   *
-   * @static
-   */
   static get observedAttributes(): string[] {
     return [
       ...super.observedAttributes,
@@ -108,22 +22,6 @@ export class SecureSelect extends SecureBaseComponent {
     ];
   }
 
-  /**
-   * Constructor
-   */
-  constructor() {
-    super();
-  }
-
-  /**
-   * Render the select component
-   *
-   * Security Note: We use a native <select> element wrapped in our web component
-   * to ensure progressive enhancement. The native select works without JavaScript,
-   * and we enhance it with security features when JS is available.
-   *
-   * @protected
-   */
   protected render(): DocumentFragment | HTMLElement | null {
     const fragment = document.createDocumentFragment();
 
@@ -131,10 +29,7 @@ export class SecureSelect extends SecureBaseComponent {
     container.className = 'select-container';
     container.setAttribute('part', 'container');
 
-    // Check if this is a multi-select
     this.#isMultiple = this.hasAttribute('multiple');
-
-    // Create label
     const label = this.getAttribute('label');
     if (label) {
       this.#labelElement = document.createElement('label');
@@ -145,21 +40,16 @@ export class SecureSelect extends SecureBaseComponent {
       container.appendChild(this.#labelElement);
     }
 
-    // Create select wrapper for progressive enhancement
     const selectWrapper = document.createElement('div');
     selectWrapper.className = 'select-wrapper';
     selectWrapper.setAttribute('part', 'wrapper');
 
-    // Create the actual select element
     this.#selectElement = document.createElement('select');
     this.#selectElement.id = this.#instanceId;
     this.#selectElement.className = 'select-field';
     this.#selectElement.setAttribute('part', 'select');
 
-    // Apply attributes from web component to native select
     this.#applySelectAttributes();
-
-    // Set up event listeners
     this.#attachEventListeners();
 
     // Defer transferring options to allow light DOM to be fully parsed
@@ -171,7 +61,6 @@ export class SecureSelect extends SecureBaseComponent {
     selectWrapper.appendChild(this.#selectElement);
     container.appendChild(selectWrapper);
 
-    // Create error container
     // role="alert" already implies aria-live="assertive" — do not override with polite
     this.#errorContainer = document.createElement('div');
     this.#errorContainer.className = 'error-container hidden';
@@ -180,7 +69,6 @@ export class SecureSelect extends SecureBaseComponent {
     this.#errorContainer.id = `${this.#instanceId}-error`;
     container.appendChild(this.#errorContainer);
 
-    // Add component styles (CSP-compliant via adoptedStyleSheets)
     this.addComponentStyles(this.#getComponentStyles());
 
     fragment.appendChild(container);
@@ -188,93 +76,58 @@ export class SecureSelect extends SecureBaseComponent {
     return fragment;
   }
 
-  /**
-   * Apply attributes from the web component to the native select
-   *
-   * Security Note: This is where we enforce tier-specific security controls
-   * like validation rules.
-   *
-   * @private
-   */
   #applySelectAttributes(): void {
     const config = this.config;
-
-    // Name attribute (required for form submission)
     const name = this.getAttribute('name');
     if (name) {
       this.#selectElement!.name = this.sanitizeValue(name);
     }
 
-    // Accessible name fallback when no visible label is provided
     if (!this.getAttribute('label') && name) {
       this.#selectElement!.setAttribute('aria-label', this.sanitizeValue(name));
     }
 
-    // Link select to its error container for screen readers
     this.#selectElement!.setAttribute('aria-describedby', `${this.#instanceId}-error`);
 
-    // Required attribute
     if (this.hasAttribute('required') || config.validation.required) {
       this.#selectElement!.required = true;
       this.#selectElement!.setAttribute('aria-required', 'true');
     }
 
-    // Multiple selection
     if (this.hasAttribute('multiple')) {
       this.#selectElement!.multiple = true;
     }
 
-    // Size attribute
     const size = this.getAttribute('size');
     if (size) {
       this.#selectElement!.size = parseInt(size, 10);
     }
 
-    // Disabled state
     if (this.hasAttribute('disabled')) {
       this.#selectElement!.disabled = true;
     }
 
-    // Autocomplete control
     if (!config.storage.allowAutocomplete) {
       this.#selectElement!.autocomplete = 'off';
     }
   }
 
-  /**
-   * Transfer option elements from light DOM to select element
-   *
-   * Security Note: We sanitize all option values and text to prevent XSS
-   *
-   * @private
-   */
   #transferOptions(): void {
-    // Only transfer once to avoid clearing programmatically-added options
     if (this.#optionsTransferred) return;
     this.#optionsTransferred = true;
 
-    // Get option elements from light DOM (original content)
     const options = Array.from(this.querySelectorAll('option'));
-
-    // If no light DOM options, nothing to transfer
     if (options.length === 0) return;
 
-    // Track selected values (supports multiple selected attributes)
     const selectedValues: string[] = [];
 
-    // Transfer each option to the select element
     options.forEach((option) => {
       const newOption = document.createElement('option');
-
-      // Sanitize value
       const value = option.getAttribute('value') || '';
       newOption.value = this.sanitizeValue(value);
       this.#validOptions.add(newOption.value);
-
-      // Sanitize text content
       newOption.textContent = this.sanitizeValue(option.textContent || '');
 
-      // Copy other attributes
       if (option.hasAttribute('selected')) {
         newOption.selected = true;
         selectedValues.push(newOption.value);
@@ -286,7 +139,7 @@ export class SecureSelect extends SecureBaseComponent {
       this.#selectElement!.appendChild(newOption);
     });
 
-    // Set initial value - attribute takes precedence over selected option
+    // Attribute value takes precedence over the selected attribute on options.
     if (!this.#isMultiple) {
       const initialValue = this.getAttribute('value');
       if (initialValue) {
@@ -295,16 +148,9 @@ export class SecureSelect extends SecureBaseComponent {
         this.#selectElement!.value = selectedValues[0];
       }
     }
-    // For multiple, the selected attributes on individual options already applied
   }
 
-  /**
-   * Attach event listeners to the select
-   *
-   * @private
-   */
   #attachEventListeners(): void {
-    // Focus event - audit logging + telemetry
     this.#selectElement!.addEventListener('focus', () => {
       this.recordTelemetryFocus();
       this.audit('select_focused', {
@@ -312,13 +158,11 @@ export class SecureSelect extends SecureBaseComponent {
       });
     });
 
-    // Change event - validation, audit logging + telemetry
     this.#selectElement!.addEventListener('change', (e: Event) => {
       this.recordTelemetryInput(e);
       this.#handleChange(e);
     });
 
-    // Blur event - final validation + telemetry
     this.#selectElement!.addEventListener('blur', () => {
       this.recordTelemetryBlur();
       this.#validateAndShowErrors();
@@ -331,17 +175,9 @@ export class SecureSelect extends SecureBaseComponent {
     });
   }
 
-  /**
-   * Handle change events
-   *
-   * Security Note: We validate that the selected value is in the list of valid options
-   * to prevent value injection attacks.
-   *
-   * @private
-   */
+  // Validates selected values against #validOptions to prevent value injection.
   #handleChange(_event: Event): void {
     if (this.#isMultiple) {
-      // Multi-select: validate all selected values
       const selectedValues = Array.from(this.#selectElement!.selectedOptions).map(opt => opt.value);
       const invalidValues = selectedValues.filter(v => v && !this.#validOptions.has(v));
 
@@ -354,29 +190,13 @@ export class SecureSelect extends SecureBaseComponent {
         return;
       }
 
-      // Clear previous errors
       this.#clearErrors();
-
-      // Log the change
-      this.audit('select_changed', {
-        name: this.#selectElement!.name,
-        values: selectedValues
-      });
-
-      // Dispatch custom event for parent forms
-      this.dispatchEvent(
-        new CustomEvent('secure-select', {
-          detail: {
-            name: this.#selectElement!.name,
-            value: selectedValues,
-            tier: this.securityTier
-          },
-          bubbles: true,
-          composed: true
-        })
-      );
+      this.audit('select_changed', { name: this.#selectElement!.name, values: selectedValues });
+      this.dispatchEvent(new CustomEvent('secure-select', {
+        detail: { name: this.#selectElement!.name, value: selectedValues, tier: this.securityTier },
+        bubbles: true, composed: true
+      }));
     } else {
-      // Single select: validate the selected value
       const selectedValue = this.#selectElement!.value;
 
       if (selectedValue && !this.#validOptions.has(selectedValue)) {
@@ -390,37 +210,16 @@ export class SecureSelect extends SecureBaseComponent {
         return;
       }
 
-      // Clear previous errors
       this.#clearErrors();
-
-      // Log the change
-      this.audit('select_changed', {
-        name: this.#selectElement!.name,
-        value: selectedValue
-      });
-
-      // Dispatch custom event for parent forms
-      this.dispatchEvent(
-        new CustomEvent('secure-select', {
-          detail: {
-            name: this.#selectElement!.name,
-            value: selectedValue,
-            tier: this.securityTier
-          },
-          bubbles: true,
-          composed: true
-        })
-      );
+      this.audit('select_changed', { name: this.#selectElement!.name, value: selectedValue });
+      this.dispatchEvent(new CustomEvent('secure-select', {
+        detail: { name: this.#selectElement!.name, value: selectedValue, tier: this.securityTier },
+        bubbles: true, composed: true
+      }));
     }
   }
 
-  /**
-   * Validate the select and show error messages
-   *
-   * @private
-   */
   #validateAndShowErrors(): void {
-    // Check rate limit first
     const rateLimitCheck = this.checkRateLimit();
     if (!rateLimitCheck.allowed) {
       this.#showError(
@@ -432,7 +231,6 @@ export class SecureSelect extends SecureBaseComponent {
     const required = this.hasAttribute('required') || this.config.validation.required;
 
     if (this.#isMultiple) {
-      // Multi-select: check if at least one option is selected
       const selectedValues = Array.from(this.#selectElement!.selectedOptions)
         .map(opt => opt.value)
         .filter(v => v !== '');
@@ -442,14 +240,12 @@ export class SecureSelect extends SecureBaseComponent {
         return;
       }
 
-      // Validate all selected values are in valid options
       const invalidValues = selectedValues.filter(v => !this.#validOptions.has(v));
       if (invalidValues.length > 0) {
         this.#showError('Invalid option selected');
         return;
       }
     } else {
-      // Single select: check required and valid option
       if (required && !this.#selectElement!.value) {
         this.#showError('Please select an option');
         return;
@@ -463,11 +259,6 @@ export class SecureSelect extends SecureBaseComponent {
     }
   }
 
-  /**
-   * Show error message
-   *
-   * @private
-   */
   #showError(message: string): void {
     this.#errorContainer!.textContent = message;
     // Force reflow so browser registers the hidden state with content,
@@ -478,13 +269,7 @@ export class SecureSelect extends SecureBaseComponent {
     this.#selectElement!.setAttribute('aria-invalid', 'true');
   }
 
-  /**
-   * Clear error messages
-   *
-   * @private
-   */
   #clearErrors(): void {
-    // Start the hide animation first, clear text only after transition ends
     this.#errorContainer!.classList.add('hidden');
     this.#errorContainer!.addEventListener('transitionend', () => {
       if (this.#errorContainer!.classList.contains('hidden')) {
@@ -495,20 +280,10 @@ export class SecureSelect extends SecureBaseComponent {
     this.#selectElement!.removeAttribute('aria-invalid');
   }
 
-  /**
-   * Get component-specific styles
-   *
-   * @private
-   */
   #getComponentStyles(): string {
     return new URL('./secure-select.css', import.meta.url).href;
   }
 
-  /**
-   * Handle attribute changes
-   *
-   * @protected
-   */
   protected handleAttributeChange(name: string, _oldValue: string | null, newValue: string | null): void {
     if (!this.#selectElement) return;
 
@@ -524,39 +299,26 @@ export class SecureSelect extends SecureBaseComponent {
     }
   }
 
-  /**
-   * Get the current value
-   *
-   * @public
-   */
-  get value(): string {
-    if (!this.#selectElement) return '';
+  get value(): string | string[] {
+    if (!this.#selectElement) return this.#isMultiple ? [] : '';
 
-    // Multi-select: return comma-separated selected values
     if (this.#isMultiple) {
       return Array.from(this.#selectElement.selectedOptions)
         .map(opt => opt.value)
-        .filter(v => v !== '')
-        .join(', ');
+        .filter(v => v !== '');
     }
 
     return this.#selectElement.value;
   }
 
-  /**
-   * Set the value
-   *
-   * @public
-   */
-  set value(value: string) {
+  set value(value: string | string[]) {
     if (!this.#selectElement) return;
 
     if (this.#isMultiple) {
-      // Multi-select: accept comma-separated values
-      const values = value.split(',').map(v => v.trim()).filter(v => v !== '');
-      // Deselect all first
+      const values = Array.isArray(value)
+        ? value
+        : value.split(',').map(v => v.trim()).filter(v => v !== '');
       Array.from(this.#selectElement.options).forEach(opt => { opt.selected = false; });
-      // Select matching valid options
       values.forEach(v => {
         if (this.#validOptions.has(v)) {
           const opt = Array.from(this.#selectElement!.options).find(o => o.value === v);
@@ -564,36 +326,22 @@ export class SecureSelect extends SecureBaseComponent {
         }
       });
     } else {
-      if (this.#validOptions.has(value)) {
-        this.#selectElement.value = value;
+      const str = Array.isArray(value) ? value[0] ?? '' : value;
+      if (this.#validOptions.has(str)) {
+        this.#selectElement.value = str;
       }
     }
   }
 
-  /**
-   * Get the select name
-   *
-   * @public
-   */
   get name(): string {
     return this.#selectElement ? this.#selectElement.name : '';
   }
 
-  /**
-   * Get selected options (for multiple select)
-   *
-   * @public
-   */
   get selectedOptions(): string[] {
     if (!this.#selectElement) return [];
     return Array.from(this.#selectElement.selectedOptions).map(opt => opt.value);
   }
 
-  /**
-   * Check if the select is valid
-   *
-   * @public
-   */
   get valid(): boolean {
     const required = this.hasAttribute('required') || this.config.validation.required;
 
@@ -601,16 +349,10 @@ export class SecureSelect extends SecureBaseComponent {
       const selectedValues = Array.from(this.#selectElement!.selectedOptions)
         .map(opt => opt.value)
         .filter(v => v !== '');
-
-      if (required && selectedValues.length === 0) {
-        return false;
-      }
-
-      // All selected values must be valid
+      if (required && selectedValues.length === 0) return false;
       return selectedValues.every(v => this.#validOptions.has(v));
     }
 
-    // Single select
     if (required && !this.#selectElement!.value) {
       return false;
     }
@@ -623,33 +365,18 @@ export class SecureSelect extends SecureBaseComponent {
     return true;
   }
 
-  /**
-   * Focus the select
-   *
-   * @public
-   */
   focus(): void {
     if (this.#selectElement) {
       this.#selectElement.focus();
     }
   }
 
-  /**
-   * Blur the select
-   *
-   * @public
-   */
   blur(): void {
     if (this.#selectElement) {
       this.#selectElement.blur();
     }
   }
 
-  /**
-   * Add an option programmatically
-   *
-   * @public
-   */
   addOption(value: string, text: string, selected: boolean = false): void {
     if (!this.#selectElement) return;
 
@@ -662,11 +389,6 @@ export class SecureSelect extends SecureBaseComponent {
     this.#selectElement.appendChild(option);
   }
 
-  /**
-   * Remove an option by value
-   *
-   * @public
-   */
   removeOption(value: string): void {
     if (!this.#selectElement) return;
 
@@ -679,11 +401,6 @@ export class SecureSelect extends SecureBaseComponent {
     }
   }
 
-  /**
-   * Clear all options
-   *
-   * @public
-   */
   clearOptions(): void {
     if (!this.#selectElement) return;
 
@@ -691,21 +408,12 @@ export class SecureSelect extends SecureBaseComponent {
     this.#validOptions.clear();
   }
 
-  /**
-   * Cleanup on disconnect
-   *
-   * Note: We intentionally do NOT clear #validOptions here.
-   * When <secure-select> is inside a <secure-form>, the form moves its children
-   * into a <form> element, which triggers disconnect/reconnect. Clearing
-   * #validOptions on disconnect would leave the set empty after reconnect,
-   * causing all subsequent selections to be rejected as "invalid option".
-   */
+  // #validOptions is intentionally NOT cleared on disconnect.
+  // secure-form moves children into a <form>, triggering disconnect/reconnect;
+  // clearing here would leave the set empty after reconnect, rejecting all selections.
   disconnectedCallback(): void {
     super.disconnectedCallback();
   }
 }
 
-// Define the custom element
 customElements.define('secure-select', SecureSelect);
-
-export default SecureSelect;
