@@ -229,10 +229,11 @@ describe('compareTiers', () => {
     expect(compareTiers('sensitive', 'authenticated')).toBe(1);
   });
 
-  it('should treat invalid tiers as CRITICAL', () => {
-    // Invalid tier defaults to CRITICAL (level 4)
-    expect(compareTiers('invalid', 'public')).toBe(1);
-    expect(compareTiers('invalid', 'critical')).toBe(0);
+  it('should treat invalid tiers as CRITICAL (via getTierConfig fallback)', () => {
+    // getTierConfig falls back to CRITICAL for invalid input. compareTiers now
+    // enforces SecurityTierValue — invalid strings are tested via getTierConfig directly.
+    expect(getTierConfig('invalid' as never).level).toBe(4); // CRITICAL level
+    expect(getTierConfig('invalid' as never).level).toBe(getTierConfig('critical').level);
   });
 });
 
