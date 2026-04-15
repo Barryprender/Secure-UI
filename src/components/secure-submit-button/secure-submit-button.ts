@@ -147,10 +147,10 @@ export class SecureSubmitButton extends SecureBaseComponent {
     const target = this.#parentForm || this.parentElement;
     if (!target) return;
 
-    target.addEventListener('secure-input', this.#boundHandleFieldChange);
-    target.addEventListener('secure-textarea', this.#boundHandleFieldChange);
-    target.addEventListener('secure-select', this.#boundHandleFieldChange);
-    target.addEventListener('secure-datetime', this.#boundHandleFieldChange);
+    target.addEventListener('secure-input-change', this.#boundHandleFieldChange);
+    target.addEventListener('secure-textarea-change', this.#boundHandleFieldChange);
+    target.addEventListener('secure-select-change', this.#boundHandleFieldChange);
+    target.addEventListener('secure-datetime-change', this.#boundHandleFieldChange);
     // Reset loading state when the form reports successful submission.
     target.addEventListener('secure-form-success', this.#boundHandleFormSuccess);
   }
@@ -306,10 +306,10 @@ export class SecureSubmitButton extends SecureBaseComponent {
     this.#setLoading(false);
     const target = this.#parentForm || this.parentElement;
     if (target) {
-      target.removeEventListener('secure-input', this.#boundHandleFieldChange);
-      target.removeEventListener('secure-textarea', this.#boundHandleFieldChange);
-      target.removeEventListener('secure-select', this.#boundHandleFieldChange);
-      target.removeEventListener('secure-datetime', this.#boundHandleFieldChange);
+      target.removeEventListener('secure-input-change', this.#boundHandleFieldChange);
+      target.removeEventListener('secure-textarea-change', this.#boundHandleFieldChange);
+      target.removeEventListener('secure-select-change', this.#boundHandleFieldChange);
+      target.removeEventListener('secure-datetime-change', this.#boundHandleFieldChange);
       target.removeEventListener('secure-form-success', this.#boundHandleFormSuccess);
     }
   }
