@@ -188,7 +188,7 @@ describe('SecureTable — action button delegation (lines 596–617)', () => {
 
   it('dispatches table-action event when [data-action] element is clicked', () => {
     const events: CustomEvent[] = [];
-    table.addEventListener('table-action', (e) => events.push(e as CustomEvent));
+    table.addEventListener('secure-table-action', (e) => events.push(e as CustomEvent));
 
     const btn = table.shadowRoot?.querySelector('[data-action="edit"]') as HTMLElement | null;
     btn?.click();
@@ -200,7 +200,7 @@ describe('SecureTable — action button delegation (lines 596–617)', () => {
 
   it('does not dispatch table-action when clicking non-action element', () => {
     const events: CustomEvent[] = [];
-    table.addEventListener('table-action', (e) => events.push(e as CustomEvent));
+    table.addEventListener('secure-table-action', (e) => events.push(e as CustomEvent));
 
     // Click a cell that has no [data-action]
     const td = table.shadowRoot?.querySelector('td') as HTMLElement | null;
@@ -232,7 +232,7 @@ describe('SecureTable — prototype pollution guard in action button (lines 606,
     table.data = [{ action: '' }];
 
     const events: CustomEvent[] = [];
-    table.addEventListener('table-action', (e) => events.push(e as CustomEvent));
+    table.addEventListener('secure-table-action', (e) => events.push(e as CustomEvent));
 
     const btn = table.shadowRoot?.querySelector('[data-action="test"]') as HTMLElement | null;
     btn?.click();
