@@ -430,7 +430,9 @@ export interface SecureCardChangeDetail {
   name: string;
   cardType: CardType;
   last4: string;
+  /** 1–12 */
   expiryMonth: number;
+  /** Full 4-digit year (e.g. 2027, not 27) */
   expiryYear: number;
   cardholderName: string;
   valid: boolean;
