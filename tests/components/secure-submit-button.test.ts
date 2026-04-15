@@ -360,7 +360,7 @@ describe('SecureSubmitButton', () => {
       await flushMicrotasks();
 
       // Clear audit log to isolate click entries
-      button.clearAuditLog();
+      (button as unknown as { clearAuditLog(): void }).clearAuditLog();
 
       const innerBtn = button.shadowRoot?.querySelector('button');
 
@@ -388,7 +388,7 @@ describe('SecureSubmitButton', () => {
       await flushMicrotasks();
 
       expect(button.disabled).toBe(false);
-      button.clearAuditLog();
+      (button as unknown as { clearAuditLog(): void }).clearAuditLog();
 
       const innerBtn = button.shadowRoot?.querySelector('button');
       innerBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
@@ -477,7 +477,7 @@ describe('SecureSubmitButton', () => {
 
       const log = button.getAuditLog();
       const initEvent = log.find(entry => entry.event === 'submit_button_initialized');
-      expect(initEvent?.hasParentForm).toBe(false);
+      expect(initEvent?.data?.['hasParentForm']).toBe(false);
     });
   });
 
@@ -599,10 +599,10 @@ describe('SecureSubmitButton', () => {
       expect(Array.isArray(button.getAuditLog())).toBe(true);
     });
 
-    it('should expose clearAuditLog method', () => {
-      expect(typeof button.clearAuditLog).toBe('function');
-
-      button.clearAuditLog();
+    it('clearAuditLog is protected (not on the public surface)', () => {
+      // clearAuditLog is protected to prevent external code from erasing audit evidence.
+      expect((button as unknown as Record<string, unknown>)['clearAuditLog']).toBeTypeOf('function');
+      (button as unknown as { clearAuditLog(): void }).clearAuditLog();
       expect(button.getAuditLog().length).toBe(0);
     });
   });
