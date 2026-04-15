@@ -180,7 +180,7 @@ describe('SecureForm', () => {
     beforeEach(() => {
       form.setAttribute('action', '/api/test');
       form.setAttribute('method', 'POST');
-      form.setAttribute('enhance', '');
+      form.setAttribute('use-fetch', '');
       document.body.appendChild(form);
     });
 
@@ -279,17 +279,17 @@ describe('SecureForm', () => {
 
   describe('Enhanced Submission Mode', () => {
     it('should support enhance attribute for Fetch-based submission', () => {
-      form.setAttribute('enhance', '');
+      form.setAttribute('use-fetch', '');
       document.body.appendChild(form);
 
-      expect(form.hasAttribute('enhance')).toBe(true);
+      expect(form.hasAttribute('use-fetch')).toBe(true);
     });
 
     it('should support native submission without enhance attribute', () => {
       // No enhance attribute = native form submission
       document.body.appendChild(form);
 
-      expect(form.hasAttribute('enhance')).toBe(false);
+      expect(form.hasAttribute('use-fetch')).toBe(false);
     });
   });
 
@@ -332,7 +332,7 @@ describe('SecureForm', () => {
     beforeEach(() => {
       form.setAttribute('action', '/api/test');
       form.setAttribute('method', 'POST');
-      form.setAttribute('enhance', '');
+      form.setAttribute('use-fetch', '');
       document.body.appendChild(form);
     });
 
