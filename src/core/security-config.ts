@@ -1,18 +1,6 @@
 /**
- * @fileoverview Security Configuration and Tier Definitions
- *
- * This module defines the four security tiers that govern all component behavior
- * in the Secure-UI library. Each tier represents a different level of data sensitivity
- * and applies corresponding security controls.
- *
- * Security Philosophy:
- * - Defense in depth: Multiple layers of protection at each tier
- * - Fail secure: Default to highest security when tier is ambiguous
- * - Progressive enhancement: All tiers work without JavaScript
- * - Zero trust: Always validate, never assume data is safe
- *
- * @module security-config
- * @license MIT
+ * Security tier definitions and configuration for Secure-UI.
+ * Four tiers: public → authenticated → sensitive → critical (fail-secure default).
  */
 
 import type {
@@ -23,10 +11,6 @@ import type {
 } from './types.js';
 
 
-/**
- * Security tier enumeration
- * These constants should be used throughout the library to reference security levels
- */
 export const SecurityTier = Object.freeze({
   /** PUBLIC: Non-sensitive data (e.g., search queries, public comments) */
   PUBLIC: 'public' as const,
@@ -41,13 +25,6 @@ export const SecurityTier = Object.freeze({
   CRITICAL: 'critical' as const
 });
 
-/**
- * Default configuration for each security tier
- *
- * Security Note: These defaults implement defense-in-depth by progressively
- * adding security controls at each tier. When in doubt, components should
- * default to CRITICAL tier behavior.
- */
 export const TIER_CONFIG: Readonly<Record<SecurityTierValue, TierConfig>> = Object.freeze({
   [SecurityTier.PUBLIC]: Object.freeze({
     name: 'Public',
@@ -182,12 +159,7 @@ export const TIER_CONFIG: Readonly<Record<SecurityTierValue, TierConfig>> = Obje
   })
 });
 
-/**
- * Get configuration for a specific security tier
- *
- * Security Note: If an invalid tier is provided, this function fails secure
- * by returning the CRITICAL tier configuration.
- */
+/** Returns tier config; falls back to CRITICAL for invalid input (fail-secure). */
 export function getTierConfig(tier: string): TierConfig {
   if (!tier || !TIER_CONFIG[tier as SecurityTierValue]) {
     console.warn(`Invalid security tier "${tier}", defaulting to CRITICAL`);
@@ -197,35 +169,22 @@ export function getTierConfig(tier: string): TierConfig {
   return TIER_CONFIG[tier as SecurityTierValue];
 }
 
-/**
- * Validate that a tier value is valid
- */
 export function isValidTier(tier: string): tier is SecurityTierValue {
   return (Object.values(SecurityTier) as string[]).includes(tier);
 }
 
-/**
- * Compare two security tiers
- *
- * @returns -1 if tier1 < tier2, 0 if equal, 1 if tier1 > tier2
- */
-export function compareTiers(tier1: string, tier2: string): number {
+/** Returns -1 / 0 / 1 by tier level. */
+export function compareTiers(tier1: SecurityTierValue, tier2: SecurityTierValue): number {
   const config1 = getTierConfig(tier1);
   const config2 = getTierConfig(tier2);
 
   return Math.sign(config1.level - config2.level);
 }
 
-/**
- * Get the more secure of two tiers
- */
-export function getMoreSecureTier(tier1: string, tier2: string): string {
+export function getMoreSecureTier(tier1: SecurityTierValue, tier2: SecurityTierValue): SecurityTierValue {
   return compareTiers(tier1, tier2) >= 0 ? tier1 : tier2;
 }
 
-/**
- * Content Security Policy recommendations for each tier
- */
 export const CSP_RECOMMENDATIONS: Readonly<Record<SecurityTierValue, Readonly<CSPDirectives>>> = Object.freeze({
   [SecurityTier.PUBLIC]: Object.freeze({
     'default-src': ["'self'"],
@@ -261,9 +220,6 @@ export const CSP_RECOMMENDATIONS: Readonly<Record<SecurityTierValue, Readonly<CS
   })
 });
 
-/**
- * Default security headers recommendations
- */
 export const SECURITY_HEADERS: Readonly<SecurityHeaders> = Object.freeze({
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
@@ -272,13 +228,3 @@ export const SECURITY_HEADERS: Readonly<SecurityHeaders> = Object.freeze({
   'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
 });
 
-export default {
-  SecurityTier,
-  TIER_CONFIG,
-  getTierConfig,
-  isValidTier,
-  compareTiers,
-  getMoreSecureTier,
-  CSP_RECOMMENDATIONS,
-  SECURITY_HEADERS
-};
