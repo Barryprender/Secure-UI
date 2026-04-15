@@ -502,14 +502,14 @@ describe('SecureCard', () => {
 
     it('fires secure-card event on number input', () => {
       const handler = vi.fn();
-      card.addEventListener('secure-card', handler);
+      card.addEventListener('secure-card-change', handler);
       typeInto(getNumberInput(card), '4111111111111111');
       expect(handler).toHaveBeenCalled();
     });
 
     it('event detail contains cardType and last4, not full PAN', () => {
       const handler = vi.fn();
-      card.addEventListener('secure-card', handler);
+      card.addEventListener('secure-card-change', handler);
       typeInto(getNumberInput(card), '4111111111111111');
       const detail = handler.mock.calls[0]![0].detail;
       expect(detail.cardType).toBe('visa');
@@ -520,7 +520,7 @@ describe('SecureCard', () => {
 
     it('event detail contains valid flag', () => {
       const handler = vi.fn();
-      card.addEventListener('secure-card', handler);
+      card.addEventListener('secure-card-change', handler);
       fillValid(card);
       const detail = handler.mock.calls[handler.mock.calls.length - 1]![0].detail;
       expect(detail.valid).toBe(true);
@@ -528,24 +528,24 @@ describe('SecureCard', () => {
 
     it('fires secure-card event on expiry input', () => {
       const handler = vi.fn();
-      card.addEventListener('secure-card', handler);
+      card.addEventListener('secure-card-change', handler);
       typeInto(getExpiryInput(card), '1230');
       expect(handler).toHaveBeenCalled();
     });
 
     it('fires secure-card event on CVC input', () => {
       const handler = vi.fn();
-      card.addEventListener('secure-card', handler);
+      card.addEventListener('secure-card-change', handler);
       typeInto(getCvcInput(card), '123');
       expect(handler).toHaveBeenCalled();
     });
 
     it('event bubbles and is composed', () => {
       const handler = vi.fn();
-      document.addEventListener('secure-card', handler);
+      document.addEventListener('secure-card-change', handler);
       typeInto(getNumberInput(card), '4111111111111111');
       expect(handler).toHaveBeenCalled();
-      document.removeEventListener('secure-card', handler);
+      document.removeEventListener('secure-card-change', handler);
     });
   });
 
