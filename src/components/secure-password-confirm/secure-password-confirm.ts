@@ -187,7 +187,7 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
       if (this.#confirmTouched) {
         this.#checkMatch();
       }
-      this.dispatchEvent(new CustomEvent('secure-input', {
+      this.dispatchEvent(new CustomEvent('secure-input-change', {
         detail: { name: this.getAttribute('name') ?? '', field: 'password' },
         bubbles: true,
         composed: true,
