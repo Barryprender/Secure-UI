@@ -15,7 +15,7 @@
     security-tier="authenticated"
     csrf-token="test-csrf-token-abc123"
     csrf-field-name="_csrf"
-    enhance
+    use-fetch
   >
     <secure-input name="username" label="Username" security-tier="public"   required></secure-input>
     <secure-input name="email"    label="Email"    security-tier="public"   type="email" required></secure-input>
@@ -42,7 +42,7 @@
     // Capture submit events for assertions — prevent real fetch
     document.getElementById('test-form').addEventListener('secure-form-submit', (e) => {
       window.__lastSubmitDetail = e.detail;
-      e.detail.preventDefault();
+      e.detail.cancelSubmission();
     });
   </script>
 </body>
