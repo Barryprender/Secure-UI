@@ -1,36 +1,3 @@
-/**
- * @fileoverview Secure Form Component
- *
- * A security-first form component that implements CSRF protection, automatic
- * field collection, validation, and comprehensive audit logging.
- *
- * Progressive Enhancement Strategy:
- * 1. Without JavaScript: Falls back to native HTML5 form submission
- * 2. With JavaScript: Enhances with CSRF tokens, validation, secure submission
- *
- * Usage:
- * <secure-form
- *   security-tier="sensitive"
- *   action="/api/submit"
- *   method="POST"
- *   csrf-token="your-csrf-token"
- * >
- *   <secure-input name="email" label="Email" required></secure-input>
- *   <button type="submit">Submit</button>
- * </secure-form>
- *
- * Security Features:
- * - CSRF token injection and validation
- * - Automatic secure field collection
- * - XSS prevention via sanitization
- * - Rate limiting on submission
- * - Comprehensive audit logging
- * - Secure headers for form submission
- * - Double-submit cookie pattern support
- *
- * @module secure-form
- * @license MIT
- */
 
 import { SecurityTier, TIER_CONFIG, isValidTier } from '../../core/security-config.js';
 import type {
@@ -41,51 +8,15 @@ import type {
   ThreatDetectedDetail
 } from '../../core/types.js';
 
-/**
- * Secure Form Web Component
- *
- * Provides a security-hardened form with CSRF protection and validation.
- * The component works as a standard HTML form without JavaScript and
- * enhances with security features when JavaScript is available.
- *
- * IMPORTANT: This component does NOT use Shadow DOM. It creates a native
- * <form> element in light DOM to ensure proper form submission and
- * accessibility. It extends HTMLElement directly, not SecureBaseComponent.
- *
- * @extends HTMLElement
- */
+// Light-DOM form component — extends HTMLElement directly (no Shadow DOM) so that
+// native form submission, label association, and browser validation work correctly.
 export class SecureForm extends HTMLElement {
   static #stylesAdded: boolean = false;
 
-  /**
-   * Form element reference
-   * @private
-   */
   #formElement: HTMLFormElement | null = null;
-
-  /**
-   * CSRF token hidden input reference
-   * @private
-   */
   #csrfInput: HTMLInputElement | null = null;
-
-  /**
-   * Form status message element
-   * @private
-   */
   #statusElement: HTMLDivElement | null = null;
-
-  /**
-   * Whether form is currently submitting
-   * @private
-   */
   #isSubmitting: boolean = false;
-
-  /**
-   * Timestamp when the form was connected to the DOM.
-   * Used to compute session duration for telemetry.
-   * @private
-   */
   #sessionStart: number = Date.now();
 
   #rateLimitState: { attempts: number; windowStart: number } = {
@@ -93,23 +24,9 @@ export class SecureForm extends HTMLElement {
     windowStart: Date.now()
   };
 
-  /**
-   * Unique ID for this form instance
-   * @private
-   */
   #instanceId: string = `secure-form-${Math.random().toString(36).substring(2, 11)}`;
-
-  /**
-   * Security tier for this form
-   * @private
-   */
   #securityTier: SecurityTierValue = SecurityTier.PUBLIC as SecurityTierValue;
 
-  /**
-   * Observed attributes for this component
-   *
-   * @static
-   */
   static get observedAttributes(): string[] {
     return [
       'security-tier',
@@ -123,23 +40,10 @@ export class SecureForm extends HTMLElement {
     ];
   }
 
-  /**
-   * Constructor
-   */
   constructor() {
-    super();
-    // No Shadow DOM - we work exclusively in light DOM for form compatibility
+    super(); // No Shadow DOM — light DOM required for native form participation.
   }
 
-  /**
-   * Called when element is connected to DOM
-   *
-   * Progressive Enhancement Strategy:
-   * - Create a native <form> in light DOM (not Shadow DOM)
-   * - Move all children into the form
-   * - Add CSRF token as hidden field
-   * - Attach event listeners for validation and optional enhancement
-   */
   connectedCallback(): void {
     // Only initialize once
     if (this.#formElement) {
@@ -247,11 +151,6 @@ export class SecureForm extends HTMLElement {
     }
   }
 
-  /**
-   * Apply attributes to the form element
-   *
-   * @private
-   */
   #applyFormAttributes(): void {
     const action = this.getAttribute('action');
     if (action) {
@@ -276,14 +175,6 @@ export class SecureForm extends HTMLElement {
     }
   }
 
-  /**
-   * Create CSRF token hidden field
-   *
-   * Security Note: CSRF tokens prevent Cross-Site Request Forgery attacks.
-   * The token should be unique per session and validated server-side.
-   *
-   * @private
-   */
   #createCsrfField(): void {
     const csrfToken = this.getAttribute('csrf-token');
 
@@ -308,13 +199,7 @@ export class SecureForm extends HTMLElement {
     }
   }
 
-  /**
-   * Attach event listeners
-   *
-   * @private
-   */
   #attachEventListeners(): void {
-    // Submit event - validate and enhance submission
     this.#formElement!.addEventListener('submit', (e: Event) => {
       void this.#handleSubmit(e);
     });
@@ -333,33 +218,13 @@ export class SecureForm extends HTMLElement {
     });
   }
 
-  /**
-   * Handle field change events
-   *
-   * @private
-   */
   #handleFieldChange(_event: Event): void {
-    // Clear form-level errors when user makes changes
     this.#clearStatus();
   }
 
-  /**
-   * Handle form submission
-   *
-   * Progressive Enhancement Strategy:
-   * - If 'enhance' attribute is NOT set: Allow native form submission (backend agnostic)
-   * - If 'enhance' attribute IS set: Intercept and use Fetch API with JSON
-   *
-   * Security Note: This is where we perform comprehensive validation,
-   * rate limiting, and secure data collection before submission.
-   *
-   * @private
-   */
   async #handleSubmit(event: Event): Promise<void> {
-    // Check if we should enhance the form submission with JavaScript
     const shouldEnhance = this.hasAttribute('enhance');
 
-    // Prevent double submission
     if (this.#isSubmitting) {
       event.preventDefault();
       return;
@@ -410,34 +275,24 @@ export class SecureForm extends HTMLElement {
       return;
     }
 
-    // If not enhancing, allow native form submission
     if (!shouldEnhance) {
-      // CRITICAL: Sync secure-input values to hidden fields for native submission
-      // Secure-input components have their actual <input> in Shadow DOM,
-      // so we need to create hidden inputs for native form submission
       this.#syncSecureInputsToForm();
 
-      // Let the browser handle the submission normally
       this.audit('form_submitted_native', {
         formId: this.#instanceId,
         action: this.#formElement!.action,
         method: this.#formElement!.method
       });
-      return; // Allow default behavior
+      return;
     }
 
-    // Enhanced submission with JavaScript (Fetch API)
     event.preventDefault();
 
-    // Mark as submitting
     this.#isSubmitting = true;
     this.#showStatus('Submitting...', 'info');
     this.#disableForm();
 
-    // Collect form data securely
     const formData = this.#collectFormData();
-
-    // Collect behavioral telemetry from all secure fields
     const telemetry = this.#collectTelemetry();
 
     // Audit log submission (include risk score for server-side correlation)
@@ -450,13 +305,11 @@ export class SecureForm extends HTMLElement {
       riskSignals: telemetry.riskSignals
     });
 
-    // Dispatch pre-submit event for custom handling
     const preSubmitEvent = new CustomEvent('secure-form-submit', {
       detail: {
         formData,
-        formElement: this.#formElement,
         telemetry,
-        preventDefault: () => {
+        cancelSubmission: () => {
           this.#isSubmitting = false;
           this.#enableForm();
         }
@@ -490,16 +343,8 @@ export class SecureForm extends HTMLElement {
     }
   }
 
-  /**
-   * Sync secure-input component values to hidden form inputs
-   *
-   * CRITICAL for native form submission: Secure-input components have their
-   * actual <input> elements in Shadow DOM, which can't participate in native
-   * form submission. We create/update hidden inputs in the form for each
-   * secure-input to enable backend-agnostic form submission.
-   *
-   * @private
-   */
+  // Shadow DOM inputs can't participate in native form submission — create/update
+  // light-DOM hidden inputs so the browser includes their values on submit.
   #syncSecureInputsToForm(): void {
     const secureInputs = this.#formElement!.querySelectorAll('secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload');
 
@@ -507,10 +352,8 @@ export class SecureForm extends HTMLElement {
       const name = input.getAttribute('name');
       if (!name) return;
 
-      // CRITICAL: Disable the native fallback inputs inside the secure component
-      // so they don't participate in native form submission (they are empty because
-      // the user typed into the shadow DOM input). Without this, the server receives
-      // the empty native input value first, ignoring the synced hidden input.
+      // Strip name from server-rendered fallback inputs so the browser doesn't
+      // submit their (empty) values alongside the synced hidden input.
       const nativeFallbacks = input.querySelectorAll(`input[name="${name}"], textarea[name="${name}"], select[name="${name}"]`);
       nativeFallbacks.forEach((fallback) => {
         (fallback as HTMLInputElement).removeAttribute('name');
@@ -533,11 +376,6 @@ export class SecureForm extends HTMLElement {
     });
   }
 
-  /**
-   * Validate all secure fields in the form
-   *
-   * @private
-   */
   #validateAllFields(): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
@@ -557,14 +395,6 @@ export class SecureForm extends HTMLElement {
     };
   }
 
-  /**
-   * Collect form data from secure fields
-   *
-   * Security Note: We collect data from secure components which have already
-   * sanitized their values. We also include the CSRF token.
-   *
-   * @private
-   */
   #collectFormData(): Record<string, string> {
     const formData = Object.create(null) as Record<string, string>;
 
@@ -578,8 +408,7 @@ export class SecureForm extends HTMLElement {
       }
     });
 
-    // Collect from standard form inputs (for non-secure fields).
-    // Shadow DOM inputs inside secure components are not reachable by this query.
+    // Shadow DOM inputs are not reachable here; only actual light-DOM inputs are collected.
     const standardInputs = this.#formElement!.querySelectorAll('input:not([type="hidden"]), textarea, select');
 
     standardInputs.forEach((input) => {
@@ -589,7 +418,6 @@ export class SecureForm extends HTMLElement {
       }
     });
 
-    // Include CSRF token
     if (this.#csrfInput) {
       formData[this.#csrfInput.name] = this.#csrfInput.value;
     }
@@ -657,72 +485,40 @@ export class SecureForm extends HTMLElement {
     return response;
   }
 
-  /**
-   * Disable form during submission
-   *
-   * @private
-   */
   #disableForm(): void {
-    // Disable all form controls
     const controls = this.#formElement!.querySelectorAll('input, textarea, select, button');
     controls.forEach((control) => {
       (control as HTMLInputElement).disabled = true;
     });
 
-    // Also disable secure components
     const secureFields = this.querySelectorAll('secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload');
     secureFields.forEach((field) => {
       field.setAttribute('disabled', '');
     });
   }
 
-  /**
-   * Enable form after submission
-   *
-   * @private
-   */
   #enableForm(): void {
-    // Enable all form controls
     const controls = this.#formElement!.querySelectorAll('input, textarea, select, button');
     controls.forEach((control) => {
       (control as HTMLInputElement).disabled = false;
     });
 
-    // Also enable secure components
     const secureFields = this.querySelectorAll('secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload');
     secureFields.forEach((field) => {
       field.removeAttribute('disabled');
     });
   }
 
-  /**
-   * Show status message
-   *
-   * @private
-   */
   #showStatus(message: string, type: string = 'info'): void {
     this.#statusElement!.textContent = message;
     this.#statusElement!.className = `form-status form-status-${type}`;
   }
 
-  /**
-   * Clear status message
-   *
-   * @private
-   */
   #clearStatus(): void {
     this.#statusElement!.textContent = '';
     this.#statusElement!.className = 'form-status form-status-hidden';
   }
 
-  // ── Telemetry ──────────────────────────────────────────────────────────────
-
-  /**
-   * Collect behavioral telemetry from all secure child fields and compute
-   * a session-level risk score.
-   *
-   * @private
-   */
   #collectTelemetry(): SessionTelemetry {
     const selector = 'secure-input, secure-textarea, secure-select, secure-datetime, secure-card';
     const secureFields = this.querySelectorAll(selector);
@@ -835,20 +631,10 @@ export class SecureForm extends HTMLElement {
     return { riskScore: Math.max(0, Math.min(score, 100)), riskSignals: signals };
   }
 
-  /**
-   * Get form data
-   *
-   * @public
-   */
   getData(): Record<string, string> {
     return this.#collectFormData();
   }
 
-  /**
-   * Reset the form
-   *
-   * @public
-   */
   reset(): void {
     if (this.#formElement) {
       this.#formElement.reset();
@@ -860,31 +646,17 @@ export class SecureForm extends HTMLElement {
     }
   }
 
-  /**
-   * Programmatically submit the form
-   *
-   * @public
-   */
   submit(): void {
     if (this.#formElement) {
-      // Trigger submit event which will run our validation
       this.#formElement.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     }
   }
 
-  /**
-   * Check if form is valid
-   *
-   * @public
-   */
   get valid(): boolean {
     const validation = this.#validateAllFields();
     return validation.valid;
   }
 
-  /**
-   * Cleanup on disconnect
-   */
   disconnectedCallback(): void {
     this.#submitAbortController?.abort();
     if (this.#formElement) {
@@ -892,9 +664,6 @@ export class SecureForm extends HTMLElement {
     }
   }
 
-  /**
-   * Handle attribute changes
-   */
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
     if (!this.#formElement) return;
 
@@ -924,19 +693,10 @@ export class SecureForm extends HTMLElement {
     }
   }
 
-  /**
-   * Get security tier
-   */
   get securityTier(): SecurityTierValue {
     return this.#securityTier;
   }
 
-  /**
-   * Sanitize a value to prevent XSS
-   *
-   * Uses the same div.textContent round-trip as SecureBaseComponent to correctly
-   * handle all injection vectors (attribute injection, entity encoding, etc).
-   */
   sanitizeValue(value: string): string {
     if (typeof value !== 'string') return '';
     const div = document.createElement('div');
@@ -944,9 +704,6 @@ export class SecureForm extends HTMLElement {
     return div.innerHTML;
   }
 
-  /**
-   * Audit log helper
-   */
   audit(action: string, data: Record<string, unknown>): void {
     if (console.debug) {
       console.debug(`[secure-form] ${action}`, data);
@@ -977,7 +734,4 @@ export class SecureForm extends HTMLElement {
   }
 }
 
-// Define the custom element
 customElements.define('secure-form', SecureForm);
-
-export default SecureForm;
