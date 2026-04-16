@@ -219,8 +219,15 @@ export class SecureForm extends HTMLElement {
 
     this.addEventListener('secure-threat-detected', (e: Event) => {
       const detail = (e as CustomEvent<ThreatDetectedDetail>).detail;
-      if (detail) {
-        this.#detectedThreats.push(detail);
+      if (!detail) return;
+      this.#detectedThreats.push(detail);
+      if (detail.threatType === 'injection') {
+        this.#setFormState('blocked');
+        this.#reportFieldError(
+          detail.fieldName,
+          'Injection attempt blocked — clear this field to submit',
+          'error'
+        );
       }
     });
   }
@@ -282,6 +289,22 @@ export class SecureForm extends HTMLElement {
       return;
     }
 
+    // Block if any injection threat was detected during this session
+    const hasInjection = this.#detectedThreats.some(t => t.threatType === 'injection');
+    if (hasInjection) {
+      event.preventDefault();
+      this.#setFormState('blocked');
+      this.#showStatus(
+        'Submission blocked: injection attempt detected. Clear the highlighted field(s) and try again.',
+        'error'
+      );
+      this.audit('form_blocked_injection', {
+        formId: this.#instanceId,
+        count: this.#detectedThreats.filter(t => t.threatType === 'injection').length
+      });
+      return;
+    }
+
     if (!shouldEnhance) {
       this.#syncSecureInputsToForm();
 
@@ -301,6 +324,9 @@ export class SecureForm extends HTMLElement {
 
     const formData = this.#collectFormData();
     const telemetry = this.#collectTelemetry();
+
+    // Non-blocking risk warnings — annotate fields, do not prevent submission
+    this.#applyRiskWarnings(telemetry.fields);
 
     // Audit log submission (include risk score for server-side correlation)
     this.audit('form_submitted_enhanced', {
@@ -338,7 +364,15 @@ export class SecureForm extends HTMLElement {
     // Perform secure submission via Fetch
     try {
       await this.#submitForm(formData, telemetry);
+      this.#setFormState('success');
+      if (this.#formStateTimeout !== null) clearTimeout(this.#formStateTimeout);
+      this.#formStateTimeout = setTimeout(() => {
+        this.#setFormState(null);
+        this.#formStateTimeout = null;
+      }, 3000);
+      this.#clearAllExternalErrors();
     } catch (error) {
+      this.#setFormState('error');
       this.#showStatus('Submission failed. Please try again.', 'error');
       this.audit('form_submission_error', {
         formId: this.#instanceId,
@@ -441,6 +475,7 @@ export class SecureForm extends HTMLElement {
    * @private
    */
   #detectedThreats: ThreatDetectedDetail[] = [];
+  #formStateTimeout: ReturnType<typeof setTimeout> | null = null;
 
   #submitAbortController: AbortController | null = null;
 
@@ -654,6 +689,55 @@ export class SecureForm extends HTMLElement {
     return { riskScore: Math.max(0, Math.min(score, 100)), riskSignals: signals };
   }
 
+  #setFormState(state: 'success' | 'blocked' | 'error' | null): void {
+    if (state === null) {
+      delete this.dataset['state'];
+    } else {
+      this.dataset['state'] = state;
+    }
+  }
+
+  #clearAllExternalErrors(): void {
+    const fields = this.querySelectorAll<HTMLElement>(
+      'secure-input, secure-textarea, secure-select, secure-datetime, secure-card, secure-file-upload'
+    );
+    fields.forEach(field => {
+      (field as HTMLElement & { clearExternalError?: () => void }).clearExternalError?.();
+    });
+  }
+
+  #reportFieldError(
+    fieldName: string,
+    message: string,
+    variant: 'error' | 'warning' = 'error'
+  ): void {
+    if (!fieldName) return;
+    const field = this.querySelector<HTMLElement>(
+      `[name="${CSS.escape(fieldName)}"]`
+    ) as (HTMLElement & { reportError?: (msg: string, variant?: string) => void }) | null;
+    field?.reportError?.(message, variant);
+  }
+
+  #applyRiskWarnings(fields: FieldTelemetrySnapshot[]): void {
+    for (const snapshot of fields) {
+      let warning: string | null = null;
+      if (snapshot.focusCount === 0) {
+        warning = 'Field was filled without interaction';
+      } else if (snapshot.velocity > 15) {
+        warning = 'Unusually fast input detected';
+      } else if (snapshot.pasteDetected && snapshot.velocity === 0) {
+        warning = 'Paste-only entry detected';
+      } else if (snapshot.focusCount > 1 && snapshot.blurWithoutChange > 1) {
+        warning = 'Repeated focus without entry';
+      } else if (snapshot.corrections > 5) {
+        warning = 'Excessive corrections detected';
+      }
+      if (warning !== null) {
+        this.#reportFieldError(snapshot.fieldName, warning, 'warning');
+      }
+    }
+  }
+
   getData(): Record<string, string> {
     return this.#collectFormData();
   }
@@ -663,6 +747,12 @@ export class SecureForm extends HTMLElement {
       this.#formElement.reset();
       this.#clearStatus();
       this.#detectedThreats = [];
+      if (this.#formStateTimeout !== null) {
+        clearTimeout(this.#formStateTimeout);
+        this.#formStateTimeout = null;
+      }
+      this.#setFormState(null);
+      this.#clearAllExternalErrors();
 
       this.audit('form_reset', {
         formId: this.#instanceId
@@ -683,6 +773,10 @@ export class SecureForm extends HTMLElement {
 
   disconnectedCallback(): void {
     this.#submitAbortController?.abort();
+    if (this.#formStateTimeout !== null) {
+      clearTimeout(this.#formStateTimeout);
+      this.#formStateTimeout = null;
+    }
     if (this.#formElement) {
       this.#formElement.reset();
     }
