@@ -354,6 +354,144 @@ describe('SecureForm', () => {
     });
   });
 
+  describe('Threat Detection Integration', () => {
+    beforeEach(() => {
+      form.setAttribute('action', '/api/test');
+      form.setAttribute('method', 'POST');
+      form.setAttribute('use-fetch', '');
+      document.body.appendChild(form);
+    });
+
+    it('accumulates secure-threat-detected events from child fields', () => {
+      const threat = new CustomEvent('secure-threat-detected', {
+        detail: {
+          fieldName: 'username',
+          threatType: 'injection',
+          patternId: 'script-tag',
+          tier: 'critical',
+          timestamp: Date.now(),
+        },
+        bubbles: true,
+        composed: true,
+      });
+
+      form.dispatchEvent(threat);
+
+      // Threat should be reflected in telemetry at submission
+      const submitEvents: CustomEvent[] = [];
+      form.addEventListener('secure-form-submit', (e) => {
+        submitEvents.push(e as CustomEvent);
+        (e as CustomEvent).detail.cancelSubmission();
+      });
+
+      form.submit();
+
+      expect(submitEvents).toHaveLength(1);
+      const telemetry = submitEvents[0]!.detail.telemetry;
+      expect(telemetry.detectedThreats).toHaveLength(1);
+      expect(telemetry.detectedThreats![0].threatType).toBe('injection');
+      expect(telemetry.detectedThreats![0].patternId).toBe('script-tag');
+    });
+
+    it('raises riskScore when injection threat is detected', () => {
+      const threat = new CustomEvent('secure-threat-detected', {
+        detail: {
+          fieldName: 'comment',
+          threatType: 'injection',
+          patternId: 'event-handler',
+          tier: 'authenticated',
+          timestamp: Date.now(),
+        },
+        bubbles: true,
+        composed: true,
+      });
+
+      form.dispatchEvent(threat);
+
+      const submitEvents: CustomEvent[] = [];
+      form.addEventListener('secure-form-submit', (e) => {
+        submitEvents.push(e as CustomEvent);
+        (e as CustomEvent).detail.cancelSubmission();
+      });
+
+      form.submit();
+
+      const telemetry = submitEvents[0]!.detail.telemetry;
+      expect(telemetry.riskScore).toBeGreaterThanOrEqual(40);
+      expect(telemetry.riskSignals).toContain('injection_detected');
+    });
+
+    it('raises riskScore when csrf-token-absent threat is detected', () => {
+      const threat = new CustomEvent('secure-threat-detected', {
+        detail: {
+          fieldName: 'secure-form-abc',
+          threatType: 'csrf-token-absent',
+          patternId: 'csrf-token-absent',
+          tier: 'critical',
+          timestamp: Date.now(),
+        },
+        bubbles: true,
+        composed: true,
+      });
+
+      form.dispatchEvent(threat);
+
+      const submitEvents: CustomEvent[] = [];
+      form.addEventListener('secure-form-submit', (e) => {
+        submitEvents.push(e as CustomEvent);
+        (e as CustomEvent).detail.cancelSubmission();
+      });
+
+      form.submit();
+
+      const telemetry = submitEvents[0]!.detail.telemetry;
+      expect(telemetry.riskScore).toBeGreaterThanOrEqual(20);
+      expect(telemetry.riskSignals).toContain('csrf_token_absent');
+    });
+
+    it('clears detectedThreats on reset', () => {
+      const threat = new CustomEvent('secure-threat-detected', {
+        detail: {
+          fieldName: 'email',
+          threatType: 'injection',
+          patternId: 'script-tag',
+          tier: 'sensitive',
+          timestamp: Date.now(),
+        },
+        bubbles: true,
+        composed: true,
+      });
+
+      form.dispatchEvent(threat);
+      form.reset();
+
+      const submitEvents: CustomEvent[] = [];
+      form.addEventListener('secure-form-submit', (e) => {
+        submitEvents.push(e as CustomEvent);
+        (e as CustomEvent).detail.cancelSubmission();
+      });
+
+      form.submit();
+
+      const telemetry = submitEvents[0]!.detail.telemetry;
+      expect(telemetry.detectedThreats).toBeUndefined();
+      expect(telemetry.riskSignals).not.toContain('injection_detected');
+    });
+
+    it('detectedThreats is undefined when no threats occurred', () => {
+      const submitEvents: CustomEvent[] = [];
+      form.addEventListener('secure-form-submit', (e) => {
+        submitEvents.push(e as CustomEvent);
+        (e as CustomEvent).detail.cancelSubmission();
+      });
+
+      form.submit();
+
+      const telemetry = submitEvents[0]!.detail.telemetry;
+      expect(telemetry.detectedThreats).toBeUndefined();
+    });
+  });
+
   describe('Edge Cases', () => {
     it('should handle form with no fields', () => {
       document.body.appendChild(form);
