@@ -1,6 +1,6 @@
 {
   "name": "secure-ui-components",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Security-first web component library with zero dependencies",
   "type": "module",
   "main": "./dist/index.js",
