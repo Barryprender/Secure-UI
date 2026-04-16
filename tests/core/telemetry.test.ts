@@ -151,6 +151,31 @@ describe('SecureBaseComponent — telemetry collection', () => {
     expect(el.getFieldTelemetry().pasteDetected).toBe(false);
   });
 
+  it('autofillDetected is true when input event fires with empty inputType on an input element (Firefox autocomplete)', () => {
+    const input = getInput(el);
+    fireFocus(input);
+    input.value = 'firefox@example.com';
+    input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: '' }));
+    fireBlur(input);
+    expect(el.getFieldTelemetry().autofillDetected).toBe(true);
+  });
+
+  it('autofillDetected is true after animationstart with secure-autofill-detect name (CSS autofill hook)', () => {
+    const input = getInput(el);
+    const evt = new Event('animationstart');
+    Object.defineProperty(evt, 'animationName', { value: 'secure-autofill-detect' });
+    input.dispatchEvent(evt);
+    expect(el.getFieldTelemetry().autofillDetected).toBe(true);
+  });
+
+  it('animationstart with a different animation name does not set autofillDetected', () => {
+    const input = getInput(el);
+    const evt = new Event('animationstart');
+    Object.defineProperty(evt, 'animationName', { value: 'some-other-animation' });
+    input.dispatchEvent(evt);
+    expect(el.getFieldTelemetry().autofillDetected).toBe(false);
+  });
+
   // ── corrections ───────────────────────────────────────────────────────────
 
   it('corrections increments for deleteContentBackward', () => {
