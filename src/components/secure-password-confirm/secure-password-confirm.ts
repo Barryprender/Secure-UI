@@ -176,6 +176,8 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
   // ── Event wiring ──────────────────────────────────────────────────────────
 
   #attachPasswordListeners(): void {
+    this.setupAutofillDetection(this.#passwordInput!);
+
     this.#passwordInput!.addEventListener('focus', () => {
       this.recordTelemetryFocus();
     });

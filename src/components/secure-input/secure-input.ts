@@ -241,6 +241,8 @@ export class SecureInput extends SecureBaseComponent {
   }
 
   #attachEventListeners(): void {
+    this.setupAutofillDetection(this.#inputElement!);
+
     this.#inputElement!.addEventListener('focus', () => {
       this.recordTelemetryFocus();
       this.audit('input_focused', {

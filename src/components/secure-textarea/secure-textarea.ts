@@ -152,6 +152,8 @@ export class SecureTextarea extends SecureBaseComponent {
   }
 
   #attachEventListeners(): void {
+    this.setupAutofillDetection(this.#textareaElement!);
+
     this.#textareaElement!.addEventListener('focus', () => {
       this.recordTelemetryFocus();
       this.audit('textarea_focused', {

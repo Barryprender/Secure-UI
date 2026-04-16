@@ -414,6 +414,11 @@ export class SecureCard extends SecureBaseComponent {
     // ── Event listeners ───────────────────────────────────────────────────────
     // Telemetry hooks aggregate signals across all card inputs into one
     // composite behavioral fingerprint for the overall card interaction.
+    this.setupAutofillDetection(this.#numberInput);
+    this.setupAutofillDetection(this.#expiryInput);
+    this.setupAutofillDetection(this.#cvcInput);
+    this.setupAutofillDetection(this.#nameInput);
+
     this.#numberInput.addEventListener('input', (e) => { this.recordTelemetryInput(e); this.#handleNumberInput(e); });
     this.#numberInput.addEventListener('focus', () => { this.recordTelemetryFocus(); this.#handleNumberFocus(); });
     this.#numberInput.addEventListener('blur', () => { this.recordTelemetryBlur(); this.#handleNumberBlur(); });

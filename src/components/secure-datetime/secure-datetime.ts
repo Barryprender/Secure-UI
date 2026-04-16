@@ -309,6 +309,8 @@ export class SecureDateTime extends SecureBaseComponent {
    * @private
    */
   #attachEventListeners(): void {
+    this.setupAutofillDetection(this.#inputElement!);
+
     // Focus event - audit logging + telemetry
     this.#inputElement!.addEventListener('focus', () => {
       this.recordTelemetryFocus();
