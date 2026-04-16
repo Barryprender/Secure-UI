@@ -216,6 +216,13 @@ export class SecureForm extends HTMLElement {
     this.addEventListener('secure-select-change', (e: Event) => {
       this.#handleFieldChange(e);
     });
+
+    this.addEventListener('secure-threat-detected', (e: Event) => {
+      const detail = (e as CustomEvent<ThreatDetectedDetail>).detail;
+      if (detail) {
+        this.#detectedThreats.push(detail);
+      }
+    });
   }
 
   #handleFieldChange(_event: Event): void {
@@ -433,6 +440,8 @@ export class SecureForm extends HTMLElement {
    *
    * @private
    */
+  #detectedThreats: ThreatDetectedDetail[] = [];
+
   #submitAbortController: AbortController | null = null;
 
   async #submitForm(
@@ -539,7 +548,7 @@ export class SecureForm extends HTMLElement {
     });
 
     const sessionDuration = Date.now() - this.#sessionStart;
-    const { riskScore, riskSignals } = this.#computeRiskScore(fields, sessionDuration);
+    const { riskScore, riskSignals } = this.#computeRiskScore(fields, sessionDuration, this.#detectedThreats);
 
     return {
       sessionDuration,
@@ -548,6 +557,7 @@ export class SecureForm extends HTMLElement {
       riskScore,
       riskSignals,
       submittedAt: new Date().toISOString(),
+      detectedThreats: this.#detectedThreats.length > 0 ? [...this.#detectedThreats] : undefined,
     };
   }
 
@@ -568,10 +578,23 @@ export class SecureForm extends HTMLElement {
    */
   #computeRiskScore(
     fields: FieldTelemetrySnapshot[],
-    sessionDuration: number
+    sessionDuration: number,
+    threats: ThreatDetectedDetail[] = []
   ): { riskScore: number; riskSignals: string[] } {
     const signals: string[] = [];
     let score = 0;
+
+    // Threat events are the strongest signal — weight them first
+    const injections = threats.filter(t => t.threatType === 'injection');
+    const csrfAbsent = threats.some(t => t.threatType === 'csrf-token-absent');
+    if (injections.length > 0) {
+      score += 40;
+      signals.push('injection_detected');
+    }
+    if (csrfAbsent) {
+      score += 20;
+      signals.push('csrf_token_absent');
+    }
 
     // Session speed
     if (sessionDuration < 3000) {
@@ -639,6 +662,7 @@ export class SecureForm extends HTMLElement {
     if (this.#formElement) {
       this.#formElement.reset();
       this.#clearStatus();
+      this.#detectedThreats = [];
 
       this.audit('form_reset', {
         formId: this.#instanceId
