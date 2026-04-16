@@ -60,3 +60,26 @@ secure-form .form-status-error {
   color: #D32F2F;
   border: 1px solid #D32F2F;
 }
+
+/* --- Form-level state feedback (outline avoids layout shift) --- */
+
+secure-form .secure-form {
+  transition: outline-color 200ms ease, outline-offset 200ms ease;
+  outline: 3px solid transparent;
+  outline-offset: 2px;
+}
+
+secure-form[data-state="success"] .secure-form {
+  outline-color: var(--secure-ui-color-success, #10b981);
+}
+
+secure-form[data-state="blocked"] .secure-form,
+secure-form[data-state="error"] .secure-form {
+  outline-color: var(--secure-ui-color-error, #ef4444);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  secure-form .secure-form {
+    transition: none;
+  }
+}
