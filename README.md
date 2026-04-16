@@ -9,16 +9,17 @@ Security-first Web Component library with built-in behavioral telemetry. Zero de
 - **11 Secure Components** — Input, Textarea, Select, Form, File Upload, DateTime, Table, Submit Button, Card, Password Confirm, Telemetry Provider
 - **4-Tier Security System** — `public`, `authenticated`, `sensitive`, `critical`
 - **Behavioral Telemetry** — Every field collects typing patterns, paste detection, dwell time, and correction signals automatically
-- **Risk Scoring** — `<secure-form>` aggregates field signals into a session-level risk score at submission
-- **Injection Detection** — All input fields scan for XSS, script injection, and template injection patterns in real time; fires `secure-threat-detected` with the matched pattern ID
+- **Risk Scoring** — `<secure-form>` aggregates field signals into a session-level risk score at submission; per-field warnings surface directly on the offending inputs
+- **Injection Detection** — All input fields scan for XSS, script injection, and template injection patterns in real time; fires `secure-threat-detected` with the matched pattern ID; injection attempts **block form submission** with an immediate red-border UI state
 - **CSRF Threat Detection** — `<secure-form>` fires `secure-threat-detected` at submission when a CSRF token is absent on `sensitive` or `critical` tier forms
+- **Form UI Feedback** — `<secure-form>` sets `data-state` on itself at key moments: `blocked` (injection detected), `success` (server 2xx, auto-clears after 3 s), `error` (server/network failure); individual fields receive inline error or warning messages
 - **Signed Envelopes** — `<secure-telemetry-provider>` detects automation/headless browsers, accumulates threat signals, and signs every submission with HMAC-SHA-256 (signing key cached per session)
 - **Zero Dependencies** — Pure TypeScript, no runtime dependencies
 - **Progressive Enhancement** — All components render meaningful markup and work without JavaScript
 - **CSP-Safe** — Bundle mode uses `adoptedStyleSheets` (constructable stylesheets, exempt from `unsafe-inline`); ESM/dev mode uses `<link>` from `'self'`; neither requires `unsafe-inline`
 - **SSR Friendly** — Adopts server-rendered markup on upgrade; no document access in constructors
 - **Fully Customisable** — CSS Design Tokens + `::part()` API
-- **Comprehensive Testing** — 1176 tests, 84%+ branch coverage
+- **Comprehensive Testing** — 1197 tests, 84%+ branch coverage
 
 ---
 
@@ -35,7 +36,7 @@ Field interaction  →  Behavioral signals  →  Risk score  →  Signed envelop
 Every secure field silently records: dwell time from focus to first keystroke, typing velocity, correction count (backspace/delete), paste detection, autofill detection, focus count, and blur-without-change patterns. On every input event, the raw value is scanned against injection patterns (XSS, script tags, JS protocols, event handlers, template injection, and more) — a `secure-threat-detected` event is dispatched if a match is found, with the matched pattern ID but never the raw value.
 
 **Layer 2 — Session aggregation** (`<secure-form>`)
-At submission, the form queries `getFieldTelemetry()` from every child field, produces per-field snapshots, and computes a composite risk score from 0–100. For `sensitive` and `critical` tiers, a missing CSRF token at submission time triggers a `secure-threat-detected` event before the request proceeds. The telemetry payload travels alongside form data in a single `fetch` request as `_telemetry`.
+At submission, the form queries `getFieldTelemetry()` from every child field, produces per-field snapshots, and computes a composite risk score from 0–100. If any injection threat was detected during the session, submission is **blocked** — the form sets `data-state="blocked"` and marks the offending field with an inline error; the `secure-form-submit` event never fires. Non-blocking telemetry signals (bot-like velocity, unfocused fill, paste-only entry, etc.) annotate the specific fields with inline warnings without preventing submission. All detected threats are captured in `SessionTelemetry.detectedThreats`. For `sensitive` and `critical` tiers, a missing CSRF token at submission time triggers a `secure-threat-detected` event. The full telemetry payload (including `detectedThreats`) travels alongside form data in a single `fetch` request as `_telemetry`.
 
 **Layer 3 — Environmental signals** (`<secure-telemetry-provider>`)
 An optional overlay that wraps `<secure-form>`. Monitors for WebDriver/headless flags, DOM script injection (via `MutationObserver`), suspicious screen dimensions, and pointer/keyboard activity. Accumulates all `secure-threat-detected` signals from child components during the session into `threatSignals`. Signs the final envelope with HMAC-SHA-256 using a cached `CryptoKey` (imported once per key value, re-imported only on rotation) so the server can detect replay attacks and inspect any injection or CSRF threats that occurred during the session.
@@ -92,16 +93,20 @@ An optional overlay that wraps `<secure-form>`. Monitors for WebDriver/headless 
 
 **Risk signals**
 
-| Signal | Condition | Score |
-|--------|-----------|-------|
-| `session_too_fast` | Submitted in under 3 s | +30 |
-| `session_fast` | Submitted in under 8 s | +10 |
-| `all_fields_pasted` | All fields pasted, no keystrokes | +25 |
-| `field_filled_without_focus` | Any field has `focusCount = 0` | +15 |
-| `high_velocity_typing` | Any field velocity > 15 ks/s | +15 |
-| `form_probing` | Field focused/blurred > 1× with no input | +10 |
-| `high_correction_count` | Any field with > 5 corrections | +5 |
-| `autofill_detected` | All fields autofilled (trust signal) | −10 |
+Signals marked **blocks** prevent submission entirely. All others are non-blocking — they annotate individual fields with inline warnings and appear in `riskSignals` for the server.
+
+| Signal | Condition | Score | Blocking |
+|--------|-----------|-------|----------|
+| `injection_detected` | Any field fired `secure-threat-detected` with `threatType: 'injection'` | +40 | **yes** |
+| `session_too_fast` | Submitted in under 3 s | +30 | no |
+| `all_fields_pasted` | All fields pasted, no keystrokes | +25 | no |
+| `csrf_token_absent` | CSRF token absent at submission on sensitive/critical tier | +20 | no |
+| `field_filled_without_focus` | Any field has `focusCount = 0` | +15 | no |
+| `high_velocity_typing` | Any field velocity > 15 ks/s | +15 | no |
+| `session_fast` | Submitted in under 8 s | +10 | no |
+| `form_probing` | Field focused/blurred > 1× with no input | +10 | no |
+| `high_correction_count` | Any field with > 5 corrections | +5 | no |
+| `autofill_detected` | All fields autofilled (trust signal) | −10 | no |
 
 ---
 
@@ -323,9 +328,23 @@ Light DOM `<option>` children are transferred to the shadow DOM automatically. O
 
 ### `<secure-form>`
 
-Form container with CSRF protection, field validation, behavioral telemetry aggregation, and optional fetch-enhanced submission.
+Form container with CSRF protection, field validation, behavioral telemetry aggregation, injection blocking, and optional fetch-enhanced submission.
 
 > `<secure-form>` uses **light DOM** (no Shadow DOM) for native form submission compatibility.
+
+**Injection blocking** — If any child field fires `secure-threat-detected` with `threatType: 'injection'` during the session, `<secure-form>` immediately sets `data-state="blocked"` and marks the offending field with an inline error. Submission is prevented until the form is reset.
+
+**Form state feedback** — `<secure-form>` sets a `data-state` attribute on itself that you can target with CSS:
+
+| `data-state` | When set | Clears |
+|---|---|---|
+| `blocked` | Injection threat detected | On `reset()` |
+| `success` | Server returns 2xx | Automatically after 3 s |
+| `error` | Server/network error | On next submission |
+
+The built-in stylesheet applies a coloured `outline` to the inner `<form>` for each state. Override via `secure-form[data-state="success"] .secure-form { outline-color: … }`.
+
+**Risk warnings** — Non-blocking telemetry signals (high velocity, unfocused fill, paste-only, etc.) are surfaced as inline `warning` messages on the specific fields at submission time. Submission still proceeds.
 
 **Attributes**
 
@@ -363,12 +382,13 @@ el.submit()       // programmatic submit (triggers validation + telemetry)
 
 ```ts
 {
-  sessionDuration: number;      // ms from form mount to submission
+  sessionDuration: number;                    // ms from form mount to submission
   fieldCount: number;
   fields: FieldTelemetrySnapshot[];
-  riskScore: number;            // 0–100
-  riskSignals: string[];        // e.g. ['session_too_fast', 'all_fields_pasted']
-  submittedAt: string;          // ISO 8601
+  riskScore: number;                          // 0–100
+  riskSignals: string[];                      // e.g. ['injection_detected', 'session_too_fast']
+  submittedAt: string;                        // ISO 8601
+  detectedThreats?: ThreatDetectedDetail[];   // injection/csrf threats seen this session; omitted when none
 }
 ```
 
@@ -391,14 +411,14 @@ el.submit()       // programmatic submit (triggers validation + telemetry)
 form.addEventListener('secure-form-submit', (e) => {
   const { formData, telemetry } = e.detail;
 
-  // Block high-risk submissions before they reach your server
-  if (telemetry.riskScore >= 50) {
-    e.detail.cancelSubmission(); // aborts fetch, re-enables form
-    showChallenge();
-    return;
+  // Injection attempts are already blocked before this event fires.
+  // detectedThreats contains any csrf-token-absent signals that slipped through.
+  if (telemetry.detectedThreats?.length) {
+    console.warn('Threats recorded this session:', telemetry.detectedThreats);
   }
 
-  // Log signals for your fraud pipeline
+  // Non-blocking risk warnings — fields are already annotated by the form;
+  // you can additionally gate on score server-side.
   analytics.track('form_submit', {
     risk: telemetry.riskScore,
     signals: telemetry.riskSignals,
@@ -861,6 +881,8 @@ Every `<secure-input>`, `<secure-textarea>`, and `<secure-password-confirm>` sca
 
 Only the **first** matching pattern fires an event per input event to avoid flooding. The raw value is **never** included in the event detail.
 
+When `<secure-form>` receives a `secure-threat-detected` event with `threatType: 'injection'`, it immediately sets `data-state="blocked"` on itself, displays an inline error on the offending field, and **blocks all future submission attempts** until `form.reset()` is called.
+
 ```js
 document.addEventListener('secure-threat-detected', (e) => {
   const { fieldName, threatType, patternId, tier, timestamp } = e.detail;
@@ -916,13 +938,14 @@ All field components support:
 All field components expose these in addition to component-specific methods:
 
 ```js
-el.value             // get/set current value
-el.valid             // boolean — passes all validation rules
-el.name              // field name string
-el.securityTier      // current security tier
-el.getAuditLog()     // AuditLogEntry[]
-el.clearAuditLog()
+el.value               // get/set current value
+el.valid               // boolean — passes all validation rules
+el.name                // field name string
+el.securityTier        // current security tier
+el.getAuditLog()       // AuditLogEntry[]
 el.getFieldTelemetry() // FieldTelemetry — behavioral signals (no raw values)
+el.reportError(message, variant?)  // show a form-level error ('error') or warning ('warning') on this field
+el.clearExternalError()            // clear a message set by reportError()
 el.focus()
 el.blur()
 ```
@@ -946,17 +969,17 @@ el.blur()
 
 | Event | Fired by | Detail |
 |-------|----------|--------|
-| `secure-input` | `<secure-input>` | `{ name, value, masked, tier }` |
-| `secure-textarea` | `<secure-textarea>` | `{ name, value, tier }` |
-| `secure-select` | `<secure-select>` | `{ name, value, tier }` |
-| `secure-datetime` | `<secure-datetime>` | `{ name, value, type, tier }` |
-| `secure-file-upload` | `<secure-file-upload>` | `{ name, files, tier }` |
-| `secure-form-submit` | `<secure-form>` | `{ formData, formElement, telemetry, preventDefault() }` |
+| `secure-input-change` | `<secure-input>` | `{ name, value, masked, tier }` |
+| `secure-textarea-change` | `<secure-textarea>` | `{ name, value, tier }` |
+| `secure-select-change` | `<secure-select>` | `{ name, value: string \| string[], tier }` |
+| `secure-datetime-change` | `<secure-datetime>` | `{ name, value, type, tier }` |
+| `secure-file-change` | `<secure-file-upload>` | `{ name, files, tier }` |
+| `secure-card-change` | `<secure-card>` | `{ name, cardType, last4, expiryMonth, expiryYear, cardholderName, valid, tier }` |
+| `secure-form-submit` | `<secure-form>` | `{ formData, telemetry, cancelSubmission() }` — call `cancelSubmission()` to abort the fetch and re-enable the form |
 | `secure-form-success` | `<secure-form>` | `{ formData, response, telemetry }` |
-| `secure-card` | `<secure-card>` | `{ name, cardType, last4, expiryMonth, expiryYear, cardholderName, valid, tier }` |
-| `secure-audit` | all components | `{ event, tier, timestamp, … }` |
-| `secure-threat-detected` | `<secure-input>`, `<secure-textarea>`, `<secure-password-confirm>`, `<secure-form>` | `{ fieldName, threatType, patternId, tier, timestamp }` — injection or CSRF threat detected |
-| `table-action` | `<secure-table>` | `{ action, row }` |
+| `secure-table-action` | `<secure-table>` | `{ action, …data-attributes }` |
+| `secure-audit` | all components | `{ event, tier, timestamp, data? }` |
+| `secure-threat-detected` | `<secure-input>`, `<secure-textarea>`, `<secure-password-confirm>`, `<secure-form>` | `{ fieldName, threatType, patternId, tier, timestamp }` |
 
 ---
 
