@@ -60,6 +60,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
   #config: TierConfig;
   #shadow: ShadowRoot;
   #auditLog: AuditLogEntry[] = [];
+  #externalErrorEl: HTMLDivElement | null = null;
   #rateLimitState: RateLimitState = {
     attempts: 0,
     windowStart: Date.now()
@@ -153,6 +154,14 @@ export abstract class SecureBaseComponent extends HTMLElement {
     if (content) {
       this.#shadow.appendChild(content);
     }
+
+    // External error slot — written by secure-form to surface form-level errors
+    // and telemetry warnings on individual fields without touching their internal
+    // validation state.
+    this.#externalErrorEl = document.createElement('div');
+    this.#externalErrorEl.className = 'external-error hidden';
+    this.#externalErrorEl.setAttribute('aria-live', 'polite');
+    this.#shadow.appendChild(this.#externalErrorEl);
   }
 
   /**
@@ -327,6 +336,35 @@ export abstract class SecureBaseComponent extends HTMLElement {
 
   getAuditLog(): AuditLogEntry[] {
     return [...this.#auditLog];
+  }
+
+  /**
+   * Display a form-level message on this field.
+   * Called by secure-form to surface injection errors ('error') or
+   * behavioural risk warnings ('warning') without disturbing the field's
+   * own validation state.
+   */
+  reportError(message: string, variant: 'error' | 'warning' = 'error'): void {
+    if (!this.#externalErrorEl) return;
+    this.#externalErrorEl.textContent = message;
+    this.#externalErrorEl.dataset['variant'] = variant;
+    // role="alert" triggers assertive announcement for errors; polite aria-live
+    // handles warnings — only promote to alert when showing an error message.
+    if (variant === 'error') {
+      this.#externalErrorEl.setAttribute('role', 'alert');
+    } else {
+      this.#externalErrorEl.removeAttribute('role');
+    }
+    this.#externalErrorEl.classList.remove('hidden');
+  }
+
+  /** Clear any message previously set by reportError(). */
+  clearExternalError(): void {
+    if (!this.#externalErrorEl) return;
+    this.#externalErrorEl.removeAttribute('role');
+    this.#externalErrorEl.classList.add('hidden');
+    this.#externalErrorEl.textContent = '';
+    delete this.#externalErrorEl.dataset['variant'];
   }
 
   protected clearAuditLog(): void {
