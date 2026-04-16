@@ -788,4 +788,68 @@ describe('SecureBaseComponent', () => {
       vi.useRealTimers();
     });
   });
+
+  describe('reportError() / clearExternalError()', () => {
+    it('shows an error message in the shadow root with role="alert"', () => {
+      document.body.appendChild(component);
+      component.reportError('Injection attempt blocked');
+      const el = component.shadowRoot.querySelector('.external-error');
+      expect(el).not.toBeNull();
+      expect(el!.classList.contains('hidden')).toBe(false);
+      expect(el!.textContent).toBe('Injection attempt blocked');
+      expect(el!.getAttribute('role')).toBe('alert');
+      expect((el as HTMLElement).dataset['variant']).toBe('error');
+    });
+
+    it('shows a warning message without role="alert"', () => {
+      document.body.appendChild(component);
+      component.reportError('Unusual input detected', 'warning');
+      const el = component.shadowRoot.querySelector('.external-error');
+      expect(el).not.toBeNull();
+      expect(el!.classList.contains('hidden')).toBe(false);
+      expect(el!.getAttribute('role')).toBeNull();
+      expect((el as HTMLElement).dataset['variant']).toBe('warning');
+    });
+
+    it('clearExternalError() hides the element and resets content', () => {
+      document.body.appendChild(component);
+      component.reportError('Some error');
+      component.clearExternalError();
+      const el = component.shadowRoot.querySelector('.external-error');
+      expect(el!.classList.contains('hidden')).toBe(true);
+      expect(el!.textContent).toBe('');
+      expect(el!.getAttribute('role')).toBeNull();
+    });
+
+    it('external-error element is not role="alert" before reportError is called', () => {
+      document.body.appendChild(component);
+      const alerts = component.shadowRoot.querySelectorAll('[role="alert"]');
+      // Only the field's own error containers should have role="alert" — not the
+      // uninitialised external-error slot.
+      const externalAlerts = Array.from(alerts).filter(
+        el => el.classList.contains('external-error')
+      );
+      expect(externalAlerts).toHaveLength(0);
+    });
+
+    it('reportError() is a no-op before the component connects (null guard)', () => {
+      // #externalErrorEl is null until connectedCallback; must not throw
+      expect(() => component.reportError('too early')).not.toThrow();
+    });
+
+    it('clearExternalError() is a no-op before the component connects (null guard)', () => {
+      expect(() => component.clearExternalError()).not.toThrow();
+    });
+  });
+
+  describe('connectedCallback idempotency', () => {
+    it('does not re-render when reconnected after disconnection', () => {
+      document.body.appendChild(component);
+      const firstCount = component.renderCallCount;
+      component.remove();
+      document.body.appendChild(component);
+      // render() should NOT be called again — #initialized stays true
+      expect(component.renderCallCount).toBe(firstCount);
+    });
+  });
 });
