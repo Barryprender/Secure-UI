@@ -7,6 +7,26 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased] — 0.3.x
+
+### Added
+
+- **`SecureForm` injection blocking** — If any child field fires `secure-threat-detected` with `threatType: 'injection'` during a session, form submission is now blocked entirely. The form sets `data-state="blocked"`, the offending field receives an inline error via the new `reportError()` API, and `secure-form-submit` is never dispatched. Resets cleanly via `form.reset()`.
+- **`SecureForm` form state feedback** — `<secure-form>` now sets a `data-state` attribute (`blocked` / `success` / `error`) on submission lifecycle events. The built-in stylesheet applies a coloured `outline` to the inner `<form>` for each state; `success` auto-clears after 3 s. Override via `secure-form[data-state="..."] .secure-form`.
+- **Non-blocking risk warnings on fields** — At submission, `<secure-form>` calls `reportError(message, 'warning')` on each field whose telemetry snapshot triggers a risk signal (`field_filled_without_focus`, `high_velocity_typing`, `all_fields_pasted`, `form_probing`, `high_correction_count`). Submission still proceeds; the server receives the full telemetry.
+- **`SessionTelemetry.detectedThreats`** (`types.ts`) — New optional field on `SessionTelemetry`. Populated with all `ThreatDetectedDetail` records collected during the session; omitted when no threats occurred. Travels to the server in `_telemetry`.
+- **New risk signals** — `injection_detected` (+40, blocks) and `csrf_token_absent` (+20, non-blocking) added to `#computeRiskScore`.
+- **`SecureBaseComponent.reportError(message, variant?)` / `clearExternalError()`** — New public methods on all field components. Allow `<secure-form>` (and user code) to surface form-level error or warning messages on individual fields without disturbing the field's own validation state. Uses a dedicated `.external-error` slot in the shadow DOM so the field's `#clearErrors()` does not clobber these messages.
+- **`.external-error` CSS class** (`base.css`) — Styles for the external error slot: red for `variant="error"`, amber for `variant="warning"`, using `color-mix()` tints of the existing `--secure-ui-color-error` / `--secure-ui-color-warning` tokens.
+
+### Tests
+
+- 1197 tests across 27 test files, all passing (up from 1182).
+- New coverage: `reportError`/`clearExternalError` API, `connectedCallback` idempotency, injection blocking, form state transitions, risk warning field annotation, rate-limit exceeded and window-reset paths.
+- All per-file and global coverage thresholds pass.
+
+---
+
 ## [0.1.1] — 2026-03-13
 
 ### Added
