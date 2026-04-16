@@ -447,8 +447,15 @@ export abstract class SecureBaseComponent extends HTMLElement {
     if (inputType === 'insertFromPaste' || inputType === 'insertFromPasteAsQuotation') {
       t.pasteDetected = true;
     } else if (inputType === 'insertReplacementText') {
-      // Browser autofill triggers this type
       t.autofillDetected = true;
+    } else if (inputType === '') {
+      // Firefox fires input events with empty inputType for autocomplete selections.
+      // Programmatic .value assignments do not fire input events, so an empty inputType
+      // on an actual input event reliably indicates browser fill on input/textarea.
+      const target = event.target;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+        t.autofillDetected = true;
+      }
     } else if (
       inputType.startsWith('delete') ||
       inputType === 'historyUndo' ||
@@ -474,6 +481,18 @@ export abstract class SecureBaseComponent extends HTMLElement {
     if (currentLength === t.lastInputLength && t.keyCount === 0 && !t.pasteDetected) {
       t.blurWithoutChange++;
     }
+  }
+
+  /** Wire up CSS-animation-based autofill detection for an input or textarea element.
+   * Call once per element during event listener setup. Works alongside the
+   * `insertReplacementText` (Chrome) and empty-inputType (Firefox) paths in
+   * recordTelemetryInput to give full cross-browser coverage. */
+  protected setupAutofillDetection(el: HTMLInputElement | HTMLTextAreaElement): void {
+    el.addEventListener('animationstart', (e: Event) => {
+      if ((e as AnimationEvent).animationName === 'secure-autofill-detect') {
+        this.#telemetryState.autofillDetected = true;
+      }
+    });
   }
 
   /** Computed behavioural signals for this field. No raw values or PII. */
