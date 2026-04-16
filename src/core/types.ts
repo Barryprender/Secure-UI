@@ -318,6 +318,11 @@ export interface SessionTelemetry {
   riskSignals: string[];
   /** ISO 8601 timestamp of submission */
   submittedAt: string;
+  /**
+   * Threat events (injection attempts, absent CSRF tokens) observed during
+   * this session. Safe to transmit — raw field values are intentionally absent.
+   */
+  detectedThreats?: readonly ThreatDetectedDetail[];
 }
 
 /**
