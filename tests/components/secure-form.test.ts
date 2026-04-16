@@ -238,6 +238,33 @@ describe('SecureForm', () => {
       expect(result).toHaveProperty('allowed');
       expect(result).toHaveProperty('retryAfter');
     });
+
+    it('returns allowed:false and positive retryAfter when limit is exceeded', () => {
+      form.setAttribute('security-tier', 'critical'); // 5 attempts per 60 s
+      document.body.appendChild(form);
+
+      // Exhaust all 5 allowed attempts
+      for (let i = 0; i < 5; i++) {
+        expect(form.checkRateLimit().allowed).toBe(true);
+      }
+      const result = form.checkRateLimit();
+      expect(result.allowed).toBe(false);
+      expect(result.retryAfter).toBeGreaterThan(0);
+    });
+
+    it('resets the window and allows attempts again after the window expires', () => {
+      vi.useFakeTimers();
+      form.setAttribute('security-tier', 'critical');
+      document.body.appendChild(form);
+
+      for (let i = 0; i < 5; i++) form.checkRateLimit();
+      expect(form.checkRateLimit().allowed).toBe(false);
+
+      vi.advanceTimersByTime(61_000);
+      expect(form.checkRateLimit().allowed).toBe(true);
+
+      vi.useRealTimers();
+    });
   });
 
   describe('Sanitization', () => {
@@ -362,12 +389,13 @@ describe('SecureForm', () => {
       document.body.appendChild(form);
     });
 
-    it('accumulates secure-threat-detected events from child fields', () => {
+    it('accumulates non-injection threats in telemetry at submission', () => {
+      // csrf-token-absent threats are recorded but do not block submission
       const threat = new CustomEvent('secure-threat-detected', {
         detail: {
-          fieldName: 'username',
-          threatType: 'injection',
-          patternId: 'script-tag',
+          fieldName: 'secure-form-abc',
+          threatType: 'csrf-token-absent',
+          patternId: 'csrf-token-absent',
           tier: 'critical',
           timestamp: Date.now(),
         },
@@ -377,7 +405,6 @@ describe('SecureForm', () => {
 
       form.dispatchEvent(threat);
 
-      // Threat should be reflected in telemetry at submission
       const submitEvents: CustomEvent[] = [];
       form.addEventListener('secure-form-submit', (e) => {
         submitEvents.push(e as CustomEvent);
@@ -389,11 +416,10 @@ describe('SecureForm', () => {
       expect(submitEvents).toHaveLength(1);
       const telemetry = submitEvents[0]!.detail.telemetry;
       expect(telemetry.detectedThreats).toHaveLength(1);
-      expect(telemetry.detectedThreats![0].threatType).toBe('injection');
-      expect(telemetry.detectedThreats![0].patternId).toBe('script-tag');
+      expect(telemetry.detectedThreats![0].threatType).toBe('csrf-token-absent');
     });
 
-    it('raises riskScore when injection threat is detected', () => {
+    it('blocks submission and sets data-state="blocked" when injection threat detected', () => {
       const threat = new CustomEvent('secure-threat-detected', {
         detail: {
           fieldName: 'comment',
@@ -407,18 +433,18 @@ describe('SecureForm', () => {
       });
 
       form.dispatchEvent(threat);
+      expect(form.dataset['state']).toBe('blocked');
 
       const submitEvents: CustomEvent[] = [];
       form.addEventListener('secure-form-submit', (e) => {
         submitEvents.push(e as CustomEvent);
-        (e as CustomEvent).detail.cancelSubmission();
       });
 
       form.submit();
 
-      const telemetry = submitEvents[0]!.detail.telemetry;
-      expect(telemetry.riskScore).toBeGreaterThanOrEqual(40);
-      expect(telemetry.riskSignals).toContain('injection_detected');
+      // secure-form-submit must NOT fire when injection is present
+      expect(submitEvents).toHaveLength(0);
+      expect(form.dataset['state']).toBe('blocked');
     });
 
     it('raises riskScore when csrf-token-absent threat is detected', () => {
@@ -489,6 +515,111 @@ describe('SecureForm', () => {
 
       const telemetry = submitEvents[0]!.detail.telemetry;
       expect(telemetry.detectedThreats).toBeUndefined();
+    });
+  });
+
+  describe('Form state timeout cancellation', () => {
+    // flush 3 microtask ticks: fetch resolve → #submitForm return → #handleSubmit continue
+    const flush = async (): Promise<void> => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    };
+
+    it('reset() during the 3-second success timer calls clearTimeout', async () => {
+      form.setAttribute('action', '/api/test');
+      form.setAttribute('method', 'POST');
+      form.setAttribute('use-fetch', '');
+      document.body.appendChild(form);
+
+      globalThis.fetch = vi.fn().mockResolvedValue(new Response('ok', { status: 200 }));
+      const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+      form.submit();
+      await flush();
+
+      // #formStateTimeout is now set — reset() must cancel it
+      form.reset();
+      expect(clearSpy).toHaveBeenCalled();
+      clearSpy.mockRestore();
+    });
+
+    it('remove() during the 3-second success timer calls clearTimeout', async () => {
+      form.setAttribute('action', '/api/test');
+      form.setAttribute('method', 'POST');
+      form.setAttribute('use-fetch', '');
+      document.body.appendChild(form);
+
+      globalThis.fetch = vi.fn().mockResolvedValue(new Response('ok', { status: 200 }));
+      const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+      form.submit();
+      await flush();
+
+      form.remove();
+      expect(clearSpy).toHaveBeenCalled();
+      clearSpy.mockRestore();
+    });
+  });
+
+  describe('Form state (data-state) transitions', () => {
+    beforeEach(() => {
+      form.setAttribute('action', '/api/test');
+      form.setAttribute('method', 'POST');
+      form.setAttribute('use-fetch', '');
+      document.body.appendChild(form);
+    });
+
+    it('sets data-state="blocked" immediately on injection threat', () => {
+      form.dispatchEvent(new CustomEvent('secure-threat-detected', {
+        detail: { fieldName: 'x', threatType: 'injection', patternId: 'script-tag', tier: 'critical', timestamp: Date.now() },
+        bubbles: true, composed: true,
+      }));
+      expect(form.dataset['state']).toBe('blocked');
+    });
+
+    it('reset() removes data-state and clears threats', () => {
+      form.dispatchEvent(new CustomEvent('secure-threat-detected', {
+        detail: { fieldName: 'x', threatType: 'injection', patternId: 'script-tag', tier: 'critical', timestamp: Date.now() },
+        bubbles: true, composed: true,
+      }));
+      form.reset();
+      expect(form.dataset['state']).toBeUndefined();
+    });
+
+    it('submission is allowed after reset clears injection threats', () => {
+      form.dispatchEvent(new CustomEvent('secure-threat-detected', {
+        detail: { fieldName: 'x', threatType: 'injection', patternId: 'script-tag', tier: 'critical', timestamp: Date.now() },
+        bubbles: true, composed: true,
+      }));
+      form.reset();
+
+      const submitEvents: CustomEvent[] = [];
+      form.addEventListener('secure-form-submit', (e) => {
+        submitEvents.push(e as CustomEvent);
+        (e as CustomEvent).detail.cancelSubmission();
+      });
+      form.submit();
+      expect(submitEvents).toHaveLength(1);
+    });
+  });
+
+  describe('Risk warnings (#applyRiskWarnings)', () => {
+    beforeEach(() => {
+      form.setAttribute('action', '/api/test');
+      form.setAttribute('method', 'POST');
+      form.setAttribute('use-fetch', '');
+      document.body.appendChild(form);
+    });
+
+    it('does not throw when applyRiskWarnings runs with no matching fields', () => {
+      // No fields in the form — querySelector returns null, optional chaining handles it
+      const submitEvents: CustomEvent[] = [];
+      form.addEventListener('secure-form-submit', (e) => {
+        submitEvents.push(e as CustomEvent);
+        (e as CustomEvent).detail.cancelSubmission();
+      });
+      expect(() => form.submit()).not.toThrow();
     });
   });
 
