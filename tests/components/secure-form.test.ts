@@ -386,6 +386,9 @@ describe('SecureForm', () => {
       form.setAttribute('action', '/api/test');
       form.setAttribute('method', 'POST');
       form.setAttribute('use-fetch', '');
+      // Provide a CSRF token so the form's own csrf-token-absent check does not
+      // fire during submission and pollute the detectedThreats array under test.
+      form.setAttribute('csrf-token', 'test-csrf-token');
       document.body.appendChild(form);
     });
 
