@@ -134,11 +134,14 @@ export type SecurityHeaders = Record<string, string>;
 // ========== Component Event Detail Types ==========
 
 /**
- * Custom event detail for secure-input events
+ * Custom event detail for secure-input events.
+ *
+ * `value` is intentionally absent — the raw value must not propagate globally
+ * via a bubbling composed event. Read `(event.target as SecureInput).value`
+ * directly when the actual value is needed.
  */
 export interface SecureInputChangeDetail {
   name: string;
-  value: string;
   masked: boolean;
   tier: SecurityTierValue;
 }
@@ -192,11 +195,18 @@ export interface SecureFormSubmitEventDetail {
 }
 
 /**
- * Custom event detail for secure-form-success events
+ * Custom event detail for secure-form-success events.
+ *
+ * `formData` and the raw `Response` object are intentionally absent.
+ * formData contains sensitive field values that must not broadcast globally via
+ * a bubbling composed event. The Response object exposes server headers
+ * (including Set-Cookie). Consumers that need field values should read them
+ * from the field elements directly; those needing full response control should
+ * handle the fetch themselves via the secure-form-submit cancelSubmission() API.
  */
 export interface SecureFormSuccessEventDetail {
-  formData: Record<string, string>;
-  response: Response;
+  status: number;
+  ok: boolean;
   /** Behavioral telemetry collected from all secure fields */
   telemetry: SessionTelemetry;
 }
