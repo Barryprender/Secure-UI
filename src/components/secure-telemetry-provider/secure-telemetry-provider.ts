@@ -61,9 +61,15 @@ interface ProviderState {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export class SecureTelemetryProvider extends HTMLElement {
+  /** No observed attributes — signing-key is intentionally not a DOM attribute.
+   *  Use setSigningKey() to supply the key programmatically so it is never
+   *  readable via getAttribute(), devtools, or XSS. */
   static get observedAttributes(): string[] {
-    return ['signing-key'];
+    return [];
   }
+
+  /** Symmetric HMAC key stored in JS-private field only — never in the DOM. */
+  #signingKey: string = '';
 
   #state: ProviderState = {
     mouseMovementDetected: false,
@@ -109,6 +115,14 @@ export class SecureTelemetryProvider extends HTMLElement {
   connectedCallback(): void {
     this.#connectedAt = performance.now();
 
+    // If a signing-key attribute was set in HTML, migrate it to the private
+    // field immediately and remove it from the DOM so it is not readable by JS.
+    const attrKey = this.getAttribute('signing-key');
+    if (attrKey) {
+      this.#signingKey = attrKey;
+      this.removeAttribute('signing-key');
+    }
+
     // Snapshot existing scripts so we can detect later injections
     document.querySelectorAll('script').forEach(s => this.#knownScripts.add(s));
 
@@ -122,11 +136,23 @@ export class SecureTelemetryProvider extends HTMLElement {
     this.#removeListeners();
     this.#cryptoKey = null;
     this.#cryptoKeySource = '';
+    this.#signingKey = '';
   }
 
-  attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null): void {
-    if (name === 'signing-key' && newValue !== this.#cryptoKeySource) {
-      // Invalidate the cached key so it is re-imported on the next sign() call
+  /**
+   * Supply the HMAC signing key programmatically.
+   *
+   * Prefer this over the `signing-key` HTML attribute — the attribute is
+   * automatically migrated and removed in connectedCallback, but setting it
+   * via JS means it never appears in the DOM at all.
+   *
+   * For maximum security, inject the key via a server nonce endpoint rather
+   * than embedding it in static HTML or JS bundles.
+   */
+  setSigningKey(key: string): void {
+    if (key !== this.#signingKey) {
+      this.#signingKey = key;
+      // Invalidate the cached CryptoKey so it is re-imported on next sign() call.
       this.#cryptoKey = null;
       this.#cryptoKeySource = '';
     }
@@ -223,15 +249,27 @@ export class SecureTelemetryProvider extends HTMLElement {
   // ── Signing ─────────────────────────────────────────────────────────────────
 
   /**
-   * Generate a signed envelope using HMAC-SHA-256 via SubtleCrypto.
-   * Falls back to an unsigned envelope if SubtleCrypto is unavailable
-   * (e.g., non-secure context in tests) — the server should treat
-   * unsigned envelopes with reduced trust.
+   * Produces a nonce-stamped envelope signed with HMAC-SHA-256.
+   *
+   * ⚠ TAMPER-EVIDENCE, NOT CRYPTOGRAPHIC PROOF.
+   * The signing key lives in client-side JavaScript memory. Any same-page XSS,
+   * compromised browser extension, or privileged script can read the key via
+   * the JS heap and forge arbitrary envelopes. The signature raises the cost
+   * of casual spoofing — it does not guarantee the signals are genuine.
+   *
+   * Use the signature to detect low-effort forgery attempts; treat the signals
+   * themselves as heuristic inputs to a server-side risk model, not as ground
+   * truth. For stronger guarantees, rotate the key per-session via a server
+   * nonce endpoint rather than embedding a static secret.
+   *
+   * Falls back to an unsigned envelope (empty signature) when SubtleCrypto is
+   * unavailable (non-secure HTTP context). Treat unsigned envelopes as
+   * lowest-trust submissions.
    */
   async sign(signals: EnvironmentalSignals): Promise<SignedTelemetryEnvelope> {
     const nonce = this.#generateNonce();
     const issuedAt = new Date().toISOString();
-    const signingKey = this.getAttribute('signing-key') ?? '';
+    const signingKey = this.#signingKey;
 
     const payload = `${nonce}.${issuedAt}.${JSON.stringify(signals)}`;
     const signature = await this.#hmacSha256(signingKey, payload);
