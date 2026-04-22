@@ -387,4 +387,48 @@ describe('SecureForm branch coverage', () => {
     document.body.appendChild(form);
     expect(() => form.remove()).not.toThrow();
   });
+
+  // ── action URL: cross-origin rejection ───────────────────────────────────
+  it('rejects cross-origin action URL and logs audit event', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    form.setAttribute('csrf-token', 'tok');
+    document.body.appendChild(form);
+
+    const auditEvents: string[] = [];
+    form.addEventListener('secure-audit', (e) => {
+      auditEvents.push((e as CustomEvent).detail.event as string);
+    });
+
+    form.setAttribute('action', 'https://evil.com/steal');
+
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('cross-origin'));
+    expect(auditEvents).toContain('form_action_rejected');
+    warnSpy.mockRestore();
+  });
+
+  // ── getAuditLog ───────────────────────────────────────────────────────────
+  it('getAuditLog returns an array of audit entries', () => {
+    form.setAttribute('csrf-token', 'tok');
+    document.body.appendChild(form);
+    form.audit('test_event', { key: 'val' });
+    const log = form.getAuditLog();
+    expect(Array.isArray(log)).toBe(true);
+    expect(log.length).toBeGreaterThan(0);
+    expect(log[log.length - 1]!.event).toBe('test_event');
+  });
+
+  // ── audit log cap (shift at MAX_AUDIT_LOG_SIZE) ───────────────────────────
+  it('audit log caps at 1000 entries and shifts oldest on overflow', () => {
+    form.setAttribute('csrf-token', 'tok');
+    document.body.appendChild(form);
+
+    for (let i = 0; i < 1001; i++) {
+      form.audit(`event_${i}`, {});
+    }
+
+    const log = form.getAuditLog();
+    expect(log.length).toBe(1000);
+    // First entry should be event_1 (event_0 was shifted out)
+    expect(log[0]!.event).toBe('event_1');
+  });
 });
