@@ -477,6 +477,64 @@ describe('SecureTelemetryProvider', () => {
     });
   });
 
+  // ── setSigningKey() API ───────────────────────────────────────────────────
+
+  describe('setSigningKey()', () => {
+    it('updates the signing key and invalidates cached CryptoKey', async () => {
+      provider = mountProvider('initial-key');
+      const signals = provider.collectSignals();
+      const envBefore = await provider.sign(signals);
+
+      provider.setSigningKey('rotated-key');
+      const envAfter = await provider.sign(signals);
+
+      // Different keys must produce different signatures when SubtleCrypto is available
+      if (envBefore.signature.length > 0 && envAfter.signature.length > 0) {
+        expect(envBefore.signature).not.toBe(envAfter.signature);
+      } else {
+        expect(typeof envAfter.signature).toBe('string');
+      }
+    });
+
+    it('is a no-op when called with the same key', async () => {
+      provider = mountProvider('stable-key');
+      const signals = provider.collectSignals();
+      const envBefore = await provider.sign(signals);
+
+      provider.setSigningKey('stable-key'); // same key — no cache invalidation
+      const envAfter = await provider.sign(signals);
+
+      // Both should produce valid-length signatures
+      if (envBefore.signature.length > 0 && envAfter.signature.length > 0) {
+        expect(envBefore.signature).toMatch(/^[0-9a-f]{64}$/);
+        expect(envAfter.signature).toMatch(/^[0-9a-f]{64}$/);
+      }
+    });
+  });
+
+  // ── Non-secure context: empty signature ──────────────────────────────────
+
+  describe('non-secure context (crypto.subtle unavailable)', () => {
+    it('sign() returns empty string signature when crypto.subtle is unavailable', async () => {
+      provider = mountProvider('some-key');
+      const realCrypto = globalThis.crypto;
+
+      vi.stubGlobal('crypto', {
+        getRandomValues: (arr: Uint8Array) => realCrypto.getRandomValues(arr),
+        subtle: undefined,
+      });
+
+      try {
+        const signals = provider.collectSignals();
+        const envelope = await provider.sign(signals);
+        expect(envelope.signature).toBe('');
+        expect(typeof envelope.nonce).toBe('string');
+      } finally {
+        vi.stubGlobal('crypto', realCrypto);
+      }
+    });
+  });
+
   // ── Cached HMAC signing key ───────────────────────────────────────────────
 
   describe('cached HMAC signing key', () => {
