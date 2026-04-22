@@ -348,11 +348,14 @@ export class SecureInput extends SecureBaseComponent {
 
     this.#clearErrors();
     this.#syncHiddenInput();
+    // value is intentionally excluded from the event detail — the raw value
+    // must not propagate globally via a bubbling composed event (any script on
+    // the page can intercept it). Consumers needing the value should read
+    // (event.target as SecureInput).value directly.
     this.dispatchEvent(
       new CustomEvent('secure-input-change', {
         detail: {
           name: this.#inputElement!.name,
-          value: this.#actualValue, // Parent can access actual value
           masked: this.#isMasked,
           tier: this.securityTier
         },
@@ -462,12 +465,17 @@ export class SecureInput extends SecureBaseComponent {
       return;
     }
 
-    const patternAttr = this.getAttribute('pattern');
     const minLength = this.getAttribute('minlength');
     const maxLength = this.getAttribute('maxlength');
 
+    // Pattern length is capped at 200 chars before compilation. Legitimate form
+    // validation patterns (email, phone, postcode) are typically < 80 chars;
+    // catastrophically-backtracking ReDoS strings are characteristically longer.
+    // Invalid syntax is silently ignored (try/catch). For patterns > 200 chars,
+    // we skip JS-side validation and rely on the browser's native checkValidity().
+    const patternAttr = this.getAttribute('pattern');
     let compiledPattern: RegExp | null = null;
-    if (patternAttr) {
+    if (patternAttr && patternAttr.length <= 200) {
       try {
         // eslint-disable-next-line security/detect-non-literal-regexp
         compiledPattern = new RegExp(patternAttr);
@@ -594,12 +602,14 @@ export class SecureInput extends SecureBaseComponent {
   }
 
   get valid(): boolean {
-    const patternAttr = this.getAttribute('pattern');
     const minLength = this.getAttribute('minlength');
     const maxLength = this.getAttribute('maxlength');
 
+    // Same length-capped pattern compilation as #validateAndShowErrors — see that
+    // method for the ReDoS rationale.
+    const patternAttr = this.getAttribute('pattern');
     let compiledPattern: RegExp | null = null;
-    if (patternAttr) {
+    if (patternAttr && patternAttr.length <= 200) {
       try {
         // eslint-disable-next-line security/detect-non-literal-regexp
         compiledPattern = new RegExp(patternAttr);
