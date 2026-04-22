@@ -10,16 +10,16 @@ Security-first Web Component library with built-in behavioral telemetry. Zero de
 - **4-Tier Security System** — `public`, `authenticated`, `sensitive`, `critical`
 - **Behavioral Telemetry** — Every field collects typing patterns, paste detection, dwell time, and correction signals automatically
 - **Risk Scoring** — `<secure-form>` aggregates field signals into a session-level risk score at submission; per-field warnings surface directly on the offending inputs
-- **Injection Detection** — All input fields scan for XSS, script injection, and template injection patterns in real time; fires `secure-threat-detected` with the matched pattern ID; injection attempts **block form submission** with an immediate red-border UI state
+- **Injection Detection** — All input fields scan for XSS, script injection, and template injection patterns in real time; fires `secure-threat-detected` with the matched pattern ID; injection attempts **block form submission** with an immediate red-border UI state. This is a UX control and early-warning signal — real XSS prevention requires server-side output encoding and a strict Content Security Policy.
 - **CSRF Threat Detection** — `<secure-form>` fires `secure-threat-detected` at submission when a CSRF token is absent on `sensitive` or `critical` tier forms
 - **Form UI Feedback** — `<secure-form>` sets `data-state` on itself at key moments: `blocked` (injection detected), `success` (server 2xx, auto-clears after 3 s), `error` (server/network failure); individual fields receive inline error or warning messages
-- **Signed Envelopes** — `<secure-telemetry-provider>` detects automation/headless browsers, accumulates threat signals, and signs every submission with HMAC-SHA-256 (signing key cached per session)
+- **Signed Envelopes** — `<secure-telemetry-provider>` detects automation/headless browsers, accumulates threat signals, and signs every submission with HMAC-SHA-256. The signing key is supplied via `setSigningKey()` (preferred) or the `signing-key` HTML attribute (automatically migrated to a private field and removed from the DOM on connect). The signature is tamper-evidence — it raises the cost of casual spoofing but does not constitute cryptographic proof, as the key lives in client-side JS memory.
 - **Zero Dependencies** — Pure TypeScript, no runtime dependencies
 - **Progressive Enhancement** — All components render meaningful markup and work without JavaScript
 - **CSP-Safe** — Bundle mode uses `adoptedStyleSheets` (constructable stylesheets, exempt from `unsafe-inline`); ESM/dev mode uses `<link>` from `'self'`; neither requires `unsafe-inline`
 - **SSR Friendly** — Adopts server-rendered markup on upgrade; no document access in constructors
 - **Fully Customisable** — CSS Design Tokens + `::part()` API
-- **Comprehensive Testing** — 1197 tests, 84%+ branch coverage
+- **Comprehensive Testing** — 1200 tests, 84%+ branch coverage
 
 ---
 
@@ -168,7 +168,7 @@ import 'secure-ui-components/secure-telemetry-provider';
 ## Example: Login form with telemetry
 
 ```html
-<secure-telemetry-provider signing-key="your-per-session-secret">
+<secure-telemetry-provider>
   <secure-form action="/api/login" method="POST" csrf-token="..." use-fetch>
     <secure-input label="Email" name="email" type="email" required security-tier="authenticated"></secure-input>
     <secure-input label="Password" name="password" type="password" required security-tier="critical"></secure-input>
@@ -178,6 +178,9 @@ import 'secure-ui-components/secure-telemetry-provider';
 ```
 
 ```js
+// Supply the HMAC key via JS so it never appears in the DOM
+document.querySelector('secure-telemetry-provider').setSigningKey(perSessionKeyFromServer);
+
 document.querySelector('secure-form').addEventListener('secure-form-submit', (e) => {
   const { formData, telemetry } = e.detail;
   console.log('Risk score:', telemetry.riskScore);
@@ -251,7 +254,7 @@ el.blur()
 
 | Event | Detail |
 |-------|--------|
-| `secure-input-change` | `{ name, value, masked, tier }` |
+| `secure-input-change` | `{ name, masked, tier }` — `value` is intentionally absent; read `(event.target as SecureInput).value` directly to avoid broadcasting sensitive data to all page listeners |
 | `secure-audit` | `{ event, tier, timestamp, data? }` |
 | `secure-threat-detected` | `{ fieldName, threatType: 'injection', patternId, tier, timestamp }` — fired when a known injection pattern is detected in the field value |
 
@@ -366,6 +369,7 @@ The built-in stylesheet applies a coloured `outline` to the inner `<form>` for e
 el.valid          // true if all secure child fields pass validation
 el.securityTier
 el.getData()      // { fieldName: value, … } including CSRF token
+el.getAuditLog()  // AuditLogEntry[] — form-level audit trail
 el.reset()
 el.submit()       // programmatic submit (triggers validation + telemetry)
 ```
@@ -375,7 +379,7 @@ el.submit()       // programmatic submit (triggers validation + telemetry)
 | Event | Detail |
 |-------|--------|
 | `secure-form-submit` | `{ formData, telemetry, cancelSubmission() }` — cancelable. Call `e.detail.cancelSubmission()` to abort the library's fetch submission and re-enable the form, or call `e.preventDefault()` (native) to prevent the `fetch` from being sent. |
-| `secure-form-success` | `{ formData, response, telemetry }` — only when `use-fetch` is set |
+| `secure-form-success` | `{ status, ok, telemetry }` — only when `use-fetch` is set. `formData` and the raw `Response` are intentionally absent; they must not propagate globally via a bubbling event. |
 | `secure-threat-detected` | `{ fieldName, threatType: 'csrf-token-absent', patternId, tier, timestamp }` — fired on `sensitive`/`critical` tiers when CSRF token is absent at submission |
 
 **`telemetry` shape** (`SessionTelemetry`):
@@ -438,13 +442,14 @@ Optional overlay that wraps `<secure-form>` to add environmental signals and HMA
 
 | Attribute | Description |
 |-----------|-------------|
-| `signing-key` | HMAC-SHA-256 key — must also be known server-side to verify the signature |
+| `signing-key` | HMAC-SHA-256 key — immediately migrated to a private JS field and **removed from the DOM** in `connectedCallback`. Prefer `setSigningKey()` so the key never appears in the DOM at all. |
 
 **Properties & Methods**
 
 ```js
 const provider = document.querySelector('secure-telemetry-provider');
 
+provider.setSigningKey(key)      // preferred: supply key via JS, never touches the DOM
 provider.collectSignals()        // EnvironmentalSignals — point-in-time snapshot
 provider.getEnvironmentalSignals() // alias for collectSignals()
 provider.sign(signals)           // Promise<SignedTelemetryEnvelope>
@@ -481,15 +486,16 @@ The provider listens for `secure-form-submit` on itself (bubbles from the nested
 
 **Security notes**
 
-- The `signing-key` is a *symmetric* secret. For strong guarantees, rotate it per-session via a server nonce endpoint rather than hardcoding it as an attribute.
-- The `CryptoKey` is imported from the `signing-key` attribute once and cached for the lifetime of the component. It is re-imported only when the attribute value changes, and cleared on `disconnectedCallback`. This avoids the cost of re-importing on every submission.
+- The `signing-key` is a *symmetric* secret kept in client-side JS memory. Any same-page XSS or privileged script can read it from the heap and forge arbitrary envelopes. The signature provides tamper-evidence against casual spoofing — it is not cryptographic proof. For stronger guarantees, rotate the key per-session via a server nonce endpoint.
+- Prefer `setSigningKey()` over the HTML attribute. If you do use the attribute, the component removes it from the DOM immediately in `connectedCallback` so it cannot be read by `getAttribute()` or devtools after mount.
+- The `CryptoKey` is imported once and cached; it is re-imported only when the key value changes via `setSigningKey()`, and cleared on `disconnectedCallback`.
 - All signals are heuristic — a determined attacker can spoof them. The value is raising the cost of scripted attacks.
 - In non-secure contexts (`http://`) `SubtleCrypto` is unavailable; the signature will be an empty string. The server should treat unsigned envelopes with reduced trust.
 
 **Example**
 
 ```html
-<secure-telemetry-provider signing-key="per-session-server-issued-key">
+<secure-telemetry-provider>
   <secure-form action="/api/login" use-fetch csrf-token="...">
     <secure-input label="Email" name="email" type="email" required></secure-input>
     <secure-input label="Password" name="password" type="password" required security-tier="critical"></secure-input>
@@ -499,6 +505,9 @@ The provider listens for `secure-form-submit` on itself (bubbles from the nested
 ```
 
 ```js
+// Inject the key via JS — never embed it as a static HTML attribute
+document.querySelector('secure-telemetry-provider').setSigningKey(perSessionKeyFromServer);
+
 document.querySelector('secure-form').addEventListener('secure-form-submit', async (e) => {
   const { telemetry } = e.detail;
 
@@ -694,6 +703,7 @@ Composite credit card form with a live 3D card preview, automatic card type dete
 - Full PAN and CVC are never included in events, audit logs, or hidden form inputs
 - CVC uses native `type="password"` masking — never visible on screen
 - Card number is masked to last-4 on blur
+- All four inputs use `autocomplete="off"` — browsers must not store or suggest card data (PCI DSS requirement; contradicts browser `cc-*` autocomplete hints)
 - Security tier is locked to `critical` and cannot be changed
 - All sensitive state is wiped on `disconnectedCallback`
 - Telemetry from all four inputs (number, expiry, CVC, name) is aggregated into one composite behavioral fingerprint
@@ -719,7 +729,7 @@ card.valid              // true when all visible fields pass validation
 card.cardType           // 'visa' | 'mastercard' | 'amex' | 'discover' | 'diners' | 'jcb' | 'unknown'
 card.last4              // last 4 digits — safe to display and log
 card.name               // value of the name attribute
-card.getCardData()      // { number, expiry, cvc, name } | null — for payment SDK only
+card.getCardData()      // { number, expiry, cvc, name } | null — for payment SDK handoff only; requires strict CSP; call once and discard
 card.getFieldTelemetry() // composite behavioral signals across all 4 card inputs
 card.reset()
 card.focus()
@@ -969,14 +979,14 @@ el.blur()
 
 | Event | Fired by | Detail |
 |-------|----------|--------|
-| `secure-input-change` | `<secure-input>` | `{ name, value, masked, tier }` |
+| `secure-input-change` | `<secure-input>` | `{ name, masked, tier }` — `value` is intentionally absent; read `(e.target as SecureInput).value` to avoid broadcasting sensitive data to all listeners |
 | `secure-textarea-change` | `<secure-textarea>` | `{ name, value, tier }` |
 | `secure-select-change` | `<secure-select>` | `{ name, value: string \| string[], tier }` |
 | `secure-datetime-change` | `<secure-datetime>` | `{ name, value, type, tier }` |
 | `secure-file-change` | `<secure-file-upload>` | `{ name, files, tier }` |
 | `secure-card-change` | `<secure-card>` | `{ name, cardType, last4, expiryMonth, expiryYear, cardholderName, valid, tier }` |
 | `secure-form-submit` | `<secure-form>` | `{ formData, telemetry, cancelSubmission() }` — call `cancelSubmission()` to abort the fetch and re-enable the form |
-| `secure-form-success` | `<secure-form>` | `{ formData, response, telemetry }` |
+| `secure-form-success` | `<secure-form>` | `{ status: number, ok: boolean, telemetry }` — `formData` and the raw `Response` are intentionally absent |
 | `secure-table-action` | `<secure-table>` | `{ action, …data-attributes }` |
 | `secure-audit` | all components | `{ event, tier, timestamp, data? }` |
 | `secure-threat-detected` | `<secure-input>`, `<secure-textarea>`, `<secure-password-confirm>`, `<secure-form>` | `{ fieldName, threatType, patternId, tier, timestamp }` |
