@@ -24,8 +24,6 @@ describe('SecureForm branch coverage', () => {
 
   beforeEach(() => {
     form = document.createElement('secure-form') as SecureForm;
-    // Reset static flag so styles are re-added in each test context
-    SecureForm.__stylesAdded = false;
   });
 
   afterEach(() => {
@@ -56,9 +54,9 @@ describe('SecureForm branch coverage', () => {
     expect(form.securityTier).toBe('sensitive');
   });
 
-  it('defaults to public security tier', () => {
+  it('defaults to CRITICAL security tier (fail-secure)', () => {
     document.body.appendChild(form);
-    expect(form.securityTier).toBe('public');
+    expect(form.securityTier).toBe('critical');
   });
 
   // ── SENSITIVE tier: autocomplete off ─────────────────────────────────────
@@ -210,7 +208,7 @@ describe('SecureForm branch coverage', () => {
     document.body.appendChild(form);
 
     // Override #submitForm to hang
-    vi.spyOn(form as never, 'checkRateLimit').mockReturnValue({ allowed: true, retryAfter: 0 });
+    vi.spyOn(form, 'checkRateLimit').mockReturnValue({ allowed: true, retryAfter: 0 });
 
     let resolveSubmit!: () => void;
     const hangingFetch = new Promise<never>((_res, _rej) => {
@@ -235,7 +233,7 @@ describe('SecureForm branch coverage', () => {
   // ── #handleSubmit: rate limit exceeded ───────────────────────────────────
   it('prevents submit when rate limited', () => {
     document.body.appendChild(form);
-    vi.spyOn(form, 'checkRateLimit' as never).mockReturnValue({ allowed: false, retryAfter: 5000 } as never);
+    vi.spyOn(form, 'checkRateLimit').mockReturnValue({ allowed: false, retryAfter: 5000 });
 
     const innerForm = form.querySelector('form')!;
     const submitHandler = vi.fn((e: Event) => e.preventDefault());
