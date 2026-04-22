@@ -84,6 +84,10 @@ Every component must expose named `part` attributes on key internal elements:
 - Always set `{ bubbles: true, composed: true }` so events cross shadow boundaries
 - Naming convention: `secure-<component>-change` for value events (e.g. `secure-input-change`, `secure-select-change`); `secure-<component>-<verb>` for lifecycle events (e.g. `secure-form-submit`, `secure-form-success`, `secure-table-action`); `secure-audit` and `secure-threat-detected` are global signals
 
+**Sensitive data must NOT appear in event details** — events bubble and compose across shadow boundaries; any page script can intercept them:
+- `secure-input-change` detail: `{ name, masked, tier }` — **no `value` field**; callers read `(e.target as SecureInput).value` directly
+- `secure-form-success` detail: `{ status: number, ok: boolean, telemetry }` — **no `formData`, no `Response`**; raw response body and form values must not propagate globally
+
 ## Security Architecture
 
 ### Tiers (defined in `security-config.ts`)
@@ -103,6 +107,22 @@ Every component must expose named `part` attributes on key internal elements:
 - Never set `innerHTML` from user-controlled content
 - Use `document.createElement` + property assignment for all DOM construction
 
+### Rate limiting
+- `checkRateLimit()` in `SecureBaseComponent` is a **client-side hint only** — it resets on every page reload and can be bypassed trivially
+- It is a UX friction mechanism, not a security control; server-side rate limiting is mandatory
+- Same applies to `SecureForm.checkRateLimit()` — annotate with `⚠ DEPLOYMENT REQUIREMENT` comments when touching
+
+### Injection detection
+- `detectInjection()` in `SecureBaseComponent` is a **UX control and early-warning signal**, not an XSS prevention mechanism
+- It fires `secure-threat-detected` and blocks form submission in the browser — motivated attackers bypass it by submitting via `fetch`/`curl` directly
+- Real XSS prevention: server-side output encoding + strict Content Security Policy (`script-src 'self'`, no `unsafe-inline`)
+
+### `SecureForm` specifics
+- Default `security-tier` is `CRITICAL` (fail-secure) — changing this default requires explicit justification
+- `action` URL is validated before assignment: only same-origin URLs and relative paths are accepted; cross-origin or non-http/https URLs are rejected with a warning audit event (`form_action_rejected`)
+- CSS selector injection: `csrfFieldName` and `name` values used in `querySelectorAll` must be wrapped with `CSS.escape()` — already done; do not revert
+- `SecureForm` audit log: real implementation (dispatches `secure-audit`, maintains in-memory capped log); not a stub
+
 ### Behavioral Telemetry
 `SecureBaseComponent` provides field-level telemetry hooks that all field components must call:
 - `this.recordTelemetryFocus()` — call from the field's `focus` event listener
@@ -112,13 +132,20 @@ Every component must expose named `part` attributes on key internal elements:
 
 `SecureForm` aggregates telemetry from all child fields at submission via `getFieldTelemetry()` and computes a composite risk score. **Do not replicate this logic in individual components.**
 
-`SecureTelemetryProvider` adds environmental signals (WebDriver, headless, DOM injection, screen size, pointer/keyboard activity) and signs the final envelope with HMAC-SHA-256 via SubtleCrypto. The signing key is symmetric — document the server-side rotation requirement when touching this component.
+`SecureTelemetryProvider` adds environmental signals (WebDriver, headless, DOM injection, screen size, pointer/keyboard activity) and signs the final envelope with HMAC-SHA-256 via SubtleCrypto.
+
+**Signing key handling:**
+- Preferred API: `provider.setSigningKey(key)` — key is stored in `#signingKey` private field only, never touches the DOM
+- HTML attribute fallback: if `signing-key` is present in markup, `connectedCallback` reads it, stores it in `#signingKey`, and immediately calls `this.removeAttribute('signing-key')` — the attribute is not in `observedAttributes` and is never readable after mount
+- `disconnectedCallback` zeroes `#signingKey` and clears the cached `CryptoKey`
+- The signature is tamper-evidence, not cryptographic proof — the key lives in JS heap memory and can be read by same-page XSS. Rotate per-session via a server nonce endpoint.
 
 ### PCI Considerations (`SecureCard`)
 - Full PAN and CVC must **never** appear in: `CustomEvent` detail, audit log entries, or hidden `<input>` elements
 - Only `last4` and card type are safe to log or include in events
-- `getCardData()` is the sole accessor for raw card data — it exists only for direct handoff to a PCI-compliant payment SDK
+- `getCardData()` is the sole accessor for raw card data — it exists only for direct handoff to a PCI-compliant payment SDK; requires a strict CSP; return value must be used once then discarded (do not store in JS variables longer than the handoff call)
 - Hidden inputs in the light DOM carry: `{name}` (last-4 only), `{name}-expiry`, `{name}-holder` — no CVC hidden input
+- All four card inputs use `autocomplete="off"` — do not change to `cc-number/cc-exp/cc-csc/cc-name`; those values instruct browsers to store card data, which violates PCI DSS
 
 ## CSS Rules
 
