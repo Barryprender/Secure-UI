@@ -252,6 +252,15 @@ export abstract class SecureBaseComponent extends HTMLElement {
     };
   }
 
+  /**
+   * Client-side rate limiting — resets on page reload, new tab, and incognito.
+   *
+   * ⚠ DEPLOYMENT REQUIREMENT: This is a UX safeguard only. It provides zero
+   * protection against an attacker who reloads the page or opens a second tab.
+   * You MUST enforce rate limits server-side (e.g. per-IP, per-account, via a
+   * WAF rule, or with a token-bucket at the API layer). Do not treat this as a
+   * security control in isolation.
+   */
   protected checkRateLimit(): RateLimitResult {
     if (!this.#config.rateLimit.enabled) {
       return { allowed: true, retryAfter: 0 };
@@ -375,8 +384,20 @@ export abstract class SecureBaseComponent extends HTMLElement {
     this.#audit(event, data);
   }
 
-  // Scans value against known injection patterns. First match wins; raw value
-  // is never included in the dispatched event. showFeedback activates inline UI.
+  /**
+   * Scans value against known client-side injection patterns and fires a
+   * `secure-threat-detected` event on the first match.
+   *
+   * ⚠ THIS IS A UX CONTROL, NOT AN XSS PREVENTION MECHANISM.
+   * It gives users early feedback that their input looks malicious and gives
+   * your server logs an early signal. It does NOT prevent XSS — a determined
+   * attacker can bypass client-side checks trivially. Real XSS prevention
+   * happens server-side through output encoding, a strict CSP, and input
+   * sanitization at the persistence layer. Never rely on this alone.
+   *
+   * First match wins; the raw value is intentionally absent from the event.
+   * showFeedback activates the inline threat UI on the field.
+   */
   protected detectInjection(value: string, fieldName: string, showFeedback = false): void {
     const feedbackEnabled = showFeedback || this.hasAttribute('threat-feedback');
     for (const { id, pattern } of SecureBaseComponent.#INJECTION_PATTERNS) {
