@@ -314,7 +314,8 @@ export class SecureCard extends SecureBaseComponent {
     this.#numberInput.className = 'card-input card-number-input';
     this.#numberInput.setAttribute('type', 'text');
     this.#numberInput.setAttribute('inputmode', 'numeric');
-    this.#numberInput.setAttribute('autocomplete', 'cc-number');
+    // CRITICAL tier: autocomplete off — browser must not store or suggest PANs.
+    this.#numberInput.setAttribute('autocomplete', 'off');
     this.#numberInput.setAttribute('placeholder', '0000 0000 0000 0000');
     this.#numberInput.setAttribute('maxlength', '23');
     this.#numberInput.setAttribute('aria-required', 'true');
@@ -340,7 +341,7 @@ export class SecureCard extends SecureBaseComponent {
     this.#expiryInput.className = 'card-input';
     this.#expiryInput.setAttribute('type', 'text');
     this.#expiryInput.setAttribute('inputmode', 'numeric');
-    this.#expiryInput.setAttribute('autocomplete', 'cc-exp');
+    this.#expiryInput.setAttribute('autocomplete', 'off');
     this.#expiryInput.setAttribute('placeholder', 'MM/YY');
     this.#expiryInput.setAttribute('maxlength', '5');
     this.#expiryInput.setAttribute('aria-required', 'true');
@@ -362,7 +363,8 @@ export class SecureCard extends SecureBaseComponent {
     // type=password: browser masks natively, avoids screen capture of CVC
     this.#cvcInput.setAttribute('type', 'password');
     this.#cvcInput.setAttribute('inputmode', 'numeric');
-    this.#cvcInput.setAttribute('autocomplete', 'cc-csc');
+    // CVC must never be stored by the browser — PCI DSS requirement.
+    this.#cvcInput.setAttribute('autocomplete', 'off');
     this.#cvcInput.setAttribute('placeholder', '•••');
     this.#cvcInput.setAttribute('maxlength', '4');
     this.#cvcInput.setAttribute('aria-required', 'true');
@@ -389,7 +391,7 @@ export class SecureCard extends SecureBaseComponent {
     this.#nameInput.id = `${this.#instanceId}-name`;
     this.#nameInput.className = 'card-input';
     this.#nameInput.setAttribute('type', 'text');
-    this.#nameInput.setAttribute('autocomplete', 'cc-name');
+    this.#nameInput.setAttribute('autocomplete', 'off');
     this.#nameInput.setAttribute('placeholder', 'Name as it appears on card');
     this.#nameInput.setAttribute('spellcheck', 'false');
     this.#nameInput.setAttribute('aria-describedby', `${this.#instanceId}-name-error`);
@@ -843,9 +845,23 @@ export class SecureCard extends SecureBaseComponent {
   /**
    * Returns raw card data for immediate handoff to a payment SDK tokeniser.
    *
-   * SECURITY: Pass this data only to a PCI-compliant processor's client SDK
-   * (e.g. Stripe.js createToken, Braintree tokenizeCard). Never send raw card
-   * numbers or CVCs to your own server.
+   * SECURITY — READ BEFORE CALLING:
+   *
+   * 1. Pass this data ONLY to a PCI-compliant processor's client SDK
+   *    (e.g. Stripe.js createToken, Braintree tokenizeCard). Never transmit
+   *    raw PANs or CVCs to your own server under any circumstances.
+   *
+   * 2. This method is a PUBLIC JavaScript API. The Shadow DOM protects the
+   *    internal DOM from direct access, but any JavaScript on the page that
+   *    holds a reference to this element can call getCardData() and obtain
+   *    the raw PAN and CVC. You MUST ensure a strict Content Security Policy
+   *    prevents untrusted third-party scripts from running on any page that
+   *    renders this component. A single compromised analytics tag or CDN
+   *    resource is sufficient to exfiltrate card data.
+   *
+   * 3. Call this method once, pass the result immediately to the payment SDK,
+   *    and do not store the return value in any variable that persists beyond
+   *    the tokenisation call.
    *
    * Returns null if the form is not yet valid.
    */
