@@ -2,6 +2,7 @@
 import { SecurityTier, TIER_CONFIG, isValidTier } from '../../core/security-config.js';
 import type {
   SecurityTierValue,
+  AuditLogEntry,
   FieldTelemetry,
   FieldTelemetrySnapshot,
   SessionTelemetry,
@@ -12,8 +13,10 @@ import type {
 // native form submission, label association, and browser validation work correctly.
 export class SecureForm extends HTMLElement {
   static #stylesAdded: boolean = false;
+  static readonly #MAX_AUDIT_LOG_SIZE = 1000;
 
   #formElement: HTMLFormElement | null = null;
+  #auditLog: AuditLogEntry[] = [];
   #csrfInput: HTMLInputElement | null = null;
   #statusElement: HTMLDivElement | null = null;
   #isSubmitting: boolean = false;
@@ -25,7 +28,7 @@ export class SecureForm extends HTMLElement {
   };
 
   #instanceId: string = `secure-form-${Math.random().toString(36).substring(2, 11)}`;
-  #securityTier: SecurityTierValue = SecurityTier.PUBLIC as SecurityTierValue;
+  #securityTier: SecurityTierValue = SecurityTier.CRITICAL as SecurityTierValue;
 
   static get observedAttributes(): string[] {
     return [
@@ -151,10 +154,33 @@ export class SecureForm extends HTMLElement {
     }
   }
 
+  /** Returns true for relative URLs and absolute URLs on the same origin.
+   *  Rejects cross-origin URLs and non-http(s) schemes (javascript:, data:, etc.). */
+  #isSameOriginOrRelative(url: string): boolean {
+    if (!url) return true;
+    try {
+      const parsed = new URL(url, window.location.href);
+      return (
+        (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
+        parsed.origin === window.location.origin
+      );
+    } catch {
+      return false;
+    }
+  }
+
   #applyFormAttributes(): void {
     const action = this.getAttribute('action');
     if (action) {
-      this.#formElement!.action = action;
+      if (this.#isSameOriginOrRelative(action)) {
+        this.#formElement!.action = action;
+      } else {
+        console.warn(
+          `SecureForm: cross-origin or non-http action "${action}" rejected. ` +
+          `Forms must submit to the same origin to prevent credential exfiltration.`
+        );
+        this.audit('form_action_rejected', { action });
+      }
     }
 
     const method = this.getAttribute('method') || 'POST';
@@ -395,7 +421,8 @@ export class SecureForm extends HTMLElement {
 
       // Strip name from server-rendered fallback inputs so the browser doesn't
       // submit their (empty) values alongside the synced hidden input.
-      const nativeFallbacks = input.querySelectorAll(`input[name="${name}"], textarea[name="${name}"], select[name="${name}"]`);
+      const escapedName = CSS.escape(name);
+      const nativeFallbacks = input.querySelectorAll(`input[name="${escapedName}"], textarea[name="${escapedName}"], select[name="${escapedName}"]`);
       nativeFallbacks.forEach((fallback) => {
         (fallback as HTMLInputElement).removeAttribute('name');
       });
@@ -518,9 +545,15 @@ export class SecureForm extends HTMLElement {
 
     this.#showStatus('Form submitted successfully!', 'success');
 
+    // formData and the raw Response object are intentionally excluded.
+    // formData contains sensitive field values that must not broadcast globally
+    // via a bubbling composed event. The Response object exposes server headers
+    // including Set-Cookie. Consumers that need field values should read them
+    // from the elements directly; those that need response details should use
+    // their own fetch logic via the secure-form-submit cancelSubmission() API.
     this.dispatchEvent(
       new CustomEvent('secure-form-success', {
-        detail: { formData, response, telemetry },
+        detail: { status: response.status, ok: response.ok, telemetry },
         bubbles: true,
         composed: true
       })
@@ -798,7 +831,14 @@ export class SecureForm extends HTMLElement {
         );
         return;
       case 'action':
-        this.#formElement.action = newValue!;
+        if (newValue && this.#isSameOriginOrRelative(newValue)) {
+          this.#formElement.action = newValue;
+        } else if (newValue) {
+          console.warn(
+            `SecureForm: cross-origin or non-http action "${newValue}" rejected.`
+          );
+          this.audit('form_action_rejected', { action: newValue });
+        }
         break;
       case 'method':
         this.#formElement.method = newValue!;
@@ -823,11 +863,44 @@ export class SecureForm extends HTMLElement {
   }
 
   audit(action: string, data: Record<string, unknown>): void {
-    if (console.debug) {
-      console.debug(`[secure-form] ${action}`, data);
+    const tierConfig = TIER_CONFIG[this.#securityTier];
+
+    const entry: AuditLogEntry = {
+      event: action,
+      tier: this.#securityTier,
+      timestamp: new Date().toISOString(),
+      ...(Object.keys(data).length > 0 ? { data } : {}),
+      ...(tierConfig.audit.includeMetadata ? {
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+      } : {}),
+    };
+
+    if (this.#auditLog.length >= SecureForm.#MAX_AUDIT_LOG_SIZE) {
+      this.#auditLog.shift();
     }
+    this.#auditLog.push(entry);
+
+    this.dispatchEvent(new CustomEvent<AuditLogEntry>('secure-audit', {
+      detail: entry,
+      bubbles: true,
+      composed: true,
+    }));
   }
 
+  getAuditLog(): AuditLogEntry[] {
+    return [...this.#auditLog];
+  }
+
+  /**
+   * Client-side rate limiting — resets on page reload, new tab, and incognito.
+   *
+   * ⚠ DEPLOYMENT REQUIREMENT: This is a UX safeguard only. It provides zero
+   * protection against an attacker who reloads the page or opens a second tab.
+   * You MUST enforce rate limits server-side (e.g. per-IP, per-account, via a
+   * WAF rule, or with a token-bucket at the API layer). Do not treat this as a
+   * security control in isolation.
+   */
   checkRateLimit(): { allowed: boolean; retryAfter: number } {
     const tierConfig = TIER_CONFIG[this.#securityTier];
     if (!tierConfig.rateLimit.enabled) {
