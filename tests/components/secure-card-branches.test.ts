@@ -20,13 +20,13 @@ function getNumberInput(card: SecureCard): HTMLInputElement {
   return card.shadowRoot!.querySelector<HTMLInputElement>('.card-number-input')!;
 }
 function getExpiryInput(card: SecureCard): HTMLInputElement {
-  return card.shadowRoot!.querySelector<HTMLInputElement>('input[autocomplete="cc-exp"]')!;
+  return card.shadowRoot!.querySelector<HTMLInputElement>('input[part="expiry-input"]')!;
 }
 function getCvcInput(card: SecureCard): HTMLInputElement {
-  return card.shadowRoot!.querySelector<HTMLInputElement>('input[autocomplete="cc-csc"]')!;
+  return card.shadowRoot!.querySelector<HTMLInputElement>('input[part="cvc-input"]')!;
 }
 function getNameInput(card: SecureCard): HTMLInputElement {
-  return card.shadowRoot!.querySelector<HTMLInputElement>('input[autocomplete="cc-name"]')!;
+  return card.shadowRoot!.querySelector<HTMLInputElement>('input[part="name-input"]')!;
 }
 function getNumberError(card: SecureCard): HTMLElement {
   return card.shadowRoot!.querySelector<HTMLElement>('[id$="-number-error"]')!;

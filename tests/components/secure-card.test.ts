@@ -18,13 +18,13 @@ function getNumberInput(card: SecureCard): HTMLInputElement {
   return card.shadowRoot!.querySelector<HTMLInputElement>('.card-number-input')!;
 }
 function getExpiryInput(card: SecureCard): HTMLInputElement {
-  return card.shadowRoot!.querySelector<HTMLInputElement>('input[autocomplete="cc-exp"]')!;
+  return card.shadowRoot!.querySelector<HTMLInputElement>('input[part="expiry-input"]')!;
 }
 function getCvcInput(card: SecureCard): HTMLInputElement {
-  return card.shadowRoot!.querySelector<HTMLInputElement>('input[autocomplete="cc-csc"]')!;
+  return card.shadowRoot!.querySelector<HTMLInputElement>('input[part="cvc-input"]')!;
 }
 function getNameInput(card: SecureCard): HTMLInputElement {
-  return card.shadowRoot!.querySelector<HTMLInputElement>('input[autocomplete="cc-name"]')!;
+  return card.shadowRoot!.querySelector<HTMLInputElement>('input[part="name-input"]')!;
 }
 function getCardEl(card: SecureCard): HTMLElement {
   return card.shadowRoot!.querySelector<HTMLElement>('.card')!;
@@ -99,14 +99,15 @@ describe('SecureCard', () => {
       const input = getNumberInput(card);
       expect(input).not.toBeNull();
       expect(input.getAttribute('inputmode')).toBe('numeric');
-      expect(input.getAttribute('autocomplete')).toBe('cc-number');
+      // CRITICAL tier: autocomplete disabled to prevent browser storing PANs
+      expect(input.getAttribute('autocomplete')).toBe('off');
     });
 
     it('renders expiry input with correct attributes', () => {
       document.body.appendChild(card);
       const input = getExpiryInput(card);
       expect(input).not.toBeNull();
-      expect(input.getAttribute('autocomplete')).toBe('cc-exp');
+      expect(input.getAttribute('autocomplete')).toBe('off');
       expect(input.getAttribute('placeholder')).toBe('MM/YY');
     });
 
@@ -115,7 +116,8 @@ describe('SecureCard', () => {
       const input = getCvcInput(card);
       expect(input).not.toBeNull();
       expect(input.type).toBe('password');
-      expect(input.getAttribute('autocomplete')).toBe('cc-csc');
+      // CVC must never be stored by the browser — PCI DSS requirement
+      expect(input.getAttribute('autocomplete')).toBe('off');
     });
 
     it('hides name field by default', () => {
