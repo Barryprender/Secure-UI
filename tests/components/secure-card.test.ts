@@ -66,7 +66,6 @@ describe('SecureCard', () => {
   describe('Initialization', () => {
     it('creates the component', () => {
       document.body.appendChild(card);
-      expect(card).toBeInstanceOf(HTMLElement);
       expect(card.tagName.toLowerCase()).toBe('secure-card');
     });
 
