@@ -5,7 +5,7 @@
  * type checking, size limits, and security features.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SecureFileUpload } from '../../src/components/secure-file-upload/secure-file-upload.js';
 
 // Register the component if not already defined
