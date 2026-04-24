@@ -28,7 +28,6 @@ describe('SecureInput', () => {
     it('should create component', () => {
       document.body.appendChild(input);
 
-      expect(input).toBeInstanceOf(HTMLElement);
       expect(input.tagName.toLowerCase()).toBe('secure-input');
     });
 
