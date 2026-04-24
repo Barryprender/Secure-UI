@@ -410,26 +410,20 @@ describe('SecureSubmitButton', () => {
   // ===========================================================================
 
   describe('Rate Limiting', () => {
-    it('should rate limit clicks for CRITICAL tier', async () => {
-      // Critical tier has rate limiting: 5 attempts per 60s
+    it('should allow multiple clicks without rate limiting for PUBLIC tier', async () => {
       button.setAttribute('security-tier', 'public');
       document.body.appendChild(button);
       await flushMicrotasks();
 
-      // Button should be enabled for public tier
       expect(button.disabled).toBe(false);
 
       const innerBtn = button.shadowRoot?.querySelector('button');
-
-      // Click repeatedly — rate limiter is inherited from base class
-      // which uses the tier config. Public tier has rate limiting disabled,
-      // so we test that clicks are allowed.
-      for (let i = 0; i < 10; i++) {
-        innerBtn?.click();
-      }
-
-      // No errors should be thrown
-      expect(true).toBe(true);
+      expect(innerBtn).not.toBeNull();
+      expect(() => {
+        for (let i = 0; i < 10; i++) {
+          innerBtn!.click();
+        }
+      }).not.toThrow();
     });
   });
 
