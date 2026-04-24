@@ -256,17 +256,13 @@ describe('SecureDateTime branch coverage', () => {
   });
 
   // ── #handleChange: invalid format ────────────────────────────────────────
-  it('#handleChange shows error for invalid date format', () => {
+  it('#handleChange does not throw on invalid date format', () => {
     dt.setAttribute('type', 'date');
     document.body.appendChild(dt);
 
     const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
-    // Set a value that bypasses browser validation in happy-dom
     Object.defineProperty(input, 'value', { value: 'bad-date', writable: true, configurable: true });
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-
-    // Either shows error or clears — just shouldn't throw
-    expect(true).toBe(true);
+    expect(() => input.dispatchEvent(new Event('change', { bubbles: true }))).not.toThrow();
   });
 
   // ── #handleInput: dispatches event ───────────────────────────────────────
