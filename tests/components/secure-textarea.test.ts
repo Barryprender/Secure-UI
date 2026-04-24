@@ -232,22 +232,18 @@ describe('SecureTextarea', () => {
       document.body.appendChild(textarea);
     });
 
-    it('should dispatch secure-textarea event on input', async () => {
+    it('should dispatch secure-textarea-change event on input', async () => {
       const eventHandler = vi.fn();
       textarea.addEventListener('secure-textarea-change', eventHandler);
 
-      // Simulate input by setting value and triggering internal change
       const internalTextarea = textarea.shadowRoot?.querySelector('textarea');
-      if (internalTextarea) {
-        internalTextarea.value = 'Test input';
-        internalTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-      }
+      expect(internalTextarea).not.toBeNull();
+      internalTextarea!.value = 'Test input';
+      internalTextarea!.dispatchEvent(new Event('input', { bubbles: true }));
 
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Event may or may not fire depending on implementation
-      // Just verify no error thrown
-      expect(true).toBe(true);
+      expect(eventHandler).toHaveBeenCalled();
     });
   });
 
