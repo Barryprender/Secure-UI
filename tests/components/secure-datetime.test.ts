@@ -28,7 +28,6 @@ describe('SecureDatetime', () => {
     it('should create component', () => {
       document.body.appendChild(datetime);
 
-      expect(datetime).toBeInstanceOf(HTMLElement);
       expect(datetime.tagName.toLowerCase()).toBe('secure-datetime');
     });
 
@@ -458,15 +457,13 @@ describe('SecureDatetime', () => {
       datetime.addEventListener('secure-datetime-change', eventHandler);
 
       const input = datetime.shadowRoot?.querySelector('input');
-      if (input) {
-        input.value = '2024-01-15';
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-      }
+      expect(input).not.toBeNull();
+      input!.value = '2024-01-15';
+      input!.dispatchEvent(new Event('input', { bubbles: true }));
 
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Event may or may not fire depending on implementation
-      expect(true).toBe(true);
+      expect(eventHandler).toHaveBeenCalled();
     });
   });
 
