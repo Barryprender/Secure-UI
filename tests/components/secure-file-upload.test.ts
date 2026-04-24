@@ -210,21 +210,10 @@ describe('SecureFileUpload', () => {
       document.body.appendChild(upload);
     });
 
-    it('should dispatch secure-file-upload event when files selected', async () => {
-      const eventHandler = vi.fn();
-      upload.addEventListener('secure-file-change', eventHandler);
-
-      // Simulate file selection
+    it('file input change with empty FileList does not throw', () => {
       const internalInput = upload.shadowRoot?.querySelector('input[type="file"]');
-      if (internalInput) {
-        // Can't easily mock FileList, so just verify no error
-        internalInput.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      // Event may or may not fire depending on implementation
-      expect(true).toBe(true);
+      expect(internalInput).not.toBeNull();
+      expect(() => internalInput!.dispatchEvent(new Event('change', { bubbles: true }))).not.toThrow();
     });
   });
 
@@ -251,14 +240,8 @@ describe('SecureFileUpload', () => {
     it('should handle drop event without error', () => {
       const dropZone = upload.shadowRoot?.querySelector('.drop-zone, .upload-area, [class*="drop"]');
       if (dropZone) {
-        // DragEvent may not be fully supported in happy-dom
-        try {
-          dropZone.dispatchEvent(new Event('drop', { bubbles: true }));
-        } catch {
-          // Some environments don't support DragEvent
-        }
+        expect(() => dropZone.dispatchEvent(new Event('drop', { bubbles: true }))).not.toThrow();
       }
-      expect(true).toBe(true);
     });
   });
 
