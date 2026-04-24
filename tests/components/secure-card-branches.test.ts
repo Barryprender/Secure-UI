@@ -392,11 +392,8 @@ describe('SecureCard — branch coverage', () => {
     expect(Array.isArray(card.getAuditLog())).toBe(true);
   });
 
-  it('reset() fires an audit entry', () => {
-    card.reset();
-    // Audit log may or may not capture reset depending on logChanges config,
-    // but reset() should not throw
-    expect(true).toBe(true);
+  it('reset() does not throw', () => {
+    expect(() => card.reset()).not.toThrow();
   });
 
   // ── Security tier immutability ────────────────────────────────────────────
