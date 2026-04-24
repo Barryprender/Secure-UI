@@ -266,21 +266,18 @@ describe('SecureSelect', () => {
       select.addOption('opt2', 'Option 2');
     });
 
-    it('should dispatch secure-select event on change', async () => {
+    it('should dispatch secure-select-change event on change', async () => {
       const eventHandler = vi.fn();
       select.addEventListener('secure-select-change', eventHandler);
 
-      // Simulate change
       const internalSelect = select.shadowRoot?.querySelector('select');
-      if (internalSelect) {
-        internalSelect.value = 'opt1';
-        internalSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      }
+      expect(internalSelect).not.toBeNull();
+      internalSelect!.value = 'opt1';
+      internalSelect!.dispatchEvent(new Event('change', { bubbles: true }));
 
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Verify event handler was called or no error
-      expect(true).toBe(true);
+      expect(eventHandler).toHaveBeenCalled();
     });
   });
 
@@ -426,10 +423,7 @@ describe('SecureSelect', () => {
     });
 
     it('should handle option with empty value', () => {
-      select.addOption('', 'Please select...');
-
-      // Should not throw
-      expect(true).toBe(true);
+      expect(() => select.addOption('', 'Please select...')).not.toThrow();
     });
 
     it('should handle option with special characters in value', () => {
