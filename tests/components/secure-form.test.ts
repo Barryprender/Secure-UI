@@ -186,21 +186,17 @@ describe('SecureForm', () => {
 
     it('should dispatch secure-form-submit event before submission', async () => {
       const eventHandler = vi.fn((e: Event) => {
-        // Prevent actual submission
         e.preventDefault();
       });
       form.addEventListener('secure-form-submit', eventHandler);
 
-      // Trigger form submission
-      const formElement = form.querySelector('form') || form.shadowRoot?.querySelector('form');
-      if (formElement) {
-        formElement.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-      }
+      const formElement = form.querySelector('form') ?? form.shadowRoot?.querySelector('form');
+      expect(formElement).not.toBeNull();
+      formElement!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Event may or may not fire depending on implementation
-      expect(true).toBe(true);
+      expect(eventHandler).toHaveBeenCalled();
     });
   });
 
@@ -363,21 +359,18 @@ describe('SecureForm', () => {
       document.body.appendChild(form);
     });
 
-    it('should prevent double submission', async () => {
-      // Mock fetch to delay response
+    it('should prevent double submission', () => {
       const originalFetch = globalThis.fetch;
-      globalThis.fetch = vi.fn().mockImplementation(() =>
+      const mockFetch = vi.fn().mockImplementation(() =>
         new Promise(resolve => setTimeout(() => resolve(new Response('ok')), 1000))
       );
+      globalThis.fetch = mockFetch;
 
-      // First submission
+      form.submit();
       form.submit();
 
-      // Second submission should be blocked
-      // (Implementation detail - may not be directly testable)
-
+      expect(mockFetch).toHaveBeenCalledTimes(1);
       globalThis.fetch = originalFetch;
-      expect(true).toBe(true);
     });
   });
 
