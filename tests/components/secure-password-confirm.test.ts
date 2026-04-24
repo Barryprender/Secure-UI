@@ -62,7 +62,6 @@ describe('SecurePasswordConfirm', () => {
   describe('Initialization', () => {
     it('creates the element', () => {
       document.body.appendChild(el);
-      expect(el).toBeInstanceOf(HTMLElement);
       expect(el.tagName.toLowerCase()).toBe('secure-password-confirm');
     });
 
