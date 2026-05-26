@@ -187,11 +187,13 @@ export class SecureTextarea extends SecureBaseComponent {
     this.detectInjection(this.#textareaElement!.value, this.#textareaElement!.name);
     this.#updateCharCount();
     this.#clearErrors();
+    // value is intentionally excluded from the event detail — the raw value
+    // must not propagate globally via a bubbling composed event. Listeners
+    // needing the value should read (event.target as SecureTextarea).value.
     this.dispatchEvent(
       new CustomEvent('secure-textarea-change', {
         detail: {
           name: this.#textareaElement!.name,
-          value: this.#textareaElement!.value,
           tier: this.securityTier
         },
         bubbles: true,
