@@ -11,7 +11,7 @@ Security-first Web Component library with built-in behavioral telemetry. Zero de
 - **Behavioral Telemetry** — Every field collects typing patterns, paste detection, dwell time, and correction signals automatically
 - **Risk Scoring** — `<secure-form>` aggregates field signals into a session-level risk score at submission; per-field warnings surface directly on the offending inputs
 - **Injection Detection** — All input fields scan for XSS, script injection, and template injection patterns in real time; fires `secure-threat-detected` with the matched pattern ID; injection attempts **block form submission** with an immediate red-border UI state. This is a UX control and early-warning signal — real XSS prevention requires server-side output encoding and a strict Content Security Policy.
-- **CSRF Threat Detection** — `<secure-form>` fires `secure-threat-detected` at submission when a CSRF token is absent on `sensitive` or `critical` tier forms
+- **CSRF Enforcement** — `<secure-form>` blocks submission and fires `secure-threat-detected` when a CSRF token is absent on `sensitive` or `critical` tier forms
 - **Form UI Feedback** — `<secure-form>` sets `data-state` on itself at key moments: `blocked` (injection detected), `success` (server 2xx, auto-clears after 3 s), `error` (server/network failure); individual fields receive inline error or warning messages
 - **Signed Envelopes** — `<secure-telemetry-provider>` detects automation/headless browsers, accumulates threat signals, and signs every submission with HMAC-SHA-256. The signing key is supplied via `setSigningKey()` (preferred) or the `signing-key` HTML attribute (automatically migrated to a private field and removed from the DOM on connect). The signature is tamper-evidence — it raises the cost of casual spoofing but does not constitute cryptographic proof, as the key lives in client-side JS memory.
 - **Zero Dependencies** — Pure TypeScript, no runtime dependencies
@@ -100,7 +100,7 @@ Signals marked **blocks** prevent submission entirely. All others are non-blocki
 | `injection_detected` | Any field fired `secure-threat-detected` with `threatType: 'injection'` | +40 | **yes** |
 | `session_too_fast` | Submitted in under 3 s | +30 | no |
 | `all_fields_pasted` | All fields pasted, no keystrokes | +25 | no |
-| `csrf_token_absent` | CSRF token absent at submission on sensitive/critical tier | +20 | no |
+| `csrf_token_absent` | CSRF token absent at submission on sensitive/critical tier — **submission is also blocked client-side** | +20 | **yes** |
 | `field_filled_without_focus` | Any field has `focusCount = 0` | +15 | no |
 | `high_velocity_typing` | Any field velocity > 15 ks/s | +15 | no |
 | `session_fast` | Submitted in under 8 s | +10 | no |
@@ -182,7 +182,9 @@ import 'secure-ui-components/secure-telemetry-provider';
 document.querySelector('secure-telemetry-provider').setSigningKey(perSessionKeyFromServer);
 
 document.querySelector('secure-form').addEventListener('secure-form-submit', (e) => {
-  const { formData, telemetry } = e.detail;
+  const { telemetry } = e.detail;
+  // formData is intentionally absent — read values directly from field elements
+  // to avoid broadcasting credentials via a page-wide bubbling event.
   console.log('Risk score:', telemetry.riskScore);
   console.log('Risk signals:', telemetry.riskSignals);
 });
@@ -280,7 +282,7 @@ Multi-line input with real-time character counter, rate limiting, and automatic 
 
 **Properties & Methods:** `value`, `name`, `valid`, `getAuditLog()`, `getFieldTelemetry()`, `focus()`, `blur()`
 
-**Events:** `secure-textarea-change` → `{ name, value, tier }`
+**Events:** `secure-textarea-change` → `{ name, tier }` — `value` is intentionally absent; read `(event.target as SecureTextarea).value` directly
 
 ```html
 <secure-textarea
@@ -378,9 +380,9 @@ el.submit()       // programmatic submit (triggers validation + telemetry)
 
 | Event | Detail |
 |-------|--------|
-| `secure-form-submit` | `{ formData, telemetry, cancelSubmission() }` — cancelable. Call `e.detail.cancelSubmission()` to abort the library's fetch submission and re-enable the form, or call `e.preventDefault()` (native) to prevent the `fetch` from being sent. |
+| `secure-form-submit` | `{ telemetry, cancelSubmission() }` — cancelable. `formData` is intentionally absent (a bubbling event carrying credential values can be read by any page script). Call `e.detail.cancelSubmission()` to abort the library's fetch submission and re-enable the form, or call `e.preventDefault()` for the same effect. Read field values directly from the component instances when needed. |
 | `secure-form-success` | `{ status, ok, telemetry }` — only when `use-fetch` is set. `formData` and the raw `Response` are intentionally absent; they must not propagate globally via a bubbling event. |
-| `secure-threat-detected` | `{ fieldName, threatType: 'csrf-token-absent', patternId, tier, timestamp }` — fired on `sensitive`/`critical` tiers when CSRF token is absent at submission |
+| `secure-threat-detected` | `{ fieldName, threatType: 'csrf-token-absent', patternId, tier, timestamp }` — fired on `sensitive`/`critical` tiers when CSRF token is absent at submission; **submission is also blocked client-side** (event.preventDefault + early return) |
 
 **`telemetry` shape** (`SessionTelemetry`):
 
@@ -413,10 +415,13 @@ el.submit()       // programmatic submit (triggers validation + telemetry)
 
 ```js
 form.addEventListener('secure-form-submit', (e) => {
-  const { formData, telemetry } = e.detail;
+  const { telemetry } = e.detail;
+  // formData is intentionally absent — a bubbling composed event carrying
+  // credential values can be intercepted by any script on the page.
+  // Read field values directly: (form.querySelector('secure-input[name="email"]')).value
 
   // Injection attempts are already blocked before this event fires.
-  // detectedThreats contains any csrf-token-absent signals that slipped through.
+  // detectedThreats contains any csrf-token-absent signals recorded this session.
   if (telemetry.detectedThreats?.length) {
     console.warn('Threats recorded this session:', telemetry.detectedThreats);
   }
@@ -572,7 +577,7 @@ upload.setScanHook(async (file) => {
 });
 ```
 
-**Events:** `secure-file-change` → `{ name, files: File[], tier }`
+**Events:** `secure-file-change` → `{ name, files: ReadonlyArray<SecureFileMeta>, tier }` — `SecureFileMeta` is `{ name, size, type }`; raw `File` objects are intentionally absent; read `(event.target as SecureFileUpload).files` directly when needed
 
 **Content validation (critical tier):** Magic number verification for JPEG, PNG, and PDF files.
 
@@ -626,7 +631,7 @@ el.focus()
 el.blur()
 ```
 
-**Events:** `secure-datetime-change` → `{ name, value, type, tier }`
+**Events:** `secure-datetime-change` → `{ name, type, tier }` — `value` is intentionally absent; read `(event.target as SecureDateTime).value` directly
 
 **CRITICAL tier:** Year must be between 1900 and 2100.
 
@@ -740,7 +745,7 @@ card.getAuditLog()
 
 | Event | Detail |
 |-------|--------|
-| `secure-card-change` | `{ name, cardType, last4, expiryMonth: number (1–12), expiryYear: number (4-digit, e.g. 2027), cardholderName, valid, tier }` |
+| `secure-card-change` | `{ name, cardType, last4, expiryMonth: number (1–12), expiryYear: number (4-digit, e.g. 2027), valid, tier }` — `cardholderName` is intentionally absent (PII; combined with last4+expiry it partially identifies a card); use `getCardData()` for SDK handoff |
 | `secure-audit` | `{ event, tier, timestamp, data? }` |
 
 Note: the `secure-card-change` event detail intentionally omits the full PAN and CVC.
@@ -827,6 +832,7 @@ el.focus()
 
 | Event | Detail |
 |-------|--------|
+| `secure-password-confirm-change` | `{ name, tier }` — fired on every keystroke in the password field; `value` is intentionally absent |
 | `secure-password-match` | `{ name, matched: true }` — fired when both fields contain the same value |
 | `secure-password-mismatch` | `{ name, matched: false }` — fired when the values diverge |
 | `secure-threat-detected` | `{ fieldName, threatType: 'injection', patternId, tier, timestamp }` — fired if an injection pattern is typed into either field |
@@ -902,9 +908,9 @@ document.addEventListener('secure-threat-detected', (e) => {
 });
 ```
 
-### CSRF threat detection
+### CSRF enforcement
 
-`<secure-form>` fires `secure-threat-detected` at submission time when the form is `sensitive` or `critical` tier and no CSRF token value is present. This is a defence-in-depth signal — the request is still blocked by missing CSRF validation server-side, but the event lets client-side monitoring react immediately.
+`<secure-form>` **blocks submission** at submission time when the form is `sensitive` or `critical` tier and no CSRF token value is present — `event.preventDefault()` is called and an error status message is shown. It also fires `secure-threat-detected` so client-side monitoring can react. Server-side CSRF validation remains mandatory; the client-side block is a defence-in-depth layer only.
 
 ```js
 form.addEventListener('secure-threat-detected', (e) => {
@@ -980,13 +986,14 @@ el.blur()
 | Event | Fired by | Detail |
 |-------|----------|--------|
 | `secure-input-change` | `<secure-input>` | `{ name, masked, tier }` — `value` is intentionally absent; read `(e.target as SecureInput).value` to avoid broadcasting sensitive data to all listeners |
-| `secure-textarea-change` | `<secure-textarea>` | `{ name, value, tier }` |
+| `secure-textarea-change` | `<secure-textarea>` | `{ name, tier }` — `value` intentionally absent; read from element |
 | `secure-select-change` | `<secure-select>` | `{ name, value: string \| string[], tier }` |
-| `secure-datetime-change` | `<secure-datetime>` | `{ name, value, type, tier }` |
-| `secure-file-change` | `<secure-file-upload>` | `{ name, files, tier }` |
-| `secure-card-change` | `<secure-card>` | `{ name, cardType, last4, expiryMonth, expiryYear, cardholderName, valid, tier }` |
-| `secure-form-submit` | `<secure-form>` | `{ formData, telemetry, cancelSubmission() }` — call `cancelSubmission()` to abort the fetch and re-enable the form |
-| `secure-form-success` | `<secure-form>` | `{ status: number, ok: boolean, telemetry }` — `formData` and the raw `Response` are intentionally absent |
+| `secure-datetime-change` | `<secure-datetime>` | `{ name, type, tier }` — `value` intentionally absent; read from element |
+| `secure-file-change` | `<secure-file-upload>` | `{ name, files: ReadonlyArray<SecureFileMeta>, tier }` — raw `File` objects absent; read from element |
+| `secure-password-confirm-change` | `<secure-password-confirm>` | `{ name, tier }` — fired on password field input; `value` intentionally absent |
+| `secure-card-change` | `<secure-card>` | `{ name, cardType, last4, expiryMonth, expiryYear, valid, tier }` — `cardholderName` intentionally absent (PII) |
+| `secure-form-submit` | `<secure-form>` | `{ telemetry, cancelSubmission() }` — `formData` intentionally absent; call `cancelSubmission()` to abort the fetch and re-enable the form |
+| `secure-form-success` | `<secure-form>` | `{ status: number, ok: boolean, telemetry }` — `formData` and the raw `Response` intentionally absent |
 | `secure-table-action` | `<secure-table>` | `{ action, …data-attributes }` |
 | `secure-audit` | all components | `{ event, tier, timestamp, data? }` |
 | `secure-threat-detected` | `<secure-input>`, `<secure-textarea>`, `<secure-password-confirm>`, `<secure-form>` | `{ fieldName, threatType, patternId, tier, timestamp }` |
