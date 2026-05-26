@@ -280,7 +280,9 @@ describe('SECURITY_HEADERS', () => {
   it('should define recommended security headers', () => {
     expect(SECURITY_HEADERS['X-Content-Type-Options']).toBe('nosniff');
     expect(SECURITY_HEADERS['X-Frame-Options']).toBe('DENY');
-    expect(SECURITY_HEADERS['X-XSS-Protection']).toBe('1; mode=block');
+    // X-XSS-Protection is intentionally absent: the header is deprecated and
+    // removed from all modern browsers. Strict CSP is the correct mitigation.
+    expect(SECURITY_HEADERS['X-XSS-Protection']).toBeUndefined();
     expect(SECURITY_HEADERS['Referrer-Policy']).toBe('strict-origin-when-cross-origin');
   });
 
