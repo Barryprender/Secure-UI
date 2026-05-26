@@ -26,7 +26,7 @@ function mount(attrs: Record<string, string> = {}): SecureInput {
 }
 
 function getInput(el: SecureInput): HTMLInputElement {
-  return el.shadowRoot!.querySelector('input')!;
+  return (el as any).root!.querySelector('input')!;
 }
 
 function fireInput(input: HTMLInputElement, inputType: string, data = ''): void {
