@@ -183,8 +183,16 @@ export class SecureForm extends HTMLElement {
       }
     }
 
-    const method = this.getAttribute('method') || 'POST';
-    this.#formElement!.method = method.toUpperCase();
+    const rawMethod = (this.getAttribute('method') || 'POST').toUpperCase();
+    // Only allow methods that send a request body. GET would append form data
+    // to the URL, leaking credentials into server logs and browser history.
+    const ALLOWED_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'] as const;
+    const method = (ALLOWED_METHODS as readonly string[]).includes(rawMethod) ? rawMethod : 'POST';
+    if (rawMethod !== method) {
+      console.warn(`SecureForm: method "${rawMethod}" is not allowed; defaulting to POST.`);
+      this.audit('form_method_rejected', { attempted: rawMethod });
+    }
+    this.#formElement!.method = method;
 
     const enctype = this.getAttribute('enctype') || 'application/x-www-form-urlencoded';
     this.#formElement!.enctype = enctype;
@@ -270,11 +278,14 @@ export class SecureForm extends HTMLElement {
       return;
     }
 
-    // Detect absent CSRF token on sensitive/critical tiers at submission time
+    // Block submission when CSRF token is absent on SENSITIVE/CRITICAL tiers.
+    // A warning-only check is insufficient — an attacker can simply not trigger
+    // the threat event. We must prevent the native submit and any fetch path.
     if (
       (this.#securityTier === SecurityTier.SENSITIVE || this.#securityTier === SecurityTier.CRITICAL) &&
       !this.#csrfInput?.value
     ) {
+      event.preventDefault();
       this.dispatchEvent(new CustomEvent<ThreatDetectedDetail>('secure-threat-detected', {
         detail: {
           fieldName: this.#instanceId,
@@ -286,6 +297,9 @@ export class SecureForm extends HTMLElement {
         bubbles: true,
         composed: true,
       }));
+      this.audit('form_csrf_blocked', { tier: this.#securityTier });
+      this.#showStatus('Submission blocked: CSRF token missing.', 'error');
+      return;
     }
 
     // Check rate limit
@@ -543,7 +557,9 @@ export class SecureForm extends HTMLElement {
       headers: headers,
       body: JSON.stringify(payload),
       credentials: 'same-origin',
-      mode: 'cors',
+      // Action URLs are validated to same-origin only; same-origin mode
+      // makes that constraint explicit and prevents accidental cross-origin requests.
+      mode: 'same-origin',
       cache: 'no-cache',
       redirect: 'follow',
       signal: this.#submitAbortController.signal
@@ -850,9 +866,17 @@ export class SecureForm extends HTMLElement {
           this.audit('form_action_rejected', { action: newValue });
         }
         break;
-      case 'method':
-        this.#formElement.method = newValue!;
+      case 'method': {
+        const ALLOWED = ['POST', 'PUT', 'PATCH', 'DELETE'] as const;
+        const candidate = (newValue ?? 'POST').toUpperCase();
+        const safe = (ALLOWED as readonly string[]).includes(candidate) ? candidate : 'POST';
+        if (candidate !== safe) {
+          console.warn(`SecureForm: method "${candidate}" is not allowed; defaulting to POST.`);
+          this.audit('form_method_rejected', { attempted: candidate });
+        }
+        this.#formElement.method = safe;
         break;
+      }
       case 'csrf-token':
         if (this.#csrfInput) {
           this.#csrfInput.value = newValue!;
