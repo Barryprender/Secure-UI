@@ -28,7 +28,7 @@ describe('SecureDateTime branch coverage', () => {
   // ── default type ──────────────────────────────────────────────────────────
   it('defaults to type=date when no type attribute', () => {
     document.body.appendChild(dt);
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     expect(input.type).toBe('date');
   });
 
@@ -36,7 +36,7 @@ describe('SecureDateTime branch coverage', () => {
   it('falls back to date for invalid type attribute', () => {
     dt.setAttribute('type', 'invalid-type');
     document.body.appendChild(dt);
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     expect(input.type).toBe('date');
   });
 
@@ -44,28 +44,28 @@ describe('SecureDateTime branch coverage', () => {
   it('accepts type=time', () => {
     dt.setAttribute('type', 'time');
     document.body.appendChild(dt);
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     expect(input.type).toBe('time');
   });
 
   it('accepts type=datetime-local', () => {
     dt.setAttribute('type', 'datetime-local');
     document.body.appendChild(dt);
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     expect(input.type).toBe('datetime-local');
   });
 
   it('accepts type=month', () => {
     dt.setAttribute('type', 'month');
     document.body.appendChild(dt);
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     expect(input.type).toBe('month');
   });
 
   it('accepts type=week', () => {
     dt.setAttribute('type', 'week');
     document.body.appendChild(dt);
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     expect(input.type).toBe('week');
   });
 
@@ -73,7 +73,7 @@ describe('SecureDateTime branch coverage', () => {
   it('sets aria-label when no label but name is provided', () => {
     dt.setAttribute('name', 'birthdate');
     document.body.appendChild(dt);
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     expect(input.getAttribute('aria-label')).toBe('birthdate');
   });
 
@@ -81,7 +81,7 @@ describe('SecureDateTime branch coverage', () => {
   it('renders timezone display when show-timezone attribute is set', () => {
     dt.setAttribute('show-timezone', '');
     document.body.appendChild(dt);
-    const shadowContent = dt.shadowRoot?.innerHTML || '';
+    const shadowContent = (dt as any).root?.innerHTML || '';
     expect(shadowContent).toContain('UTC');
   });
 
@@ -122,7 +122,7 @@ describe('SecureDateTime branch coverage', () => {
   it('handleAttributeChange: disabled toggles inner input', () => {
     document.body.appendChild(dt);
     dt.setAttribute('disabled', '');
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     expect(input.disabled).toBe(true);
     dt.removeAttribute('disabled');
     expect(input.disabled).toBe(false);
@@ -132,7 +132,7 @@ describe('SecureDateTime branch coverage', () => {
   it('handleAttributeChange: readonly toggles inner input', () => {
     document.body.appendChild(dt);
     dt.setAttribute('readonly', '');
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     expect(input.readOnly).toBe(true);
     dt.removeAttribute('readonly');
     expect(input.readOnly).toBe(false);
@@ -143,7 +143,7 @@ describe('SecureDateTime branch coverage', () => {
     dt.setAttribute('type', 'date');
     document.body.appendChild(dt);
     dt.setAttribute('value', '2025-01-01');
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     expect(input.value).toBe('2025-01-01');
   });
 
@@ -152,7 +152,7 @@ describe('SecureDateTime branch coverage', () => {
     dt.setAttribute('type', 'date');
     document.body.appendChild(dt);
     dt.setAttribute('min', '2020-01-01');
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     expect(input.min).toBe('2020-01-01');
   });
 
@@ -160,7 +160,7 @@ describe('SecureDateTime branch coverage', () => {
     dt.setAttribute('type', 'date');
     document.body.appendChild(dt);
     dt.setAttribute('max', '2030-12-31');
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     expect(input.max).toBe('2030-12-31');
   });
 
@@ -168,7 +168,7 @@ describe('SecureDateTime branch coverage', () => {
     dt.setAttribute('type', 'date');
     document.body.appendChild(dt);
     dt.setAttribute('min', 'not-a-date');
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     expect(input.min).toBe('');
   });
 
@@ -178,10 +178,10 @@ describe('SecureDateTime branch coverage', () => {
     const spy = vi.spyOn(SecureBaseComponent.prototype as unknown as { checkRateLimit: () => unknown }, 'checkRateLimit')
       .mockReturnValue({ allowed: false, retryAfter: 3000 });
 
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     input.dispatchEvent(new Event('blur'));
 
-    const shadowContent = dt.shadowRoot?.innerHTML ?? '';
+    const shadowContent = (dt as any).root?.innerHTML ?? '';
     expect(shadowContent).toContain('Too many');
     spy.mockRestore();
   });
@@ -191,10 +191,10 @@ describe('SecureDateTime branch coverage', () => {
     dt.setAttribute('required', '');
     document.body.appendChild(dt);
 
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     input.dispatchEvent(new Event('blur'));
 
-    const shadowContent = dt.shadowRoot?.innerHTML || '';
+    const shadowContent = (dt as any).root?.innerHTML || '';
     expect(shadowContent).toContain('required');
   });
 
@@ -205,11 +205,11 @@ describe('SecureDateTime branch coverage', () => {
     dt.setAttribute('max', '2030-12-31');
     document.body.appendChild(dt);
 
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     input.value = '2020-06-01';
     input.dispatchEvent(new Event('blur'));
 
-    const shadowContent = dt.shadowRoot?.innerHTML || '';
+    const shadowContent = (dt as any).root?.innerHTML || '';
     expect(shadowContent).toContain('after');
   });
 
@@ -220,11 +220,11 @@ describe('SecureDateTime branch coverage', () => {
     dt.setAttribute('max', '2022-12-31');
     document.body.appendChild(dt);
 
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     input.value = '2025-01-01';
     input.dispatchEvent(new Event('blur'));
 
-    const shadowContent = dt.shadowRoot?.innerHTML || '';
+    const shadowContent = (dt as any).root?.innerHTML || '';
     expect(shadowContent).toContain('before');
   });
 
@@ -234,11 +234,11 @@ describe('SecureDateTime branch coverage', () => {
     dt.setAttribute('type', 'date');
     document.body.appendChild(dt);
 
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     input.value = '1800-01-01';
     input.dispatchEvent(new Event('blur'));
 
-    const shadowContent = dt.shadowRoot?.innerHTML || '';
+    const shadowContent = (dt as any).root?.innerHTML || '';
     expect(shadowContent).toContain('1900');
   });
 
@@ -247,11 +247,11 @@ describe('SecureDateTime branch coverage', () => {
     dt.setAttribute('type', 'date');
     document.body.appendChild(dt);
 
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     input.value = '2200-01-01';
     input.dispatchEvent(new Event('blur'));
 
-    const shadowContent = dt.shadowRoot?.innerHTML || '';
+    const shadowContent = (dt as any).root?.innerHTML || '';
     expect(shadowContent).toContain('2100');
   });
 
@@ -260,7 +260,7 @@ describe('SecureDateTime branch coverage', () => {
     dt.setAttribute('type', 'date');
     document.body.appendChild(dt);
 
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     Object.defineProperty(input, 'value', { value: 'bad-date', writable: true, configurable: true });
     expect(() => input.dispatchEvent(new Event('change', { bubbles: true }))).not.toThrow();
   });
@@ -273,7 +273,7 @@ describe('SecureDateTime branch coverage', () => {
     const handler = vi.fn();
     dt.addEventListener('secure-datetime-change', handler);
 
-    const input = dt.shadowRoot!.querySelector<HTMLInputElement>('input')!;
+    const input = (dt as any).root!.querySelector<HTMLInputElement>('input')!;
     input.dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(handler).toHaveBeenCalled();
@@ -391,7 +391,7 @@ describe('SecureDateTime branch coverage', () => {
     dt.value = '2024-01-01';
     dt.remove();
     // After removal the input value is cleared
-    const input = dt.shadowRoot?.querySelector('input');
+    const input = (dt as any).root?.querySelector('input');
     if (input) {
       expect(input.value).toBe('');
     }

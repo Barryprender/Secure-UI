@@ -34,8 +34,8 @@ describe('SecureDatetime', () => {
     it('should have shadow DOM', () => {
       document.body.appendChild(datetime);
 
-      expect(datetime.shadowRoot).toBeDefined();
-      expect(datetime.shadowRoot).not.toBeNull();
+      expect((datetime as any).root).toBeDefined();
+      expect((datetime as any).root).not.toBeNull();
     });
 
     it('should default to CRITICAL security tier', () => {
@@ -62,7 +62,7 @@ describe('SecureDatetime', () => {
       datetime.setAttribute('label', 'Birth Date');
       document.body.appendChild(datetime);
 
-      const shadowContent = datetime.shadowRoot?.innerHTML || '';
+      const shadowContent = (datetime as any).root?.innerHTML || '';
       expect(shadowContent).toContain('Birth Date');
     });
   });
@@ -72,7 +72,7 @@ describe('SecureDatetime', () => {
       datetime.setAttribute('type', 'date');
       document.body.appendChild(datetime);
 
-      const input = datetime.shadowRoot?.querySelector('input');
+      const input = (datetime as any).root?.querySelector('input');
       if (input) {
         expect(input.type).toBe('date');
       }
@@ -82,7 +82,7 @@ describe('SecureDatetime', () => {
       datetime.setAttribute('type', 'time');
       document.body.appendChild(datetime);
 
-      const input = datetime.shadowRoot?.querySelector('input');
+      const input = (datetime as any).root?.querySelector('input');
       if (input) {
         expect(input.type).toBe('time');
       }
@@ -92,7 +92,7 @@ describe('SecureDatetime', () => {
       datetime.setAttribute('type', 'datetime-local');
       document.body.appendChild(datetime);
 
-      const input = datetime.shadowRoot?.querySelector('input');
+      const input = (datetime as any).root?.querySelector('input');
       if (input) {
         expect(input.type).toBe('datetime-local');
       }
@@ -102,7 +102,7 @@ describe('SecureDatetime', () => {
       datetime.setAttribute('type', 'month');
       document.body.appendChild(datetime);
 
-      const input = datetime.shadowRoot?.querySelector('input');
+      const input = (datetime as any).root?.querySelector('input');
       if (input) {
         expect(input.type).toBe('month');
       }
@@ -112,7 +112,7 @@ describe('SecureDatetime', () => {
       datetime.setAttribute('type', 'week');
       document.body.appendChild(datetime);
 
-      const input = datetime.shadowRoot?.querySelector('input');
+      const input = (datetime as any).root?.querySelector('input');
       if (input) {
         expect(input.type).toBe('week');
       }
@@ -122,7 +122,7 @@ describe('SecureDatetime', () => {
       datetime.setAttribute('type', 'invalid-type');
       document.body.appendChild(datetime);
 
-      const input = datetime.shadowRoot?.querySelector('input');
+      const input = (datetime as any).root?.querySelector('input');
       if (input) {
         // Should fall back to date or not be invalid
         expect(['date', 'text'].includes(input.type)).toBe(true);
@@ -235,14 +235,14 @@ describe('SecureDatetime', () => {
       datetime.value = '<script>window.__datetimeXSS=true</script>';
 
       expect((window as Record<string, unknown>)['__datetimeXSS']).toBeFalsy();
-      expect(datetime.shadowRoot?.innerHTML).not.toContain('<script>');
+      expect((datetime as any).root?.innerHTML).not.toContain('<script>');
     });
 
     it('should sanitize SQL injection attempt in date value', () => {
       datetime.value = "' OR '1'='1";
 
       // Value must not propagate as raw HTML into the DOM
-      expect(datetime.shadowRoot?.innerHTML).not.toContain("' OR '1'='1");
+      expect((datetime as any).root?.innerHTML).not.toContain("' OR '1'='1");
     });
   });
 
@@ -456,7 +456,7 @@ describe('SecureDatetime', () => {
       const eventHandler = vi.fn();
       datetime.addEventListener('secure-datetime-change', eventHandler);
 
-      const input = datetime.shadowRoot?.querySelector('input');
+      const input = (datetime as any).root?.querySelector('input');
       expect(input).not.toBeNull();
       input!.value = '2024-01-15';
       input!.dispatchEvent(new Event('input', { bubbles: true }));
@@ -472,7 +472,7 @@ describe('SecureDatetime', () => {
       datetime.setAttribute('security-tier', 'critical');
       document.body.appendChild(datetime);
 
-      const input = datetime.shadowRoot?.querySelector('input');
+      const input = (datetime as any).root?.querySelector('input');
       if (input) {
         expect(input.autocomplete).toBe('off');
       }
@@ -521,7 +521,7 @@ describe('SecureDatetime', () => {
       datetime.setAttribute('show-timezone', '');
       document.body.appendChild(datetime);
 
-      const shadowContent = datetime.shadowRoot?.innerHTML || '';
+      const shadowContent = (datetime as any).root?.innerHTML || '';
       // May contain timezone info
       expect(shadowContent.length).toBeGreaterThan(0);
     });
@@ -557,7 +557,7 @@ describe('SecureDatetime', () => {
       datetime.setAttribute('disabled', '');
       document.body.appendChild(datetime);
 
-      const input = datetime.shadowRoot?.querySelector('input');
+      const input = (datetime as any).root?.querySelector('input');
       if (input) {
         expect(input.disabled).toBe(true);
       }
@@ -567,7 +567,7 @@ describe('SecureDatetime', () => {
       datetime.setAttribute('readonly', '');
       document.body.appendChild(datetime);
 
-      const input = datetime.shadowRoot?.querySelector('input');
+      const input = (datetime as any).root?.querySelector('input');
       if (input) {
         expect(input.readOnly).toBe(true);
       }
