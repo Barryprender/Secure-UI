@@ -252,24 +252,24 @@ describe('SecurePasswordConfirm', () => {
       expect(confirmError.classList.contains('hidden')).toBe(true);
     });
 
-    it('dispatches "secure-input" event when typing in password field', () => {
+    it('dispatches "secure-password-confirm-change" event when typing in password field', () => {
       const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
       const listener = vi.fn();
-      el.addEventListener('secure-input-change', listener);
+      el.addEventListener('secure-password-confirm-change', listener);
       typeInto(passwordInput, 'Secret1!');
       expect(listener).toHaveBeenCalledOnce();
-      el.removeEventListener('secure-input-change', listener);
+      el.removeEventListener('secure-password-confirm-change', listener);
     });
 
-    it('"secure-input" event detail includes name and field="password"', () => {
+    it('"secure-password-confirm-change" event detail includes name and tier', () => {
       const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
       let detail: Record<string, unknown> = {};
-      el.addEventListener('secure-input-change', (e) => {
+      el.addEventListener('secure-password-confirm-change', (e) => {
         detail = (e as CustomEvent).detail as Record<string, unknown>;
       });
       typeInto(passwordInput, 'Secret1!');
       expect(detail['name']).toBe('password');
-      expect(detail['field']).toBe('password');
+      expect(detail['tier']).toBe('critical');
     });
 
     it('shows password strength error after blurring with a weak password', () => {
