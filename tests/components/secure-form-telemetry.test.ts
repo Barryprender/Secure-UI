@@ -50,7 +50,7 @@ function buildForm(fields: { name: string; value?: string }[] = []): SecureForm 
 }
 
 function getInputEl(secureInput: Element): HTMLInputElement {
-  return (secureInput as SecureInput).shadowRoot!.querySelector('input')!;
+  return ((secureInput as unknown as { root: ShadowRoot }).root).querySelector('input')!;
 }
 
 function fireFocus(el: HTMLInputElement): void {
@@ -457,7 +457,10 @@ describe('SecureForm — telemetry aggregation', () => {
       expect(Array.isArray(t.riskSignals)).toBe(true);
     });
 
-    it('telemetry accompanies formData in the event detail', () => {
+    it('telemetry is present in the event detail (formData removed — security fix)', () => {
+      // formData was removed from the secure-form-submit detail because it carried
+      // sensitive field values in a bubbling/composed event readable by any page script.
+      // Callers that need field values should read them directly from the component.
       form = buildForm([{ name: 'username', value: 'testuser' }]);
 
       let detail: Record<string, unknown> | null = null;
@@ -467,7 +470,7 @@ describe('SecureForm — telemetry aggregation', () => {
 
       form.submit();
 
-      expect(detail!['formData']).toBeDefined();
+      expect(detail!['formData']).toBeUndefined();
       expect(detail!['telemetry']).toBeDefined();
     });
   });

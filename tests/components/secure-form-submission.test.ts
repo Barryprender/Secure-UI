@@ -118,7 +118,7 @@ describe('SecureForm — submission', () => {
     await new Promise(r => setTimeout(r, 50));
     input.value = 'alice';
 
-    const internalForm = form.querySelector('form') ?? form.shadowRoot?.querySelector('form');
+    const internalForm = form.querySelector('form') ?? (form as any).root?.querySelector('form');
     internalForm?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 
     await new Promise(r => setTimeout(r, 100));
@@ -147,7 +147,11 @@ describe('SecureForm — submission', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it('includes formData in secure-form-submit event detail', async () => {
+  it('secure-form-submit event detail contains telemetry but NOT formData (security fix)', async () => {
+    // formData was removed from the event detail: the detail is a bubbling/composed
+    // CustomEvent readable by any script on the page. Sensitive form values must not
+    // be broadcast globally. Callers needing field values must read them directly from
+    // the component instances.
     let detail: Record<string, unknown> | null = null;
     form.addEventListener('secure-form-submit', ((e: CustomEvent) => {
       e.preventDefault(); // prevent actual fetch
@@ -163,12 +167,13 @@ describe('SecureForm — submission', () => {
     await new Promise(r => setTimeout(r, 50));
     input.value = 'testuser';
 
-    const internalForm = form.querySelector('form') ?? form.shadowRoot?.querySelector('form');
+    const internalForm = form.querySelector('form') ?? (form as any).root?.querySelector('form');
     internalForm?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 
     await new Promise(r => setTimeout(r, 100));
     expect(detail).not.toBeNull();
-    expect(detail).toHaveProperty('formData');
+    expect(detail).not.toHaveProperty('formData');
+    expect(detail).toHaveProperty('telemetry');
   });
 });
 
@@ -207,14 +212,14 @@ describe('SecureForm — attribute changes', () => {
   it('updates action attribute on the inner form', async () => {
     form.setAttribute('action', '/api/v1/submit');
     await new Promise(r => setTimeout(r, 50));
-    const inner = form.querySelector('form') ?? form.shadowRoot?.querySelector('form');
+    const inner = form.querySelector('form') ?? (form as any).root?.querySelector('form');
     expect(inner?.getAttribute('action')).toBe('/api/v1/submit');
   });
 
   it('updates method attribute on the inner form', async () => {
     form.setAttribute('method', 'POST');
     await new Promise(r => setTimeout(r, 50));
-    const inner = form.querySelector('form') ?? form.shadowRoot?.querySelector('form');
+    const inner = form.querySelector('form') ?? (form as any).root?.querySelector('form');
     expect(inner?.getAttribute('method')?.toUpperCase()).toBe('POST');
   });
 });
@@ -231,7 +236,7 @@ describe('SecureForm — CSRF threat detection on submission', () => {
   }
 
   function triggerSubmit(f: SecureForm): void {
-    const inner = f.querySelector('form') ?? f.shadowRoot?.querySelector('form');
+    const inner = f.querySelector('form') ?? (f as any).root?.querySelector('form');
     inner?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
   }
 
