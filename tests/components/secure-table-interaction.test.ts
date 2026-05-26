@@ -40,31 +40,31 @@ describe('SecureTable — sorting', () => {
   afterEach(() => { table.remove(); });
 
   it('sorts ascending on first click of a sortable header', () => {
-    const th = table.shadowRoot?.querySelector('th.sortable') as HTMLElement | null;
+    const th = (table as any).root?.querySelector('th.sortable') as HTMLElement | null;
     th?.click();
-    const shadow = table.shadowRoot?.innerHTML ?? '';
+    const shadow = (table as any).root?.innerHTML ?? '';
     expect(shadow).toContain('sorted');
   });
 
   it('toggles to descending on second click', () => {
-    const th = table.shadowRoot?.querySelector('th.sortable') as HTMLElement | null;
+    const th = (table as any).root?.querySelector('th.sortable') as HTMLElement | null;
     th?.click();
     th?.click();
-    const shadow = table.shadowRoot?.innerHTML ?? '';
+    const shadow = (table as any).root?.innerHTML ?? '';
     expect(shadow).toContain('descending');
   });
 
   it('switches sort column on clicking a different header', () => {
-    const headers = table.shadowRoot?.querySelectorAll('th.sortable');
+    const headers = (table as any).root?.querySelectorAll('th.sortable');
     (headers?.[0] as HTMLElement)?.click();
     (headers?.[1] as HTMLElement)?.click();
-    const shadow = table.shadowRoot?.innerHTML ?? '';
+    const shadow = (table as any).root?.innerHTML ?? '';
     // Second column should now be sorted
     expect(shadow).toContain('ascending');
   });
 
   it('does not sort a non-sortable column', () => {
-    const ths = table.shadowRoot?.querySelectorAll('th');
+    const ths = (table as any).root?.querySelectorAll('th');
     // Third column (role) has sortable: false — click should not throw
     expect(() => (ths?.[2] as HTMLElement)?.click()).not.toThrow();
   });
@@ -84,27 +84,27 @@ describe('SecureTable — filtering', () => {
   afterEach(() => { table.remove(); });
 
   it('filters rows matching the search term', async () => {
-    const search = table.shadowRoot?.querySelector('.search-input') as HTMLInputElement | null;
+    const search = (table as any).root?.querySelector('.search-input') as HTMLInputElement | null;
     if (!search) return;
     search.value = 'User 001';
     search.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise(r => setTimeout(r, 50));
-    const rows = table.shadowRoot?.querySelectorAll('tbody tr');
+    const rows = (table as any).root?.querySelectorAll('tbody tr');
     expect(rows?.length).toBe(1);
   });
 
   it('shows empty state when filter matches nothing', async () => {
-    const search = table.shadowRoot?.querySelector('.search-input') as HTMLInputElement | null;
+    const search = (table as any).root?.querySelector('.search-input') as HTMLInputElement | null;
     if (!search) return;
     search.value = 'zzz-no-match';
     search.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise(r => setTimeout(r, 50));
-    const shadow = table.shadowRoot?.innerHTML ?? '';
+    const shadow = (table as any).root?.innerHTML ?? '';
     expect(shadow).toContain('empty-state');
   });
 
   it('clears filter when search input is emptied', async () => {
-    const search = table.shadowRoot?.querySelector('.search-input') as HTMLInputElement | null;
+    const search = (table as any).root?.querySelector('.search-input') as HTMLInputElement | null;
     if (!search) return;
     search.value = 'User 001';
     search.dispatchEvent(new Event('input', { bubbles: true }));
@@ -112,7 +112,7 @@ describe('SecureTable — filtering', () => {
     search.value = '';
     search.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise(r => setTimeout(r, 50));
-    const rows = table.shadowRoot?.querySelectorAll('tbody tr');
+    const rows = (table as any).root?.querySelectorAll('tbody tr');
     expect(rows?.length).toBe(10);
   });
 });
@@ -131,51 +131,51 @@ describe('SecureTable — pagination', () => {
   afterEach(() => { table.remove(); });
 
   it('shows first page of 10 rows by default', () => {
-    const rows = table.shadowRoot?.querySelectorAll('tbody tr');
+    const rows = (table as any).root?.querySelectorAll('tbody tr');
     expect(rows?.length).toBe(10);
   });
 
   it('navigates to next page', async () => {
-    const nextBtn = table.shadowRoot?.getElementById('nextBtn') as HTMLButtonElement | null;
+    const nextBtn = (table as any).root?.getElementById('nextBtn') as HTMLButtonElement | null;
     nextBtn?.click();
     await new Promise(r => setTimeout(r, 50));
-    const shadow = table.shadowRoot?.innerHTML ?? '';
+    const shadow = (table as any).root?.innerHTML ?? '';
     expect(shadow).toContain('User 011');
   });
 
   it('navigates to last page via page number buttons', async () => {
     // Click page 3 button (25 rows / 10 per page = 3 pages)
     const page3 = Array.from(
-      table.shadowRoot?.querySelectorAll('.pagination-button[data-page]') ?? []
+      (table as any).root?.querySelectorAll('.pagination-button[data-page]') ?? []
     ).find(b => b.getAttribute('data-page') === '3') as HTMLButtonElement | null;
     page3?.click();
     await new Promise(r => setTimeout(r, 50));
-    const rows = table.shadowRoot?.querySelectorAll('tbody tr');
+    const rows = (table as any).root?.querySelectorAll('tbody tr');
     expect(rows?.length).toBe(5); // 25 rows, last page has 5
   });
 
   it('navigates to a specific page number', async () => {
     const page2 = Array.from(
-      table.shadowRoot?.querySelectorAll('.pagination-button[data-page]') ?? []
+      (table as any).root?.querySelectorAll('.pagination-button[data-page]') ?? []
     ).find(b => b.getAttribute('data-page') === '2') as HTMLButtonElement | null;
     page2?.click();
     await new Promise(r => setTimeout(r, 50));
-    const shadow = table.shadowRoot?.innerHTML ?? '';
+    const shadow = (table as any).root?.innerHTML ?? '';
     expect(shadow).toContain('User 011');
   });
 
   it('disables prev button on first page', () => {
-    const prevBtn = table.shadowRoot?.getElementById('prevBtn') as HTMLButtonElement | null;
+    const prevBtn = (table as any).root?.getElementById('prevBtn') as HTMLButtonElement | null;
     expect(prevBtn?.disabled).toBe(true);
   });
 
   it('disables next button on last page', async () => {
     const page3 = Array.from(
-      table.shadowRoot?.querySelectorAll('.pagination-button[data-page]') ?? []
+      (table as any).root?.querySelectorAll('.pagination-button[data-page]') ?? []
     ).find(b => b.getAttribute('data-page') === '3') as HTMLButtonElement | null;
     page3?.click();
     await new Promise(r => setTimeout(r, 50));
-    const nextBtn = table.shadowRoot?.getElementById('nextBtn') as HTMLButtonElement | null;
+    const nextBtn = (table as any).root?.getElementById('nextBtn') as HTMLButtonElement | null;
     expect(nextBtn?.disabled).toBe(true);
   });
 });
@@ -188,7 +188,7 @@ describe('SecureTable — caption attribute', () => {
     table.columns = COLS;
     table.data = makeRows(3);
     expect(() => document.body.appendChild(table)).not.toThrow();
-    expect(table.shadowRoot?.innerHTML.length).toBeGreaterThan(0);
+    expect((table as any).root?.innerHTML.length).toBeGreaterThan(0);
     table.remove();
   });
 });
@@ -200,7 +200,7 @@ describe('SecureTable — columns as JS property', () => {
     table.columns = COLS;
     table.data = makeRows(2);
     document.body.appendChild(table);
-    const shadow = table.shadowRoot?.innerHTML ?? '';
+    const shadow = (table as any).root?.innerHTML ?? '';
     table.remove();
     expect(shadow).toContain('Name');
   });
@@ -220,12 +220,12 @@ describe('SecureTable — page-size selector', () => {
   afterEach(() => { table.remove(); });
 
   it('changes page size via selector', async () => {
-    const select = table.shadowRoot?.querySelector('.page-size-select') as HTMLSelectElement | null;
+    const select = (table as any).root?.querySelector('.page-size-select') as HTMLSelectElement | null;
     if (!select) return;
     select.value = '25';
     select.dispatchEvent(new Event('change', { bubbles: true }));
     await new Promise(r => setTimeout(r, 50));
-    const rows = table.shadowRoot?.querySelectorAll('tbody tr');
+    const rows = (table as any).root?.querySelectorAll('tbody tr');
     expect(rows?.length).toBe(25);
   });
 });

@@ -50,8 +50,8 @@ describe('SecureTable', () => {
     it('should have shadow DOM', () => {
       document.body.appendChild(table);
 
-      expect(table.shadowRoot).toBeDefined();
-      expect(table.shadowRoot).not.toBeNull();
+      expect((table as any).root).toBeDefined();
+      expect((table as any).root).not.toBeNull();
     });
 
     it('should default to CRITICAL security tier', () => {
@@ -71,7 +71,7 @@ describe('SecureTable', () => {
     it('should render empty state without data', () => {
       document.body.appendChild(table);
 
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
       // SecureTable shows "No columns configured" when no columns are set
       expect(shadowContent).toContain('empty-state');
     });
@@ -101,7 +101,7 @@ describe('SecureTable', () => {
       table.columns = sampleColumns;
       table.data = sampleData;
 
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
 
       expect(shadowContent).toContain('ID');
       expect(shadowContent).toContain('Name');
@@ -113,7 +113,7 @@ describe('SecureTable', () => {
       table.columns = sampleColumns;
       table.data = sampleData;
 
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
 
       expect(shadowContent).toContain('Alice');
       expect(shadowContent).toContain('Bob');
@@ -124,7 +124,7 @@ describe('SecureTable', () => {
       table.columns = sampleColumns;
       table.data = [];
 
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
       // SecureTable shows "No results found" for empty data with columns
       expect(shadowContent).toContain('No results');
     });
@@ -150,7 +150,7 @@ describe('SecureTable', () => {
         { content: '<script>alert("xss")</script>' }
       ];
 
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
 
       // Script tags should be HTML-encoded, not rendered as actual tags
       expect(shadowContent).not.toContain('<script>');
@@ -213,7 +213,7 @@ describe('SecureTable', () => {
         { content: 'Price: $100 & Tax' }
       ];
 
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
       // Content should be displayed (possibly with encoded &)
       expect(shadowContent).toContain('100');
     });
@@ -227,7 +227,7 @@ describe('SecureTable', () => {
     });
 
     it('should render sortable column headers', () => {
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
       // Sortable columns should have sort indicators
       expect(shadowContent).toContain('sortable');
     });
@@ -251,7 +251,7 @@ describe('SecureTable', () => {
     });
 
     it('should render search input for filtering', () => {
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
       // SecureTable renders a search-input for filtering
       expect(shadowContent).toContain('search-input');
     });
@@ -283,19 +283,19 @@ describe('SecureTable', () => {
     });
 
     it('should render pagination controls for large datasets', () => {
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
       // SecureTable renders pagination controls when data exceeds page size
       expect(shadowContent).toContain('pagination');
     });
 
     it('should render page buttons', () => {
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
       // Should have pagination buttons
       expect(shadowContent).toContain('pagination-button');
     });
 
     it('should not show all rows at once', () => {
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
       // Default page size is 10, so User 25 should not be visible on first page
       // Note: This tests that pagination is working
       const rowCount = (shadowContent.match(/<tr/g) || []).length;
@@ -323,7 +323,7 @@ describe('SecureTable', () => {
         { name: 'Alice', ssn: '123-45-6789' }
       ];
 
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
 
       // Name should be visible
       expect(shadowContent).toContain('Alice');
@@ -343,7 +343,7 @@ describe('SecureTable', () => {
         { name: 'Bob', phone: '555-123-4567' }
       ];
 
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
 
       // Name should be visible
       expect(shadowContent).toContain('Bob');
@@ -415,7 +415,7 @@ describe('SecureTable', () => {
         { name: 'Alice', status: 'Active' }
       ];
 
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
       expect(shadowContent).toContain('badge');
       expect(shadowContent).toContain('Active');
     });
@@ -466,7 +466,7 @@ describe('SecureTable', () => {
       table.data = [{ content: '< > & " \' ` $' }];
 
       // Should not throw and should be escaped
-      const shadowContent = table.shadowRoot?.innerHTML || '';
+      const shadowContent = (table as any).root?.innerHTML || '';
       expect(shadowContent).not.toContain('undefined');
     });
   });

@@ -75,13 +75,13 @@ describe('SecureTable — filterable:false branch (line 249)', () => {
       { id: 2, name: 'Bob' },
     ];
 
-    const search = table.shadowRoot?.querySelector('.search-input') as HTMLInputElement;
+    const search = (table as any).root?.querySelector('.search-input') as HTMLInputElement;
     // Searching "1" would match id=1 if id were filterable, but it's not
     search.value = '1';
     search.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise(r => setTimeout(r, 30));
 
-    const rows = table.shadowRoot?.querySelectorAll('tbody tr');
+    const rows = (table as any).root?.querySelectorAll('tbody tr');
     expect(rows?.length).toBe(0); // no match via non-filterable id column
   });
 });
@@ -95,14 +95,14 @@ describe('SecureTable — goToPage boundary guard (line 303)', () => {
     table.columns = BASE_COLS;
     table.data = makeRows(25);
 
-    const prevBtn = table.shadowRoot?.getElementById('prevBtn') as HTMLButtonElement;
+    const prevBtn = (table as any).root?.getElementById('prevBtn') as HTMLButtonElement;
     // Remove disabled to force the click through (tests the guard inside goToPage)
     prevBtn.removeAttribute('disabled');
     prevBtn.click();
     await new Promise(r => setTimeout(r, 30));
 
     // Should still show rows 1-10 (first page unchanged)
-    const shadow = table.shadowRoot?.innerHTML ?? '';
+    const shadow = (table as any).root?.innerHTML ?? '';
     expect(shadow).toContain('User 001');
     expect(shadow).not.toContain('User 011');
   });
@@ -112,16 +112,16 @@ describe('SecureTable — goToPage boundary guard (line 303)', () => {
     table.columns = BASE_COLS;
     table.data = makeRows(15); // 2 pages
 
-    const nextBtn = table.shadowRoot?.getElementById('nextBtn') as HTMLButtonElement;
+    const nextBtn = (table as any).root?.getElementById('nextBtn') as HTMLButtonElement;
     nextBtn.click(); // go to page 2
     await new Promise(r => setTimeout(r, 30));
 
-    const nextBtn2 = table.shadowRoot?.getElementById('nextBtn') as HTMLButtonElement;
+    const nextBtn2 = (table as any).root?.getElementById('nextBtn') as HTMLButtonElement;
     nextBtn2.removeAttribute('disabled');
     nextBtn2.click(); // attempt page 3 (out of range)
     await new Promise(r => setTimeout(r, 30));
 
-    const rows = table.shadowRoot?.querySelectorAll('tbody tr');
+    const rows = (table as any).root?.querySelectorAll('tbody tr');
     expect(rows?.length).toBe(5); // still on page 2 (last 5 of 15)
   });
 });
@@ -135,11 +135,11 @@ describe('SecureTable — sort direction toggle back to ascending (line 272)', (
     table.columns = BASE_COLS;
     table.data = makeRows(5);
 
-    const th = table.shadowRoot?.querySelector('th.sortable') as HTMLElement;
+    const th = (table as any).root?.querySelector('th.sortable') as HTMLElement;
     th.click(); // → asc
     th.click(); // → desc
     th.click(); // → asc again (covers line 272 arm 1: direction !== 'asc')
-    const shadow = table.shadowRoot?.innerHTML ?? '';
+    const shadow = (table as any).root?.innerHTML ?? '';
     expect(shadow).toContain('ascending');
   });
 });
@@ -160,10 +160,10 @@ describe('SecureTable — sort comparison equal values (lines 283, 284)', () => 
       { name: 'Carol', score: 100 },
     ];
     const scoreHeader = Array.from(
-      table.shadowRoot?.querySelectorAll('th.sortable') ?? []
+      (table as any).root?.querySelectorAll('th.sortable') ?? []
     ).find(th => th.getAttribute('data-column') === 'score') as HTMLElement;
     expect(() => scoreHeader.click()).not.toThrow();
-    const rows = table.shadowRoot?.querySelectorAll('tbody tr');
+    const rows = (table as any).root?.querySelectorAll('tbody tr');
     expect(rows?.length).toBe(3);
   });
 });
@@ -190,7 +190,7 @@ describe('SecureTable — action button delegation (lines 596–617)', () => {
     const events: CustomEvent[] = [];
     table.addEventListener('secure-table-action', (e) => events.push(e as CustomEvent));
 
-    const btn = table.shadowRoot?.querySelector('[data-action="edit"]') as HTMLElement | null;
+    const btn = (table as any).root?.querySelector('[data-action="edit"]') as HTMLElement | null;
     btn?.click();
 
     expect(events).toHaveLength(1);
@@ -203,7 +203,7 @@ describe('SecureTable — action button delegation (lines 596–617)', () => {
     table.addEventListener('secure-table-action', (e) => events.push(e as CustomEvent));
 
     // Click a cell that has no [data-action]
-    const td = table.shadowRoot?.querySelector('td') as HTMLElement | null;
+    const td = (table as any).root?.querySelector('td') as HTMLElement | null;
     td?.click();
     expect(events).toHaveLength(0);
   });
@@ -234,7 +234,7 @@ describe('SecureTable — prototype pollution guard in action button (lines 606,
     const events: CustomEvent[] = [];
     table.addEventListener('secure-table-action', (e) => events.push(e as CustomEvent));
 
-    const btn = table.shadowRoot?.querySelector('[data-action="test"]') as HTMLElement | null;
+    const btn = (table as any).root?.querySelector('[data-action="test"]') as HTMLElement | null;
     btn?.click();
 
     expect(events).toHaveLength(1);
@@ -356,7 +356,7 @@ describe('SecureTable — renderCell HTML-key path (line 355)', () => {
     table.data = [
       { status: 'Active', status_html: '<span class="badge">Active</span>' },
     ];
-    const shadow = table.shadowRoot?.innerHTML ?? '';
+    const shadow = (table as any).root?.innerHTML ?? '';
     expect(shadow).toContain('badge');
   });
 });
@@ -369,7 +369,7 @@ describe('SecureTable — maskValue with short sensitive string (line 332)', () 
     table = mount();
     table.columns = [{ key: 'code', label: 'Code', tier: 'sensitive' }];
     table.data = [{ code: 'AB' }]; // length 2, <= 4, no masking applied
-    const shadow = table.shadowRoot?.innerHTML ?? '';
+    const shadow = (table as any).root?.innerHTML ?? '';
     expect(shadow).toContain('AB');
   });
 });
@@ -385,16 +385,16 @@ describe('SecureTable — renderPageNumbers startPage clamp (line 516)', () => {
 
     // Navigate to the last page
     for (let i = 0; i < 9; i++) {
-      const nextBtn = table.shadowRoot?.getElementById('nextBtn') as HTMLButtonElement;
+      const nextBtn = (table as any).root?.getElementById('nextBtn') as HTMLButtonElement;
       nextBtn.click();
       await new Promise(r => setTimeout(r, 10));
     }
 
-    const shadow = table.shadowRoot?.innerHTML ?? '';
+    const shadow = (table as any).root?.innerHTML ?? '';
     // Page 10 should be shown and active
     expect(shadow).toContain('active');
     // Pagination buttons should be rendered without throwing
-    const pageButtons = table.shadowRoot?.querySelectorAll('.pagination-button[data-page]');
+    const pageButtons = (table as any).root?.querySelectorAll('.pagination-button[data-page]');
     expect(pageButtons?.length).toBeGreaterThan(0);
   });
 });
