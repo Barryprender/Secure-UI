@@ -351,12 +351,13 @@ export class SecureDateTime extends SecureBaseComponent {
     // Clear previous errors on input
     this.#clearErrors();
 
-    // Dispatch custom event for parent forms
+    // value is intentionally excluded from the event detail — the raw value
+    // must not propagate globally via a bubbling composed event. Listeners
+    // needing the value should read (event.target as SecureDateTime).value.
     this.dispatchEvent(
       new CustomEvent('secure-datetime-change', {
         detail: {
           name: this.#inputElement!.name,
-          value: this.#inputElement!.value,
           type: this.#inputElement!.type,
           tier: this.securityTier
         },
@@ -384,11 +385,11 @@ export class SecureDateTime extends SecureBaseComponent {
     // Clear errors
     this.#clearErrors();
 
-    // Audit log
+    // Audit log — raw value intentionally omitted (PII risk for date-of-birth etc.)
     this.audit('datetime_changed', {
       name: this.#inputElement!.name,
       type: this.#inputElement!.type,
-      value: value
+      hasValue: value.length > 0
     });
   }
 
