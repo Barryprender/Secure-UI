@@ -29,7 +29,7 @@ secure-ui/
 │   │   ├── secure-card/
 │   │   └── secure-telemetry-provider/
 │   ├── core/                  # Core utilities
-│   │   ├── base-component.ts   # Abstract SecureBaseComponent — extend this
+│   │   ├── base-component.ts   # Abstract SecureBaseComponent — internal only, not exported
 │   │   ├── security-config.ts  # SecurityTier enum + TIER_CONFIG + helpers
 │   │   └── types.ts            # All shared TypeScript interfaces
 │   └── styles/
@@ -568,57 +568,30 @@ setups).
 
 ### Creating Custom Components
 
+`SecureBaseComponent` is **not exported** and subclassing is intentionally unsupported. Security invariants (closed shadow DOM, tier immutability, sanitization order) are too easy to break via subclassing.
+
+The correct composition pattern is to **wrap** an existing secure component inside your own Custom Element:
+
 ```javascript
-import { SecureBaseComponent } from './core/base-component.js';
-
-export class MyComponent extends SecureBaseComponent {
-  render() {
-    // Return DOM structure
-  }
-
-  // Override methods as needed
+class MyLabelledInput extends HTMLElement {
   connectedCallback() {
-    super.connectedCallback();
-    // Custom logic
+    if (this.shadowRoot) return;
+    const shadow = this.attachShadow({ mode: 'closed' });
+
+    const label = document.createElement('p');
+    label.textContent = this.getAttribute('caption') ?? '';
+
+    const input = document.createElement('secure-input');
+    input.setAttribute('name', this.getAttribute('name') ?? '');
+    input.setAttribute('label', this.getAttribute('label') ?? '');
+    input.setAttribute('security-tier', this.getAttribute('security-tier') ?? 'critical');
+
+    shadow.appendChild(label);
+    shadow.appendChild(input);
   }
 }
 
-customElements.define('my-component', MyComponent);
-```
-
-### Custom Security Tiers
-
-```javascript
-// In security-config.js
-export const SecurityTiers = {
-  // ... existing tiers
-  CONFIDENTIAL: {
-    name: 'CONFIDENTIAL',
-    level: 5,
-    validation: { /* rules */ },
-    rateLimit: { /* limits */ }
-  }
-};
-```
-
-### Custom Validators
-
-```javascript
-class MyInput extends SecureInput {
-  validateValue(value) {
-    if (!super.validateValue(value)) {
-      return false;
-    }
-
-    // Custom validation logic
-    if (!myCustomCheck(value)) {
-      this.#showError('Custom error message');
-      return false;
-    }
-
-    return true;
-  }
-}
+customElements.define('my-labelled-input', MyLabelledInput);
 ```
 
 ## Performance Considerations
