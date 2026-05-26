@@ -473,7 +473,7 @@ export class SecureCard extends SecureBaseComponent {
     _oldValue: string | null,
     newValue: string | null
   ): void {
-    if (!this.shadowRoot) return;
+    if (!this.root) return;
 
     switch (name) {
       case 'disabled': {
@@ -485,7 +485,7 @@ export class SecureCard extends SecureBaseComponent {
         break;
       }
       case 'show-name': {
-        const group = this.shadowRoot.querySelector<HTMLElement>(
+        const group = this.root.querySelector<HTMLElement>(
           `#${this.#instanceId}-name-group`
         );
         if (group) group.hidden = newValue === null;
@@ -764,7 +764,8 @@ export class SecureCard extends SecureBaseComponent {
           expiryMonth: parseInt(rawMonth ?? '0', 10) || 0,
           // Normalise 2-digit year (from MM/YY input) to full 4-digit year.
           expiryYear: (() => { const y = parseInt(rawYear ?? '0', 10); return y > 0 ? 2000 + y : 0; })(),
-          cardholderName: this.#cardholderName,
+          // cardholderName intentionally absent — PII; combined with last4+expiry
+          // it partially identifies a card. Use getCardData() for SDK handoff.
           valid: this.valid,
           tier: this.securityTier,
           // Full PAN and CVC are intentionally absent — use getCardData() for SDK calls
