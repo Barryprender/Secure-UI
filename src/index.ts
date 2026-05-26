@@ -36,6 +36,7 @@ export type {
   SecureInputChangeDetail,
   SecureTextareaChangeDetail,
   SecureSelectChangeDetail,
+  SecureFileMeta,
   SecureFileChangeDetail,
   SecureDatetimeChangeDetail,
   SecureFormSubmitEventDetail,
