@@ -364,11 +364,18 @@ export class SecureForm extends HTMLElement {
       riskSignals: telemetry.riskSignals
     });
 
+    // cancelSubmission sets this flag synchronously before dispatchEvent returns,
+    // so we can check it immediately after without any async gap.
+    let submissionCancelled = false;
+
+    // formData is intentionally absent from the event detail — a bubbling composed
+    // event carrying credential-class values can be intercepted by any page script.
+    // Listeners that need field values should read from the element directly.
     const preSubmitEvent = new CustomEvent('secure-form-submit', {
       detail: {
-        formData,
         telemetry,
         cancelSubmission: () => {
+          submissionCancelled = true;
           this.#isSubmitting = false;
           this.#enableForm();
         }
@@ -380,8 +387,8 @@ export class SecureForm extends HTMLElement {
 
     const shouldContinue = this.dispatchEvent(preSubmitEvent);
 
-    if (!shouldContinue) {
-      // Custom handler prevented default submission
+    if (!shouldContinue || submissionCancelled) {
+      // preventDefault() or cancelSubmission() called — abort fetch
       this.#isSubmitting = false;
       this.#enableForm();
       return;
@@ -477,12 +484,15 @@ export class SecureForm extends HTMLElement {
     });
 
     // Shadow DOM inputs are not reachable here; only actual light-DOM inputs are collected.
+    // Values are included as-is — sanitizeValue() returns HTML-entity-encoded strings
+    // which would corrupt data when JSON-serialised to the server. Output encoding
+    // is a server-side responsibility applied at the persistence / rendering layer.
     const standardInputs = this.#formElement!.querySelectorAll('input:not([type="hidden"]), textarea, select');
 
     standardInputs.forEach((input) => {
       const typedInput = input as HTMLInputElement;
       if (typedInput.name) {
-        formData[typedInput.name] = this.sanitizeValue(typedInput.value);
+        formData[typedInput.name] = typedInput.value;
       }
     });
 
