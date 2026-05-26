@@ -393,7 +393,9 @@ export class SecureFileUpload extends SecureBaseComponent {
       '.jpeg': 'image/jpeg',
       '.png': 'image/png',
       '.gif': 'image/gif',
-      '.svg': 'image/svg+xml',
+      // SVG intentionally excluded: SVG files can contain embedded <script>
+      // elements and event-handler attributes. Accepting SVGs without
+      // server-side sanitisation introduces a stored XSS vector.
       '.zip': 'application/zip',
       '.json': 'application/json'
     };
