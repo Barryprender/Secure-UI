@@ -7,6 +7,46 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.4.0] — 2026-05-26
+
+### Breaking Changes
+
+- **`SecureBaseComponent.shadowRoot` removed** — The public override of `Element.shadowRoot` has been renamed to `protected root`. External callers now correctly receive `null` from `Element.shadowRoot` (the expected behaviour for closed shadow DOMs). Internal subclasses use `this.root` instead.
+- **`secure-textarea-change` detail: `value` removed** — Raw field values must not propagate via bubbling composed events. Read `(event.target as SecureTextarea).value` directly.
+- **`secure-datetime-change` detail: `value` removed** — Same rationale. Read from element.
+- **`secure-file-change` detail: `files` changed** — Was `File[]`; now `ReadonlyArray<SecureFileMeta>` (`{ name, size, type }`). Raw `File` objects (which expose `.arrayBuffer()` / `.text()`) must not be accessible to intercepting scripts. Read `(event.target as SecureFileUpload).files` directly.
+- **`secure-form-submit` detail: `formData` removed** — Credentials and PII must not travel in a bubbling composed event readable by any page script. Read field values directly from component instances.
+- **`secure-card-change` detail: `cardholderName` removed** — PII; combined with `last4` + expiry it partially identifies a card. Use `getCardData()` for SDK handoff.
+- **`secure-password-confirm`: event renamed** — No longer dispatches `secure-input-change`. Now dispatches `secure-password-confirm-change` with detail `{ name, tier }`. The old event carried an undocumented `field` property and used the wrong event name.
+- **`SECURITY_HEADERS['X-XSS-Protection']` removed** — The header is deprecated and removed from all modern browsers; setting it to `1; mode=block` increases attack surface via legacy browser quirks. Strict CSP is the correct mitigation.
+- **`SecureForm` now blocks CSRF-absent submissions** — Previously fired a `secure-threat-detected` event but still allowed submission to proceed. Now calls `event.preventDefault()` and shows an error when a `sensitive`/`critical` form has no CSRF token.
+- **`SecureForm` HTTP method validation** — `GET`, `HEAD`, and other non-body methods are rejected and default to `POST`. Accepting GET would put form data in the URL, exposing credentials to server logs and browser history.
+- **`SecureForm` fetch mode changed** — `mode: 'cors'` → `mode: 'same-origin'` (action URLs are already validated to same-origin; the mode is now explicit).
+
+### Fixed
+
+- **Closed shadow DOM was publicly accessible** — The `shadowRoot` getter override meant any external script could access the live shadow root. Now correctly returns `null` via `Element.shadowRoot`.
+- **`attributeChangedCallback` infinite recursion** — Calling `setAttribute('security-tier', oldValue)` from within the callback re-triggered it with swapped arguments. The revert call has been removed; the internal `#securityTier` field is already immutable.
+- **`sanitizeValue()` double-encoding** — Previously returned `div.innerHTML` (HTML entities). When assigned to `.textContent`, `option.value`, `.name`, etc., entities appeared literally (e.g. `Tom &amp; Jerry`). Now strips null bytes and control characters only and returns plain text. XSS protection for all current call sites comes from DOM property assignment, not encoding.
+- **`SecureForm#collectFormData` data corruption** — `sanitizeValue()` (which returned HTML-encoded strings) was applied to field values before JSON-serialising to the server. HTML entities in a JSON body were sent to the server verbatim. Fixed by removing the encode step.
+- **`cancelSubmission()` had no effect** — The callback set `#isSubmitting = false` but the check was `if (!shouldContinue)` which only tested `event.preventDefault()`. Added a `submissionCancelled` flag checked independently after event dispatch.
+- **SVG in file-upload extension map** — `.svg` → `image/svg+xml` removed from `#extensionToMimeType`. SVG files can contain `<script>` elements and event handlers; accepting them without server-side sanitisation is a stored XSS vector.
+- **`#knownScripts` stale on reconnect** (`SecureTelemetryProvider`) — The script snapshot was not cleared in `disconnectedCallback`. Scripts injected between disconnect and reconnect would be treated as pre-existing and go undetected. Now cleared on disconnect.
+- **All `this.shadowRoot` references in components** — `SecureCard`, `SecureTable`, and telemetry methods in `SecureBaseComponent` were using the now-removed public getter. Updated to use `this.root` (protected) or `this.#shadow` (private field) directly.
+
+### Added
+
+- **`SecureFileMeta` type** — New exported interface `{ readonly name: string; readonly size: number; readonly type: string }` used in `SecureFileChangeDetail.files`.
+- **`SecurePasswordConfirmChangeDetail` type** — New exported interface `{ name: string; tier: SecurityTierValue }` for the `secure-password-confirm-change` event.
+
+### Tests
+
+- 1207 tests across 27 test files, all passing.
+- Updated assertions to match new event contracts and shadow DOM access pattern.
+- Added CSRF-blocking and method-validation coverage.
+
+---
+
 ## [Unreleased] — 0.3.x
 
 ### Added
