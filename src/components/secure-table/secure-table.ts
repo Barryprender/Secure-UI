@@ -396,12 +396,12 @@ export class SecureTable extends SecureBaseComponent {
   }
 
   #render(): void {
-    if (!this.shadowRoot) return;
+    if (!this.root) return;
 
     const { tableHtml, paginationHtml } = this.#renderTableContent();
 
     // Clear child nodes (adoptedStyleSheets survive this).
-    this.shadowRoot.innerHTML = '';
+    this.root.innerHTML = '';
 
     // Inject styles via addComponentStyles — handles both URL (ESM/dev mode) and
     // inlined CSS text (bundle mode) transparently.
@@ -411,7 +411,7 @@ export class SecureTable extends SecureBaseComponent {
     // Slot for server-rendered table fallback.
     const slot = document.createElement('slot');
     slot.name = 'table';
-    this.shadowRoot.appendChild(slot);
+    this.root.appendChild(slot);
 
     const container = document.createElement('div');
     container.className = 'table-container';
@@ -428,7 +428,7 @@ export class SecureTable extends SecureBaseComponent {
       <div id="tableContent">${tableHtml}</div>
       <div id="paginationContent">${paginationHtml}</div>
     `;
-    this.shadowRoot.appendChild(container);
+    this.root.appendChild(container);
 
     // Attach event listeners
     this.#attachEventListeners();
@@ -436,10 +436,10 @@ export class SecureTable extends SecureBaseComponent {
 
   // Partial re-render: replaces table body and pagination without touching the search input.
   #updateTableContent(): void {
-    if (!this.shadowRoot) return;
+    if (!this.root) return;
 
-    const tableContainer = this.shadowRoot.getElementById('tableContent');
-    const paginationContainer = this.shadowRoot.getElementById('paginationContent');
+    const tableContainer = this.root.getElementById('tableContent');
+    const paginationContainer = this.root.getElementById('paginationContent');
     if (!tableContainer) {
       // Fallback to full render if containers don't exist yet
       this.#render();
@@ -482,7 +482,7 @@ export class SecureTable extends SecureBaseComponent {
 
   // Only called on full render; search input listener survives partial updates.
   #attachEventListeners(): void {
-    const searchInput = this.shadowRoot.getElementById('searchInput');
+    const searchInput = this.root.getElementById('searchInput');
     if (searchInput) {
       searchInput.addEventListener('input', (e: Event) => {
         this.#applyFilter((e.target as HTMLInputElement).value);
@@ -494,7 +494,7 @@ export class SecureTable extends SecureBaseComponent {
   }
 
   #attachTableEventListeners(): void {
-    const headers = this.shadowRoot.querySelectorAll('th.sortable');
+    const headers = this.root.querySelectorAll('th.sortable');
     headers.forEach(th => {
       th.addEventListener('click', () => {
         const column = th.getAttribute('data-column');
@@ -503,8 +503,8 @@ export class SecureTable extends SecureBaseComponent {
       });
     });
 
-    const prevBtn = this.shadowRoot.getElementById('prevBtn');
-    const nextBtn = this.shadowRoot.getElementById('nextBtn');
+    const prevBtn = this.root.getElementById('prevBtn');
+    const nextBtn = this.root.getElementById('nextBtn');
 
     if (prevBtn) {
       prevBtn.addEventListener('click', () => {
@@ -518,7 +518,7 @@ export class SecureTable extends SecureBaseComponent {
       });
     }
 
-    const pageButtons = this.shadowRoot.querySelectorAll('.pagination-button[data-page]');
+    const pageButtons = this.root.querySelectorAll('.pagination-button[data-page]');
     pageButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         const page = parseInt(btn.getAttribute('data-page')!, 10);
@@ -530,7 +530,7 @@ export class SecureTable extends SecureBaseComponent {
     // element when any [data-action] element inside the table is clicked.
     // This allows page-level scripts to handle action buttons without needing
     // access to the closed shadow DOM.
-    const tableContent = this.shadowRoot.getElementById('tableContent');
+    const tableContent = this.root.getElementById('tableContent');
     if (tableContent) {
       tableContent.addEventListener('click', (e: Event) => {
         const target = (e.target as HTMLElement).closest('[data-action]');
