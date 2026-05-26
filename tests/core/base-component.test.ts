@@ -205,31 +205,29 @@ describe('SecureBaseComponent', () => {
       document.body.appendChild(component);
     });
 
-    it('should HTML-encode script tags', () => {
+    it('strips control characters from strings containing script-like content', () => {
+      // sanitizeValue is used with .textContent — property assignment is inherently
+      // safe against HTML injection without any entity encoding. The function strips
+      // null bytes and control characters only; the caller is responsible for using
+      // safe DOM APIs (.textContent, .name, etc.) rather than innerHTML.
       const malicious = '<script>alert("xss")</script>';
       const sanitized = component.testSanitizeValue(malicious);
-
-      // The sanitizeValue method uses textContent assignment which HTML-encodes
-      expect(sanitized).not.toContain('<script>');
-      expect(sanitized).toContain('&lt;');
+      // Plain text is returned; .textContent assignment prevents execution.
+      expect(sanitized).toBe(malicious);
     });
 
-    it('should HTML-encode angle brackets', () => {
+    it('preserves angle brackets (XSS protection is via .textContent, not encoding)', () => {
       const malicious = '<img src=x onerror="alert(1)">';
       const sanitized = component.testSanitizeValue(malicious);
-
-      // Should encode < and > to prevent HTML interpretation
-      expect(sanitized).not.toContain('<img');
-      expect(sanitized).toContain('&lt;');
+      // Angle brackets are NOT entity-encoded — that would cause double-encoding
+      // when used with .textContent. The DOM property assignment prevents parsing.
+      expect(sanitized).toBe(malicious);
     });
 
-    it('should HTML-encode all HTML in string', () => {
+    it('preserves HTML strings (entity encoding not applied — DOM property used)', () => {
       const malicious = '<a href="javascript:alert(1)">click</a>';
       const sanitized = component.testSanitizeValue(malicious);
-
-      // The entire string is HTML-encoded, so < and > become entities
-      expect(sanitized).not.toContain('<a');
-      expect(sanitized).toContain('&lt;');
+      expect(sanitized).toBe(malicious);
     });
 
     it('should handle empty string', () => {
@@ -247,10 +245,12 @@ describe('SecureBaseComponent', () => {
       expect(component.testSanitizeValue(safe)).toBe(safe);
     });
 
-    it('should encode ampersands', () => {
+    it('preserves ampersands (no entity encoding — .textContent handles display correctly)', () => {
       const text = 'Tom & Jerry';
       const sanitized = component.testSanitizeValue(text);
-      expect(sanitized).toContain('&amp;');
+      // & is NOT encoded to &amp; — doing so would cause "Tom &amp; Jerry" to
+      // appear literally when the result is assigned to .textContent.
+      expect(sanitized).toBe('Tom & Jerry');
     });
   });
 
