@@ -92,20 +92,23 @@ describe('SecureBaseComponent', () => {
     it('should create component with closed shadow DOM', () => {
       document.body.appendChild(component);
 
-      // Component exposes shadowRoot via getter for internal use
-      expect(component.shadowRoot).toBeDefined();
-      expect(component.shadowRoot).not.toBeNull();
+      // Public Element.shadowRoot must return null for closed shadow DOM —
+      // this is the fix for CRIT-1 (the old public override leaked the root).
+      expect(component.shadowRoot).toBeNull();
+
+      // Internal root is accessible via the protected `root` getter (test only).
+      expect((component as any).root).toBeInstanceOf(ShadowRoot);
     });
 
     it('closed shadow DOM is configured with mode="closed"', () => {
       document.body.appendChild(component);
 
-      // Verify the shadow root is created with mode:'closed'.
-      // In real browsers this prevents external script access via el.shadowRoot.
+      // The shadow root is created with mode:'closed'.
+      // Public Element.shadowRoot returns null (correct closed-mode behaviour).
       // happy-dom does not enforce closed mode during testing, so we assert the
-      // mode property on the ShadowRoot object rather than the external accessor.
-      const shadow = component.shadowRoot; // via the protected getter
-      expect(shadow?.mode).toBe('closed');
+      // mode property via the internal root getter.
+      const shadow = (component as any).root as ShadowRoot;
+      expect(shadow.mode).toBe('closed');
     });
 
     it('should default to CRITICAL security tier (fail-secure)', () => {
@@ -493,10 +496,13 @@ describe('SecureBaseComponent', () => {
       expect(component.config.name).toBe('Authenticated');
     });
 
-    it('should expose shadowRoot getter', () => {
+    it('public shadowRoot returns null (closed shadow DOM)', () => {
       document.body.appendChild(component);
 
-      expect(component.shadowRoot).toBeInstanceOf(ShadowRoot);
+      // Public getter must be null for closed shadow DOM (CRIT-1 fix).
+      expect(component.shadowRoot).toBeNull();
+      // Internal root is a real ShadowRoot, accessible via protected getter.
+      expect((component as any).root).toBeInstanceOf(ShadowRoot);
     });
   });
 
@@ -725,19 +731,20 @@ describe('SecureBaseComponent', () => {
   });
 
   describe('Security tier revert on post-init change', () => {
-    it('reverts attribute to oldValue when tier change is attempted after initialization', () => {
+    it('warns but does NOT call setAttribute when tier change is attempted after initialization', () => {
+      // Calling setAttribute from within attributeChangedCallback re-triggers the callback,
+      // causing an infinite recursion loop. The correct behaviour is to warn and return only.
       component.setAttribute('security-tier', 'public');
       document.body.appendChild(component);
 
-      // Spy on setAttribute to capture revert and break the potential re-entry loop
       const setAttrSpy = vi.spyOn(component, 'setAttribute').mockImplementation(() => {});
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      // Directly invoke attributeChangedCallback simulating a post-init tier mutation
       component.attributeChangedCallback('security-tier', 'public', 'sensitive');
 
       expect(warnSpy).toHaveBeenCalled();
-      expect(setAttrSpy).toHaveBeenCalledWith('security-tier', 'public');
+      // setAttribute must NOT be called — doing so would cause infinite recursion.
+      expect(setAttrSpy).not.toHaveBeenCalled();
 
       setAttrSpy.mockRestore();
       warnSpy.mockRestore();
@@ -793,7 +800,7 @@ describe('SecureBaseComponent', () => {
     it('shows an error message in the shadow root with role="alert"', () => {
       document.body.appendChild(component);
       component.reportError('Injection attempt blocked');
-      const el = component.shadowRoot.querySelector('.external-error');
+      const el = (component as any).root.querySelector('.external-error');
       expect(el).not.toBeNull();
       expect(el!.classList.contains('hidden')).toBe(false);
       expect(el!.textContent).toBe('Injection attempt blocked');
@@ -804,7 +811,7 @@ describe('SecureBaseComponent', () => {
     it('shows a warning message without role="alert"', () => {
       document.body.appendChild(component);
       component.reportError('Unusual input detected', 'warning');
-      const el = component.shadowRoot.querySelector('.external-error');
+      const el = (component as any).root.querySelector('.external-error');
       expect(el).not.toBeNull();
       expect(el!.classList.contains('hidden')).toBe(false);
       expect(el!.getAttribute('role')).toBeNull();
@@ -815,7 +822,7 @@ describe('SecureBaseComponent', () => {
       document.body.appendChild(component);
       component.reportError('Some error');
       component.clearExternalError();
-      const el = component.shadowRoot.querySelector('.external-error');
+      const el = (component as any).root.querySelector('.external-error');
       expect(el!.classList.contains('hidden')).toBe(true);
       expect(el!.textContent).toBe('');
       expect(el!.getAttribute('role')).toBeNull();
@@ -823,7 +830,7 @@ describe('SecureBaseComponent', () => {
 
     it('external-error element is not role="alert" before reportError is called', () => {
       document.body.appendChild(component);
-      const alerts = component.shadowRoot.querySelectorAll('[role="alert"]');
+      const alerts = (component as any).root.querySelectorAll('[role="alert"]');
       // Only the field's own error containers should have role="alert" — not the
       // uninitialised external-error slot.
       const externalAlerts = Array.from(alerts).filter(
