@@ -55,4 +55,5 @@ export type {
   EnvironmentalSignals,
   SignedTelemetryEnvelope,
   SecurePasswordConfirmEventDetail,
+  SecurePasswordConfirmChangeDetail,
 } from './core/types.js';

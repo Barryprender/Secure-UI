@@ -445,6 +445,19 @@ export interface SecurePasswordConfirmEventDetail {
   matched: boolean;
 }
 
+/**
+ * Custom event detail for the `secure-password-confirm-change` event, fired
+ * when the password input changes. `value` is intentionally absent —
+ * use `(event.target as SecurePasswordConfirm).getPasswordValue()` when
+ * the actual value is needed for submission.
+ */
+export interface SecurePasswordConfirmChangeDetail {
+  /** The name attribute of the component */
+  name: string;
+  /** Security tier of the component (always CRITICAL) */
+  tier: SecurityTierValue;
+}
+
 // ========== Card Types ==========
 
 /**

@@ -1,4 +1,5 @@
 import { SecureBaseComponent } from '../../core/base-component.js';
+import type { SecurePasswordConfirmChangeDetail } from '../../core/types.js';
 
 export class SecurePasswordConfirm extends SecureBaseComponent {
   #passwordInput: HTMLInputElement | null = null;
@@ -189,8 +190,8 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
       if (this.#confirmTouched) {
         this.#checkMatch();
       }
-      this.dispatchEvent(new CustomEvent('secure-input-change', {
-        detail: { name: this.getAttribute('name') ?? '', field: 'password' },
+      this.dispatchEvent(new CustomEvent<SecurePasswordConfirmChangeDetail>('secure-password-confirm-change', {
+        detail: { name: this.getAttribute('name') ?? '', tier: this.securityTier },
         bubbles: true,
         composed: true,
       }));
