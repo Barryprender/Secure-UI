@@ -223,7 +223,10 @@ export const CSP_RECOMMENDATIONS: Readonly<Record<SecurityTierValue, Readonly<CS
 export const SECURITY_HEADERS: Readonly<SecurityHeaders> = Object.freeze({
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
-  'X-XSS-Protection': '1; mode=block',
+  // X-XSS-Protection is removed: the header is deprecated and removed from all
+  // modern browsers. Setting it to "1; mode=block" can increase attack surface
+  // via auditor-quirks in legacy browsers. Modern XSS protection is provided by
+  // a strict Content-Security-Policy instead.
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
 });
