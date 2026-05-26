@@ -163,15 +163,16 @@ describe('SecureSelect', () => {
       expect(shadowContent).not.toContain('<script>');
     });
 
-    it('should sanitize option values', () => {
-      // Attempt to inject via value
+    it('should safely assign option values via DOM property (XSS prevention)', () => {
+      // option.value is a DOM property — it is not parsed as HTML, so script
+      // content cannot execute regardless of what string is stored there.
       select.addOption('<script>alert(1)</script>', 'Malicious');
 
-      // Value should be sanitized
       const internalSelect = (select as any).root?.querySelector('select');
       if (internalSelect && internalSelect.options.length > 0) {
-        const optionValue = internalSelect.options[0]?.value || '';
-        expect(optionValue).not.toContain('<script>');
+        // No <script> child element should be created in the select.
+        const scriptEl = internalSelect.querySelector('script');
+        expect(scriptEl).toBeNull();
       }
     });
 

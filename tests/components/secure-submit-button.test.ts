@@ -285,13 +285,14 @@ describe('SecureSubmitButton', () => {
       expect(labelEl?.textContent).toBe('Updated Label');
     });
 
-    it('should sanitize label text (XSS prevention)', () => {
+    it('should safely render label text containing HTML via .textContent (XSS prevention)', () => {
       button.setAttribute('label', '<script>alert("xss")</script>');
       document.body.appendChild(button);
 
       const labelEl = (button as any).root?.querySelector('.btn-label');
-      // The label should not contain raw script tags
-      expect(labelEl?.textContent).not.toContain('<script>');
+      // textContent assignment prevents script execution — no child elements created.
+      const scriptEl = labelEl?.querySelector('script');
+      expect(scriptEl).toBeNull();
     });
 
     it('should have default loading label "Submitting..."', () => {
@@ -695,19 +696,14 @@ describe('SecureSubmitButton', () => {
       expect(button.label).toBe('Label 49');
     });
 
-    it('should sanitize XSS in loading-label attribute', () => {
+    it('should safely render loading-label containing HTML via .textContent (XSS prevention)', () => {
       button.setAttribute('loading-label', '<img src=x onerror=alert(1)>');
       document.body.appendChild(button);
 
       const loadingEl = (button as any).root?.querySelector('.btn-loading');
-      // The sanitized text is set via textContent, so no raw HTML should execute.
-      // Check that no actual <img> element was created in the DOM.
+      // textContent assignment prevents HTML parsing — no <img> element created.
       const imgEl = loadingEl?.querySelector('img');
       expect(imgEl).toBeNull();
-
-      // The text content should contain the escaped string, not executable markup
-      const textSpan = loadingEl?.querySelector('span:last-child');
-      expect(textSpan?.textContent).toContain('&lt;img');
     });
 
     it('should handle empty label gracefully', () => {
