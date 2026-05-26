@@ -137,6 +137,10 @@ export class SecureTelemetryProvider extends HTMLElement {
     this.#cryptoKey = null;
     this.#cryptoKeySource = '';
     this.#signingKey = '';
+    // Clear the script snapshot so reconnection gets a fresh baseline.
+    // Without this, scripts injected between disconnect and reconnect would
+    // be treated as pre-existing and go undetected.
+    this.#knownScripts.clear();
   }
 
   /**
