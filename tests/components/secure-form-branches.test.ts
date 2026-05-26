@@ -141,11 +141,21 @@ describe('SecureForm branch coverage', () => {
     expect(innerForm.action).toContain('/new-endpoint');
   });
 
-  it('attributeChangedCallback: updates method', () => {
+  it('attributeChangedCallback: rejects GET method and defaults to POST', () => {
+    // GET sends form data in the URL query string, leaking credentials to
+    // server logs and browser history. SecureForm rejects it and defaults to POST.
     document.body.appendChild(form);
     form.setAttribute('method', 'GET');
     const innerForm = form.querySelector('form')!;
-    expect(innerForm.method.toUpperCase()).toBe('GET');
+    expect(innerForm.method.toUpperCase()).toBe('POST');
+  });
+
+  it('attributeChangedCallback: accepts POST, PUT, PATCH, DELETE methods', () => {
+    document.body.appendChild(form);
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+      form.setAttribute('method', method);
+      expect(form.querySelector('form')!.method.toUpperCase()).toBe(method);
+    }
   });
 
   it('attributeChangedCallback: updates csrf-token', () => {
@@ -232,6 +242,7 @@ describe('SecureForm branch coverage', () => {
 
   // ── #handleSubmit: rate limit exceeded ───────────────────────────────────
   it('prevents submit when rate limited', () => {
+    form.setAttribute('csrf-token', 'test-csrf-token');
     document.body.appendChild(form);
     vi.spyOn(form, 'checkRateLimit').mockReturnValue({ allowed: false, retryAfter: 5000 });
 
@@ -247,6 +258,7 @@ describe('SecureForm branch coverage', () => {
 
   // ── #handleSubmit: validation failure ────────────────────────────────────
   it('shows validation error when secure fields are invalid', () => {
+    form.setAttribute('csrf-token', 'test-csrf-token');
     document.body.appendChild(form);
 
     const input = document.createElement('secure-input') as SecureInput;
@@ -266,6 +278,7 @@ describe('SecureForm branch coverage', () => {
   // ── #handleSubmit: native submission (no enhance) ────────────────────────
   it('allows native submission when enhance attr is absent', () => {
     form.setAttribute('action', '/native');
+    form.setAttribute('csrf-token', 'test-csrf-token');
     document.body.appendChild(form);
 
     let defaultPrevented = false;
@@ -304,7 +317,8 @@ describe('SecureForm branch coverage', () => {
   // ── #handleSubmit: fetch error ────────────────────────────────────────────
   it('shows error message when fetch fails', async () => {
     form.setAttribute('use-fetch', '');
-    form.setAttribute('action', 'http://localhost/test');
+    form.setAttribute('action', '/test'); // relative URL — same-origin validated
+    form.setAttribute('csrf-token', 'test-csrf-token');
     document.body.appendChild(form);
 
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));

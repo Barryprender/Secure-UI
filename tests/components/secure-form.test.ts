@@ -181,6 +181,7 @@ describe('SecureForm', () => {
       form.setAttribute('action', '/api/test');
       form.setAttribute('method', 'POST');
       form.setAttribute('use-fetch', '');
+      form.setAttribute('csrf-token', 'test-csrf-token');
       document.body.appendChild(form);
     });
 
@@ -356,6 +357,7 @@ describe('SecureForm', () => {
       form.setAttribute('action', '/api/test');
       form.setAttribute('method', 'POST');
       form.setAttribute('use-fetch', '');
+      form.setAttribute('csrf-token', 'test-csrf-token');
       document.body.appendChild(form);
     });
 
@@ -526,6 +528,7 @@ describe('SecureForm', () => {
       form.setAttribute('action', '/api/test');
       form.setAttribute('method', 'POST');
       form.setAttribute('use-fetch', '');
+      form.setAttribute('csrf-token', 'test-csrf-token');
       document.body.appendChild(form);
 
       globalThis.fetch = vi.fn().mockResolvedValue(new Response('ok', { status: 200 }));
@@ -544,6 +547,7 @@ describe('SecureForm', () => {
       form.setAttribute('action', '/api/test');
       form.setAttribute('method', 'POST');
       form.setAttribute('use-fetch', '');
+      form.setAttribute('csrf-token', 'test-csrf-token');
       document.body.appendChild(form);
 
       globalThis.fetch = vi.fn().mockResolvedValue(new Response('ok', { status: 200 }));
@@ -563,6 +567,7 @@ describe('SecureForm', () => {
       form.setAttribute('action', '/api/test');
       form.setAttribute('method', 'POST');
       form.setAttribute('use-fetch', '');
+      form.setAttribute('csrf-token', 'test-csrf-token');
       document.body.appendChild(form);
     });
 

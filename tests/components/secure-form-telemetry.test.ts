@@ -481,6 +481,7 @@ describe('SecureForm — telemetry aggregation', () => {
     form = document.createElement('secure-form') as SecureForm;
     form.setAttribute('action', '/api/test');
     form.setAttribute('use-fetch', '');
+    form.setAttribute('csrf-token', 'test-csrf-token');
     document.body.appendChild(form);
 
     let telemetry: SessionTelemetry | null = null;
