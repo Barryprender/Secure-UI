@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| 0.1.x   | Yes       |
+| 0.4.x   | Yes       |
+| < 0.4.0 | No        |
 
 ## Reporting a Vulnerability
 
@@ -30,7 +31,7 @@ Secure-UI is a security-first Web Component library. Key mitigations include:
 - **Fail-secure defaults** — components default to `security-tier="critical"` when no tier is specified
 - **Rate limiting** — critical and sensitive tier components enforce per-component request rate limits
 - **Audit logging** — all field interactions dispatch `secure-audit` events for external SIEM integration
-- **CSRF protection** — `<secure-form>` injects a hidden CSRF token input when provided via the `csrf-token` attribute
+- **CSRF protection** — `<secure-form>` injects a hidden CSRF token input when provided via the `csrf-token` attribute; submission is **blocked client-side** on `sensitive`/`critical` tiers when the token is absent (defence-in-depth; server-side validation is still mandatory)
 - **CSP compliance** — styles are loaded via `<link rel="stylesheet">` (never inline `style` attributes or `adoptedStyleSheets` with inline strings)
 - **Immutable security tier** — the `security-tier` attribute is locked after `connectedCallback` and cannot be downgraded
 - **Behavioral telemetry** — every field silently records typing velocity, paste detection, correction patterns, dwell time, and autofill signals; `<secure-form>` aggregates these into a per-submission risk score (0–100) with named risk signals
