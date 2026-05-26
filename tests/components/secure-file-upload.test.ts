@@ -36,8 +36,8 @@ describe('SecureFileUpload', () => {
     it('should have shadow DOM', () => {
       document.body.appendChild(upload);
 
-      expect(upload.shadowRoot).toBeDefined();
-      expect(upload.shadowRoot).not.toBeNull();
+      expect((upload as any).root).toBeDefined();
+      expect((upload as any).root).not.toBeNull();
     });
 
     it('should default to CRITICAL security tier', () => {
@@ -57,14 +57,14 @@ describe('SecureFileUpload', () => {
       upload.setAttribute('label', 'Upload Document');
       document.body.appendChild(upload);
 
-      const shadowContent = upload.shadowRoot?.innerHTML || '';
+      const shadowContent = (upload as any).root?.innerHTML || '';
       expect(shadowContent).toContain('Upload Document');
     });
 
     it('should render drop zone', () => {
       document.body.appendChild(upload);
 
-      const shadowContent = upload.shadowRoot?.innerHTML || '';
+      const shadowContent = (upload as any).root?.innerHTML || '';
       // Should have some kind of drop zone or upload area
       expect(shadowContent.length).toBeGreaterThan(0);
     });
@@ -211,7 +211,7 @@ describe('SecureFileUpload', () => {
     });
 
     it('file input change with empty FileList does not throw', () => {
-      const internalInput = upload.shadowRoot?.querySelector('input[type="file"]');
+      const internalInput = (upload as any).root?.querySelector('input[type="file"]');
       expect(internalInput).not.toBeNull();
       expect(() => internalInput!.dispatchEvent(new Event('change', { bubbles: true }))).not.toThrow();
     });
@@ -223,13 +223,13 @@ describe('SecureFileUpload', () => {
     });
 
     it('should have drop zone element', () => {
-      const shadowContent = upload.shadowRoot?.innerHTML || '';
+      const shadowContent = (upload as any).root?.innerHTML || '';
       // Should have some drop zone or upload area element
       expect(shadowContent.length).toBeGreaterThan(0);
     });
 
     it('should handle dragover event without error', () => {
-      const dropZone = upload.shadowRoot?.querySelector('.drop-zone, .upload-area, [class*="drop"]');
+      const dropZone = (upload as any).root?.querySelector('.drop-zone, .upload-area, [class*="drop"]');
       if (dropZone) {
         expect(() => {
           dropZone.dispatchEvent(new DragEvent('dragover', { bubbles: true }));
@@ -238,7 +238,7 @@ describe('SecureFileUpload', () => {
     });
 
     it('should handle drop event without error', () => {
-      const dropZone = upload.shadowRoot?.querySelector('.drop-zone, .upload-area, [class*="drop"]');
+      const dropZone = (upload as any).root?.querySelector('.drop-zone, .upload-area, [class*="drop"]');
       if (dropZone) {
         expect(() => dropZone.dispatchEvent(new Event('drop', { bubbles: true }))).not.toThrow();
       }
@@ -308,7 +308,7 @@ describe('SecureFileUpload', () => {
     });
 
     it('should have preview area', () => {
-      const shadowContent = upload.shadowRoot?.innerHTML || '';
+      const shadowContent = (upload as any).root?.innerHTML || '';
       // May have preview area element
       expect(shadowContent.length).toBeGreaterThan(0);
     });
@@ -320,7 +320,7 @@ describe('SecureFileUpload', () => {
     });
 
     it('should have error container', () => {
-      const shadowContent = upload.shadowRoot?.innerHTML || '';
+      const shadowContent = (upload as any).root?.innerHTML || '';
       // Should have error display area
       expect(shadowContent.length).toBeGreaterThan(0);
     });
@@ -354,7 +354,7 @@ describe('SecureFileUpload', () => {
       upload.setAttribute('disabled', '');
       document.body.appendChild(upload);
 
-      const internalInput = upload.shadowRoot?.querySelector('input[type="file"]');
+      const internalInput = (upload as any).root?.querySelector('input[type="file"]');
       if (internalInput) {
         expect((internalInput as HTMLInputElement).disabled).toBe(true);
       }
