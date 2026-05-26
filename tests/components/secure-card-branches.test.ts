@@ -17,28 +17,28 @@ if (!customElements.get('secure-card')) {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function getNumberInput(card: SecureCard): HTMLInputElement {
-  return card.shadowRoot!.querySelector<HTMLInputElement>('.card-number-input')!;
+  return (card as any).root!.querySelector<HTMLInputElement>('.card-number-input')!;
 }
 function getExpiryInput(card: SecureCard): HTMLInputElement {
-  return card.shadowRoot!.querySelector<HTMLInputElement>('input[part="expiry-input"]')!;
+  return (card as any).root!.querySelector<HTMLInputElement>('input[part="expiry-input"]')!;
 }
 function getCvcInput(card: SecureCard): HTMLInputElement {
-  return card.shadowRoot!.querySelector<HTMLInputElement>('input[part="cvc-input"]')!;
+  return (card as any).root!.querySelector<HTMLInputElement>('input[part="cvc-input"]')!;
 }
 function getNameInput(card: SecureCard): HTMLInputElement {
-  return card.shadowRoot!.querySelector<HTMLInputElement>('input[part="name-input"]')!;
+  return (card as any).root!.querySelector<HTMLInputElement>('input[part="name-input"]')!;
 }
 function getNumberError(card: SecureCard): HTMLElement {
-  return card.shadowRoot!.querySelector<HTMLElement>('[id$="-number-error"]')!;
+  return (card as any).root!.querySelector<HTMLElement>('[id$="-number-error"]')!;
 }
 function getExpiryError(card: SecureCard): HTMLElement {
-  return card.shadowRoot!.querySelector<HTMLElement>('[id$="-expiry-error"]')!;
+  return (card as any).root!.querySelector<HTMLElement>('[id$="-expiry-error"]')!;
 }
 function getCvcError(card: SecureCard): HTMLElement {
-  return card.shadowRoot!.querySelector<HTMLElement>('[id$="-cvc-error"]')!;
+  return (card as any).root!.querySelector<HTMLElement>('[id$="-cvc-error"]')!;
 }
 function getNameError(card: SecureCard): HTMLElement {
-  return card.shadowRoot!.querySelector<HTMLElement>('[id$="-name-error"]')!;
+  return (card as any).root!.querySelector<HTMLElement>('[id$="-name-error"]')!;
 }
 
 function typeInto(input: HTMLInputElement, value: string): void {
@@ -146,7 +146,7 @@ describe('SecureCard — branch coverage', () => {
     it('card face display also masked on blur', () => {
       typeInto(getNumberInput(card), '4111111111111111');
       blur(getNumberInput(card));
-      const display = card.shadowRoot!.querySelector('.card-number-display');
+      const display = (card as any).root!.querySelector('.card-number-display');
       expect(display!.textContent).toContain('•');
     });
   });
@@ -226,9 +226,9 @@ describe('SecureCard — branch coverage', () => {
 
     it('flips card back to front on CVC blur', () => {
       focus(getCvcInput(card));
-      expect(card.shadowRoot!.querySelector('.card')!.classList.contains('is-flipped')).toBe(true);
+      expect((card as any).root!.querySelector('.card')!.classList.contains('is-flipped')).toBe(true);
       blur(getCvcInput(card));
-      expect(card.shadowRoot!.querySelector('.card')!.classList.contains('is-flipped')).toBe(false);
+      expect((card as any).root!.querySelector('.card')!.classList.contains('is-flipped')).toBe(false);
     });
 
     it('sets aria-invalid when CVC is invalid', () => {
@@ -294,7 +294,7 @@ describe('SecureCard — branch coverage', () => {
 
   describe('CVC card back display', () => {
     it('shows increasing bullets as CVC is typed', () => {
-      const display = card.shadowRoot!.querySelector('.card-cvc-display')!;
+      const display = (card as any).root!.querySelector('.card-cvc-display')!;
       typeInto(getCvcInput(card), '1');
       expect(display.textContent).toBe('•');
       typeInto(getCvcInput(card), '12');
@@ -306,7 +306,7 @@ describe('SecureCard — branch coverage', () => {
     it('resets to placeholder bullets when CVC is cleared', () => {
       typeInto(getCvcInput(card), '123');
       typeInto(getCvcInput(card), '');
-      const display = card.shadowRoot!.querySelector('.card-cvc-display')!;
+      const display = (card as any).root!.querySelector('.card-cvc-display')!;
       expect(display.textContent).toBe('•••');
     });
   });
@@ -316,7 +316,7 @@ describe('SecureCard — branch coverage', () => {
   it('resets card face expiry to MM/YY when expiry cleared', () => {
     typeInto(getExpiryInput(card), '1230');
     typeInto(getExpiryInput(card), '');
-    const display = card.shadowRoot!.querySelector('.card-expiry-display');
+    const display = (card as any).root!.querySelector('.card-expiry-display');
     expect(display!.textContent).toBe('MM/YY');
   });
 
