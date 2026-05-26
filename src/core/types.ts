@@ -147,11 +147,14 @@ export interface SecureInputChangeDetail {
 }
 
 /**
- * Custom event detail for secure-textarea events
+ * Custom event detail for secure-textarea events.
+ *
+ * `value` is intentionally absent — the raw value must not propagate globally
+ * via a bubbling composed event. Read `(event.target as SecureTextarea).value`
+ * directly when the actual value is needed.
  */
 export interface SecureTextareaChangeDetail {
   name: string;
-  value: string;
   tier: SecurityTierValue;
 }
 
@@ -163,31 +166,52 @@ export interface SecureSelectChangeDetail {
 }
 
 /**
+ * Per-file metadata included in secure-file-change events.
+ * Raw File objects are intentionally excluded — any same-page script that
+ * intercepts the event could call .arrayBuffer() / .text() to read file
+ * contents. Callers needing the actual files should read
+ * `(event.target as SecureFileUpload).files` directly.
+ */
+export interface SecureFileMeta {
+  readonly name: string;
+  readonly size: number;
+  readonly type: string;
+}
+
+/**
  * Custom event detail for secure-file-upload events
  */
 export interface SecureFileChangeDetail {
   name: string;
-  files: File[];
+  files: ReadonlyArray<SecureFileMeta>;
   tier: SecurityTierValue;
 }
 
 /**
- * Custom event detail for secure-datetime events
+ * Custom event detail for secure-datetime events.
+ *
+ * `value` is intentionally absent — the raw value must not propagate globally
+ * via a bubbling composed event. Read `(event.target as SecureDateTime).value`
+ * directly when the actual value is needed.
  */
 export interface SecureDatetimeChangeDetail {
   name: string;
-  value: string;
   type: string;
   tier: SecurityTierValue;
 }
 
 export interface SecureFormSubmitEventDetail {
-  formData: Record<string, string>;
   /**
-   * Call to cancel the library's internal fetch submission.
-   * Distinct from `event.preventDefault()` (which also cancels, via the
-   * cancelable event flag) — this additionally re-enables the form and
-   * resets submitting state so the UI recovers cleanly.
+   * Call to cancel the library's internal fetch submission and restore UI state.
+   *
+   * This sets a cancellation flag checked synchronously after the event fires,
+   * re-enables the form, and clears the submitting state. It is equivalent to
+   * calling `event.preventDefault()` but more explicit; either mechanism cancels.
+   *
+   * To inspect field values before deciding whether to cancel, read them directly
+   * from the field elements — `formData` is intentionally absent from this event
+   * because a bubbling composed event that carries credential-class values can be
+   * intercepted by any script on the page.
    */
   cancelSubmission: () => void;
   /** Behavioral telemetry collected from all secure fields. */
@@ -449,7 +473,11 @@ export interface SecureCardChangeDetail {
   expiryMonth: number;
   /** Full 4-digit year (e.g. 2027, not 27) */
   expiryYear: number;
-  cardholderName: string;
+  /**
+   * `cardholderName` is intentionally absent — it is PII that combined with
+   * last4 + expiry provides partial card identification to any listener.
+   * Use `element.getCardData()` for the name when handing off to a payment SDK.
+   */
   valid: boolean;
   tier: SecurityTierValue;
 }
