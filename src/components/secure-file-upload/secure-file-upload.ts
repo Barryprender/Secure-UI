@@ -547,12 +547,16 @@ export class SecureFileUpload extends SecureBaseComponent {
       totalSize: Array.from(files).reduce((sum, f) => sum + f.size, 0)
     });
 
-    // Dispatch custom event
+    // Dispatch custom event.
+    // Raw File objects are intentionally excluded from the event detail —
+    // any intercepting script could call .arrayBuffer()/.text() to read
+    // uploaded file contents. Use (event.target as SecureFileUpload).files
+    // directly for the actual File objects when needed.
     this.dispatchEvent(
       new CustomEvent('secure-file-change', {
         detail: {
           name: this.#fileInput!.name,
-          files: Array.from(files),
+          files: Array.from(files).map(f => ({ name: f.name, size: f.size, type: f.type })),
           tier: this.securityTier
         },
         bubbles: true,
