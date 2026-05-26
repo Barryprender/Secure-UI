@@ -125,15 +125,17 @@ export abstract class SecureBaseComponent extends HTMLElement {
   }
 
   // security-tier is immutable after init to prevent privilege escalation.
+  // NOTE: We intentionally do NOT revert the DOM attribute here — calling
+  // setAttribute() from within attributeChangedCallback would re-trigger the
+  // callback with swapped oldValue/newValue, causing infinite recursion.
+  // The internal #securityTier field is already immutable so component
+  // behaviour is unaffected regardless of what the DOM attribute shows.
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
     if (name === 'security-tier' && this.#initialized) {
       console.warn(
         `Security tier cannot be changed after initialization. ` +
         `Attempted change from "${oldValue}" to "${newValue}" blocked.`
       );
-      if (oldValue !== null) {
-        this.setAttribute('security-tier', oldValue);
-      }
       return;
     }
 
@@ -331,7 +333,16 @@ export abstract class SecureBaseComponent extends HTMLElement {
     );
   }
 
-  get shadowRoot(): ShadowRoot {
+  /**
+   * Internal accessor for the closed shadow root.
+   *
+   * Named `root` (not `shadowRoot`) deliberately: `Element.shadowRoot` returns
+   * `null` for closed shadow DOMs — overriding it with a public getter defeats
+   * the entire point of `mode: 'closed'`. External callers MUST NOT receive a
+   * reference to the shadow root; use the public API (`.value`, `.valid`, events)
+   * instead. Subclasses may access internal DOM through this protected getter.
+   */
+  protected get root(): ShadowRoot {
     return this.#shadow;
   }
 
@@ -448,7 +459,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
     t.blurAt = null;
     t.focusCount++;
     // snapshot input length at focus so we can detect blur-without-change
-    const el = this.shadowRoot.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+    const el = this.#shadow.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
       'input:not([type="hidden"]), textarea, select'
     );
     t.lastInputLength = el ? el.value.length : 0;
@@ -495,7 +506,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
     const t = this.#telemetryState;
     t.blurAt = Date.now();
 
-    const el = this.shadowRoot.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+    const el = this.#shadow.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
       'input:not([type="hidden"]), textarea, select'
     );
     const currentLength = el ? el.value.length : 0;
