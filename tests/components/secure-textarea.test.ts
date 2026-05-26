@@ -35,8 +35,8 @@ describe('SecureTextarea', () => {
     it('should have shadow DOM', () => {
       document.body.appendChild(textarea);
 
-      expect(textarea.shadowRoot).toBeDefined();
-      expect(textarea.shadowRoot).not.toBeNull();
+      expect((textarea as any).root).toBeDefined();
+      expect((textarea as any).root).not.toBeNull();
     });
 
     it('should default to CRITICAL security tier', () => {
@@ -56,7 +56,7 @@ describe('SecureTextarea', () => {
       textarea.setAttribute('label', 'Comments');
       document.body.appendChild(textarea);
 
-      const shadowContent = textarea.shadowRoot?.innerHTML || '';
+      const shadowContent = (textarea as any).root?.innerHTML || '';
       expect(shadowContent).toContain('Comments');
     });
 
@@ -64,7 +64,7 @@ describe('SecureTextarea', () => {
       textarea.setAttribute('placeholder', 'Enter your message');
       document.body.appendChild(textarea);
 
-      const shadowContent = textarea.shadowRoot?.innerHTML || '';
+      const shadowContent = (textarea as any).root?.innerHTML || '';
       expect(shadowContent).toContain('Enter your message');
     });
   });
@@ -111,7 +111,7 @@ describe('SecureTextarea', () => {
 
       // The internal textarea value may preserve the text but rendering is safe
       // Check that no script actually executes in shadow DOM
-      const shadowContent = textarea.shadowRoot?.innerHTML || '';
+      const shadowContent = (textarea as any).root?.innerHTML || '';
       // Scripts should be HTML-encoded in the display if shown
       expect(shadowContent).not.toContain('<script>alert');
     });
@@ -191,7 +191,7 @@ describe('SecureTextarea', () => {
     });
 
     it('should display character count when maxlength set', () => {
-      const shadowContent = textarea.shadowRoot?.innerHTML || '';
+      const shadowContent = (textarea as any).root?.innerHTML || '';
       // Should show character count element
       expect(shadowContent).toContain('char-count');
     });
@@ -199,7 +199,7 @@ describe('SecureTextarea', () => {
     it('should update character count on input', () => {
       textarea.value = 'Hello';
 
-      const shadowContent = textarea.shadowRoot?.innerHTML || '';
+      const shadowContent = (textarea as any).root?.innerHTML || '';
       // Should reflect current length
       expect(shadowContent).toContain('5');
     });
@@ -236,7 +236,7 @@ describe('SecureTextarea', () => {
       const eventHandler = vi.fn();
       textarea.addEventListener('secure-textarea-change', eventHandler);
 
-      const internalTextarea = textarea.shadowRoot?.querySelector('textarea');
+      const internalTextarea = (textarea as any).root?.querySelector('textarea');
       expect(internalTextarea).not.toBeNull();
       internalTextarea!.value = 'Test input';
       internalTextarea!.dispatchEvent(new Event('input', { bubbles: true }));
@@ -252,7 +252,7 @@ describe('SecureTextarea', () => {
       textarea.setAttribute('security-tier', 'critical');
       document.body.appendChild(textarea);
 
-      const internalTextarea = textarea.shadowRoot?.querySelector('textarea');
+      const internalTextarea = (textarea as any).root?.querySelector('textarea');
       if (internalTextarea) {
         expect(internalTextarea.autocomplete).toBe('off');
       }
@@ -262,7 +262,7 @@ describe('SecureTextarea', () => {
       textarea.setAttribute('security-tier', 'sensitive');
       document.body.appendChild(textarea);
 
-      const internalTextarea = textarea.shadowRoot?.querySelector('textarea');
+      const internalTextarea = (textarea as any).root?.querySelector('textarea');
       if (internalTextarea) {
         expect(internalTextarea.autocomplete).toBe('off');
       }
@@ -272,7 +272,7 @@ describe('SecureTextarea', () => {
       textarea.setAttribute('security-tier', 'public');
       document.body.appendChild(textarea);
 
-      const internalTextarea = textarea.shadowRoot?.querySelector('textarea');
+      const internalTextarea = (textarea as any).root?.querySelector('textarea');
       // PUBLIC tier allows autocomplete (may be 'on' or not set to 'off')
       if (internalTextarea) {
         expect(internalTextarea.autocomplete !== 'off' || internalTextarea.autocomplete === 'on').toBeTruthy();
@@ -300,7 +300,7 @@ describe('SecureTextarea', () => {
       textarea.setAttribute('rows', '5');
       document.body.appendChild(textarea);
 
-      const internalTextarea = textarea.shadowRoot?.querySelector('textarea');
+      const internalTextarea = (textarea as any).root?.querySelector('textarea');
       if (internalTextarea) {
         // getAttribute returns string, rows property may be string in happy-dom
         expect(Number(internalTextarea.rows)).toBe(5);
@@ -311,7 +311,7 @@ describe('SecureTextarea', () => {
       textarea.setAttribute('cols', '40');
       document.body.appendChild(textarea);
 
-      const internalTextarea = textarea.shadowRoot?.querySelector('textarea');
+      const internalTextarea = (textarea as any).root?.querySelector('textarea');
       if (internalTextarea) {
         // getAttribute returns string, cols property may be string in happy-dom
         expect(Number(internalTextarea.cols)).toBe(40);
@@ -324,7 +324,7 @@ describe('SecureTextarea', () => {
       textarea.setAttribute('disabled', '');
       document.body.appendChild(textarea);
 
-      const internalTextarea = textarea.shadowRoot?.querySelector('textarea');
+      const internalTextarea = (textarea as any).root?.querySelector('textarea');
       if (internalTextarea) {
         expect(internalTextarea.disabled).toBe(true);
       }
@@ -334,7 +334,7 @@ describe('SecureTextarea', () => {
       textarea.setAttribute('readonly', '');
       document.body.appendChild(textarea);
 
-      const internalTextarea = textarea.shadowRoot?.querySelector('textarea');
+      const internalTextarea = (textarea as any).root?.querySelector('textarea');
       if (internalTextarea) {
         expect(internalTextarea.readOnly).toBe(true);
       }
@@ -402,7 +402,7 @@ describe('SecureTextarea — injection detection', () => {
     const handler = vi.fn();
     document.addEventListener('secure-threat-detected', handler);
 
-    const internalTextarea = ta.shadowRoot?.querySelector('textarea');
+    const internalTextarea = (ta as any).root?.querySelector('textarea');
     if (internalTextarea) {
       internalTextarea.value = 'javascript:alert(1)';
       internalTextarea.dispatchEvent(new Event('input', { bubbles: true }));
@@ -421,7 +421,7 @@ describe('SecureTextarea — injection detection', () => {
     const handler = vi.fn();
     document.addEventListener('secure-threat-detected', handler);
 
-    const internalTextarea = ta.shadowRoot?.querySelector('textarea');
+    const internalTextarea = (ta as any).root?.querySelector('textarea');
     if (internalTextarea) {
       internalTextarea.value = 'Normal comment with no threats.';
       internalTextarea.dispatchEvent(new Event('input', { bubbles: true }));
@@ -452,7 +452,7 @@ describe('SecureTextarea — threat-feedback UI', () => {
   afterEach(() => { ta.remove(); });
 
   const fireInput = async (value: string) => {
-    const el = ta.shadowRoot?.querySelector('textarea');
+    const el = (ta as any).root?.querySelector('textarea');
     if (el) {
       el.value = value;
       el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -462,7 +462,7 @@ describe('SecureTextarea — threat-feedback UI', () => {
 
   it('threat container has role="alert" and part="threat"', async () => {
     await setup(true);
-    const container = ta.shadowRoot?.querySelector('[part="threat"]');
+    const container = (ta as any).root?.querySelector('[part="threat"]');
     expect(container).not.toBeNull();
     expect(container?.getAttribute('role')).toBe('alert');
   });
@@ -471,7 +471,7 @@ describe('SecureTextarea — threat-feedback UI', () => {
     await setup(true);
     await fireInput('javascript:alert(1)');
 
-    const container = ta.shadowRoot?.querySelector('[part="threat"]');
+    const container = (ta as any).root?.querySelector('[part="threat"]');
     expect(container?.classList.contains('hidden')).toBe(false);
     expect(container?.querySelector('.threat-message')?.textContent).toBe('JavaScript protocol blocked');
     expect(container?.querySelector('.threat-badge')?.textContent).toBe('js-protocol');
@@ -482,7 +482,7 @@ describe('SecureTextarea — threat-feedback UI', () => {
     await setup(true);
     await fireInput('<img src=x onerror=alert(1)>');
 
-    const el = ta.shadowRoot?.querySelector('textarea');
+    const el = (ta as any).root?.querySelector('textarea');
     // aria-invalid is set by showThreatFeedback() but cleared synchronously by #clearErrors()
     // in the same input handler — test the stable state: threat class and container visibility
     expect(el?.classList.contains('threat')).toBe(true);
@@ -493,7 +493,7 @@ describe('SecureTextarea — threat-feedback UI', () => {
     await fireInput('{{payload}}');
     await fireInput('clean text');
 
-    const el = ta.shadowRoot?.querySelector('textarea');
+    const el = (ta as any).root?.querySelector('textarea');
     expect(el?.classList.contains('threat')).toBe(false);
     expect(el?.hasAttribute('aria-invalid')).toBe(false);
   });
@@ -503,7 +503,7 @@ describe('SecureTextarea — threat-feedback UI', () => {
     await fireInput('<script src="x">');
     await fireInput('safe content');
 
-    const container = ta.shadowRoot?.querySelector('[part="threat"]');
+    const container = (ta as any).root?.querySelector('[part="threat"]');
     expect(container?.classList.contains('hidden')).toBe(true);
   });
 
@@ -511,7 +511,7 @@ describe('SecureTextarea — threat-feedback UI', () => {
     await setup(false);
     await fireInput('javascript:void(0)');
 
-    const container = ta.shadowRoot?.querySelector('[part="threat"]');
+    const container = (ta as any).root?.querySelector('[part="threat"]');
     expect(container?.classList.contains('hidden')).toBe(true);
   });
 
@@ -520,7 +520,7 @@ describe('SecureTextarea — threat-feedback UI', () => {
     await fireInput('{{inject}}');
     await fireInput('vbscript:msgbox(1)');
 
-    const container = ta.shadowRoot?.querySelector('[part="threat"]');
+    const container = (ta as any).root?.querySelector('[part="threat"]');
     expect(container?.querySelector('.threat-message')?.textContent).toBe('VBScript injection blocked');
     expect(container?.querySelector('.threat-badge')?.textContent).toBe('vbscript');
   });
