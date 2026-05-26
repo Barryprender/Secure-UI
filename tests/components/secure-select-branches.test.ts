@@ -33,13 +33,13 @@ describe('SecureSelect branch coverage', () => {
   it('sets aria-label when no label attr but name is set', async () => {
     select.setAttribute('name', 'country');
     await appendAndWait(select);
-    const internalSelect = select.shadowRoot!.querySelector<HTMLSelectElement>('select')!;
+    const internalSelect = (select as any).root!.querySelector<HTMLSelectElement>('select')!;
     expect(internalSelect.getAttribute('aria-label')).toBe('country');
   });
 
   it('omits aria-label when both label and name are absent', async () => {
     await appendAndWait(select);
-    const internalSelect = select.shadowRoot!.querySelector<HTMLSelectElement>('select')!;
+    const internalSelect = (select as any).root!.querySelector<HTMLSelectElement>('select')!;
     expect(internalSelect.hasAttribute('aria-label')).toBe(false);
   });
 
@@ -47,7 +47,7 @@ describe('SecureSelect branch coverage', () => {
   it('applies size attribute to inner select', async () => {
     select.setAttribute('size', '4');
     await appendAndWait(select);
-    const internalSelect = select.shadowRoot!.querySelector<HTMLSelectElement>('select')!;
+    const internalSelect = (select as any).root!.querySelector<HTMLSelectElement>('select')!;
     expect(internalSelect.size).toBe(4);
   });
 
@@ -55,7 +55,7 @@ describe('SecureSelect branch coverage', () => {
   it('enables/disables inner select via attribute change', async () => {
     await appendAndWait(select);
     select.setAttribute('disabled', '');
-    const internalSelect = select.shadowRoot!.querySelector<HTMLSelectElement>('select')!;
+    const internalSelect = (select as any).root!.querySelector<HTMLSelectElement>('select')!;
     expect(internalSelect.disabled).toBe(true);
     select.removeAttribute('disabled');
     expect(internalSelect.disabled).toBe(false);
@@ -66,7 +66,7 @@ describe('SecureSelect branch coverage', () => {
     select.addOption('a', 'A');
     select.addOption('b', 'B');
     select.setAttribute('value', 'b');
-    const internalSelect = select.shadowRoot!.querySelector<HTMLSelectElement>('select')!;
+    const internalSelect = (select as any).root!.querySelector<HTMLSelectElement>('select')!;
     expect(internalSelect.value).toBe('b');
   });
 
@@ -161,7 +161,7 @@ describe('SecureSelect branch coverage', () => {
     const handler = vi.fn();
     select.addEventListener('secure-select-change', handler);
 
-    const internalSelect = select.shadowRoot!.querySelector<HTMLSelectElement>('select')!;
+    const internalSelect = (select as any).root!.querySelector<HTMLSelectElement>('select')!;
     const optA = internalSelect.options[0]!;
     optA.selected = true;
     internalSelect.dispatchEvent(new Event('change', { bubbles: true }));
@@ -174,7 +174,7 @@ describe('SecureSelect branch coverage', () => {
     await appendAndWait(select);
     select.addOption('valid', 'Valid');
 
-    const internalSelect = select.shadowRoot!.querySelector<HTMLSelectElement>('select')!;
+    const internalSelect = (select as any).root!.querySelector<HTMLSelectElement>('select')!;
     // Manually inject an invalid option into the DOM to test rejection
     const badOpt = document.createElement('option');
     badOpt.value = 'injected';
@@ -193,7 +193,7 @@ describe('SecureSelect branch coverage', () => {
     await appendAndWait(select);
     select.addOption('valid', 'Valid');
 
-    const internalSelect = select.shadowRoot!.querySelector<HTMLSelectElement>('select')!;
+    const internalSelect = (select as any).root!.querySelector<HTMLSelectElement>('select')!;
     const badOpt = document.createElement('option');
     badOpt.value = 'injected';
     badOpt.textContent = 'Injected';
@@ -204,7 +204,7 @@ describe('SecureSelect branch coverage', () => {
 
     await new Promise(resolve => setTimeout(resolve, 20));
     // Error should have been shown; select not dispatched
-    const shadowContent = select.shadowRoot?.innerHTML || '';
+    const shadowContent = (select as any).root?.innerHTML || '';
     expect(shadowContent).toContain('Invalid');
   });
 
@@ -217,11 +217,11 @@ describe('SecureSelect branch coverage', () => {
     const spy = vi.spyOn(SecureBaseComponent.prototype as unknown as { checkRateLimit: () => unknown }, 'checkRateLimit')
       .mockReturnValue({ allowed: false, retryAfter: 5000 });
 
-    const internalSelect = select.shadowRoot!.querySelector<HTMLSelectElement>('select')!;
+    const internalSelect = (select as any).root!.querySelector<HTMLSelectElement>('select')!;
     internalSelect.dispatchEvent(new Event('blur'));
 
     await new Promise(resolve => setTimeout(resolve, 20));
-    const shadowContent = select.shadowRoot?.innerHTML ?? '';
+    const shadowContent = (select as any).root?.innerHTML ?? '';
     expect(shadowContent).toContain('Too many');
     spy.mockRestore();
   });
@@ -233,11 +233,11 @@ describe('SecureSelect branch coverage', () => {
     await appendAndWait(select);
     select.addOption('opt1', 'Option 1');
 
-    const internalSelect = select.shadowRoot!.querySelector<HTMLSelectElement>('select')!;
+    const internalSelect = (select as any).root!.querySelector<HTMLSelectElement>('select')!;
     internalSelect.dispatchEvent(new Event('blur'));
 
     await new Promise(resolve => setTimeout(resolve, 20));
-    const shadowContent = select.shadowRoot?.innerHTML || '';
+    const shadowContent = (select as any).root?.innerHTML || '';
     expect(shadowContent).toContain('least one');
   });
 
@@ -247,7 +247,7 @@ describe('SecureSelect branch coverage', () => {
     await appendAndWait(select);
     select.addOption('valid', 'Valid');
 
-    const internalSelect = select.shadowRoot!.querySelector<HTMLSelectElement>('select')!;
+    const internalSelect = (select as any).root!.querySelector<HTMLSelectElement>('select')!;
     const badOpt = document.createElement('option');
     badOpt.value = 'hacked';
     badOpt.selected = true;
@@ -255,7 +255,7 @@ describe('SecureSelect branch coverage', () => {
     internalSelect.dispatchEvent(new Event('blur'));
 
     await new Promise(resolve => setTimeout(resolve, 20));
-    const shadowContent = select.shadowRoot?.innerHTML || '';
+    const shadowContent = (select as any).root?.innerHTML || '';
     expect(shadowContent).toContain('Invalid');
   });
 
@@ -265,7 +265,7 @@ describe('SecureSelect branch coverage', () => {
     select.addOption('a', 'A');
     // Should not throw
     expect(() => select.removeOption('nonexistent')).not.toThrow();
-    expect(select.shadowRoot?.querySelector('select')?.options.length).toBe(1);
+    expect((select as any).root?.querySelector('select')?.options.length).toBe(1);
   });
 
   // ── #transferOptions: value attr takes precedence over selected ────────────
@@ -356,7 +356,7 @@ describe('SecureSelect — disabled option transfer (line 136)', () => {
 
     await new Promise(r => setTimeout(r, 20));
 
-    const internalSelect = select.shadowRoot?.querySelector('select');
+    const internalSelect = (select as any).root?.querySelector('select');
     const disabledOpt = Array.from(internalSelect?.options ?? []).find(o => o.value === 'inactive');
     expect(disabledOpt?.disabled).toBe(true);
   });
@@ -381,10 +381,10 @@ describe('SecureSelect — single-select validation branches (lines 249–257)',
 
     await new Promise(r => setTimeout(r, 20));
 
-    const internalSelect = select.shadowRoot?.querySelector('select') as HTMLSelectElement;
+    const internalSelect = (select as any).root?.querySelector('select') as HTMLSelectElement;
     internalSelect.dispatchEvent(new FocusEvent('blur'));
 
-    const errorContainer = select.shadowRoot?.querySelector('[part="error"]');
+    const errorContainer = (select as any).root?.querySelector('[part="error"]');
     expect(errorContainer?.classList.contains('hidden')).toBe(false);
   });
 });
@@ -413,11 +413,11 @@ describe('SecureSelect — #clearErrors transitionend callback (lines 275–276)
     document.body.appendChild(select);
     await new Promise(r => setTimeout(r, 20));
 
-    const internalSelect = select.shadowRoot?.querySelector('select') as HTMLSelectElement;
+    const internalSelect = (select as any).root?.querySelector('select') as HTMLSelectElement;
 
     // 1. Trigger a validation error via blur with no value
     internalSelect.dispatchEvent(new FocusEvent('blur'));
-    const errorContainer = select.shadowRoot?.querySelector('[part="error"]') as HTMLElement;
+    const errorContainer = (select as any).root?.querySelector('[part="error"]') as HTMLElement;
     expect(errorContainer.textContent!.length).toBeGreaterThan(0);
 
     // 2. Select a valid option and fire change — #handleChange calls #clearErrors(),
@@ -449,7 +449,7 @@ describe('SecureSelect — valid getter with tampered selected value (line 362)'
     document.body.appendChild(select);
     await new Promise(r => setTimeout(r, 20));
 
-    const internalSelect = select.shadowRoot?.querySelector('select') as HTMLSelectElement;
+    const internalSelect = (select as any).root?.querySelector('select') as HTMLSelectElement;
     // Bypass validation by directly setting the internal select value to something
     // not in #validOptions — simulates a tampered DOM value
     const bogusOpt = document.createElement('option');
