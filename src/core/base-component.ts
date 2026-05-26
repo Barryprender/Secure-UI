@@ -206,15 +206,25 @@ export abstract class SecureBaseComponent extends HTMLElement {
 
   protected abstract render(): DocumentFragment | HTMLElement | null;
 
-  /** div.textContent round-trip — safe HTML-entity encoding, no innerHTML needed. */
+  /**
+   * Strip null bytes and ASCII control characters from an attribute value.
+   *
+   * All current call sites assign the result to a DOM property (.textContent,
+   * .name, .placeholder, option.value, setAttribute) — not innerHTML. Property
+   * assignment already prevents HTML injection, so HTML-entity encoding is both
+   * unnecessary and harmful: returning div.innerHTML caused entities like &amp;
+   * to appear literally in the rendered text (double-encoding).
+   *
+   * Strips U+0000–U+0008, U+000B, U+000C, U+000E–U+001F, U+007F (control
+   * characters that serve no display purpose and can confuse parsers).
+   * Tab (U+0009), LF (U+000A), and CR (U+000D) are preserved.
+   */
   protected sanitizeValue(value: string): string {
     if (typeof value !== 'string') {
       return '';
     }
-
-    const div = document.createElement('div');
-    div.textContent = value;
-    return div.innerHTML;
+    // eslint-disable-next-line no-control-regex
+    return value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
   }
 
   protected validateInput(value: string, options: ValidationOptions = {}): ValidationResult {
