@@ -38,10 +38,41 @@ app.use(cors({
 }));
 
 // Security headers
+//
+// The library's threat model treats a strict Content-Security-Policy as the
+// real XSS backstop (the client-side injection heuristics are UX-only). The
+// reference server therefore ships a strict CSP so the showcase practises what
+// the components preach. The served pages contain no inline <script>/<style>
+// and no remote origins — components inject styles via constructable
+// stylesheets (adoptedStyleSheets), which are exempt from style-src.
+//
+// `upgrade-insecure-requests` is intentionally omitted here because the dev
+// server runs over plain HTTP on localhost; enable it (and rely on HSTS) in
+// any HTTPS deployment.
+const CSP = [
+  "default-src 'self'",
+  "base-uri 'none'",
+  "object-src 'none'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "frame-src 'none'"
+].join('; ');
+
 app.use((req, res, next) => {
+  res.set('Content-Security-Policy', CSP);
   res.set('X-Content-Type-Options', 'nosniff');
   res.set('X-Frame-Options', 'DENY');
   res.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.set('Cross-Origin-Opener-Policy', 'same-origin');
+  // Browsers ignore HSTS over plain HTTP, so this is a no-op in local dev and
+  // takes effect automatically once the server is fronted by HTTPS in prod.
+  res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   next();
 });
 
@@ -79,6 +110,18 @@ app.get('/examples', (req, res) => {
     res.status(404).json({ error: 'Examples page not found' });
   }
 });
+
+// Static assets for the examples page (styles.css, demo.js). The exact
+// `/examples` route above is matched first, so this only serves sub-paths.
+app.use('/examples', express.static(path.join(__dirname, 'examples'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.js')) {
+      res.set('Content-Type', 'application/javascript; charset=utf-8');
+    } else if (filePath.endsWith('.css')) {
+      res.set('Content-Type', 'text/css; charset=utf-8');
+    }
+  }
+}));
 
 /**
  * Component Catalog - List all available components
