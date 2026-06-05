@@ -217,6 +217,102 @@ describe('SecureTable', () => {
       // Content should be displayed (possibly with encoded &)
       expect(shadowContent).toContain('100');
     });
+
+    // Regression: the HTML pass-through sanitizer (#sanitizeHtml, reached via the
+    // `{key}_html` convention or a column render function) previously unwrapped a
+    // disallowed wrapper element but never re-sanitized the children moved up in
+    // its place. A dangerous element nested inside a common wrapper (<p>, <div>,
+    // unknown tags) therefore survived. These cases feed the pass-through path.
+    describe('HTML pass-through (nested unwrap bypass)', () => {
+      it('strips onerror nested inside a disallowed <p> wrapper', () => {
+        (window as any).xssNestedP = false;
+        table.data = [
+          {
+            content: 'cell',
+            content_html: '<p><img src=x onerror="window.xssNestedP=true"></p>'
+          }
+        ];
+
+        const html = (table as any).root?.innerHTML || '';
+        expect(html).not.toContain('onerror');
+
+        return new Promise<void>((resolve) => {
+          setTimeout(() => {
+            expect((window as any).xssNestedP).toBe(false);
+            delete (window as any).xssNestedP;
+            resolve();
+          }, 100);
+        });
+      });
+
+      it('strips svg onload nested inside a disallowed <div> wrapper', () => {
+        (window as any).xssNestedSvg = false;
+        table.data = [
+          {
+            content: 'cell',
+            content_html: '<div><svg onload="window.xssNestedSvg=true"></svg></div>'
+          }
+        ];
+
+        const html = (table as any).root?.innerHTML || '';
+        expect(html).not.toContain('onload');
+
+        return new Promise<void>((resolve) => {
+          setTimeout(() => {
+            expect((window as any).xssNestedSvg).toBe(false);
+            delete (window as any).xssNestedSvg;
+            resolve();
+          }, 100);
+        });
+      });
+
+      it('strips javascript: href and onclick on an anchor inside an unknown wrapper', () => {
+        table.data = [
+          {
+            content: 'cell',
+            content_html: '<unknown><a href="javascript:alert(1)" onclick="evil()">x</a></unknown>'
+          }
+        ];
+
+        const html = (table as any).root?.innerHTML || '';
+        expect(html.toLowerCase()).not.toContain('javascript:');
+        expect(html).not.toContain('onclick');
+      });
+
+      it('strips dangerous elements buried two wrappers deep', () => {
+        (window as any).xssDeep = false;
+        table.data = [
+          {
+            content: 'cell',
+            content_html: '<div><span><img src=x onerror="window.xssDeep=true"></span></div>'
+          }
+        ];
+
+        const html = (table as any).root?.innerHTML || '';
+        expect(html).not.toContain('onerror');
+
+        return new Promise<void>((resolve) => {
+          setTimeout(() => {
+            expect((window as any).xssDeep).toBe(false);
+            delete (window as any).xssDeep;
+            resolve();
+          }, 100);
+        });
+      });
+
+      it('keeps allowed inline markup intact while stripping nested threats', () => {
+        table.data = [
+          {
+            content: 'cell',
+            content_html: '<strong>Total</strong> <p><img src=x onerror="x()"></p>'
+          }
+        ];
+
+        const html = (table as any).root?.innerHTML || '';
+        expect(html).toContain('<strong>Total</strong>');
+        expect(html).not.toContain('onerror');
+      });
+    });
   });
 
   describe('Sorting', () => {

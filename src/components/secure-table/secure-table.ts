@@ -254,22 +254,36 @@ export class SecureTable extends SecureBaseComponent {
   }
 
   #sanitizeDomNode(node: Node): void {
-    for (const child of Array.from(node.childNodes)) {
-      if (child.nodeType === Node.TEXT_NODE) continue;
-      if (child.nodeType !== Node.ELEMENT_NODE) {
-        node.removeChild(child);
+    // Walk children with a live cursor rather than a snapshot. When a disallowed
+    // element is unwrapped, its children are moved up into `node` and MUST be
+    // re-examined — a snapshot (Array.from) would skip them, letting a dangerous
+    // element nested inside a disallowed wrapper (e.g. <p><img onerror>) survive.
+    let child = node.firstChild;
+    while (child) {
+      const next = child.nextSibling;
+
+      if (child.nodeType === Node.TEXT_NODE) {
+        child = next;
         continue;
       }
+      if (child.nodeType !== Node.ELEMENT_NODE) {
+        node.removeChild(child);
+        child = next;
+        continue;
+      }
+
       const el = child as Element;
       const tag = el.tagName.toLowerCase();
       if (!SecureTable.#ALLOWED_CELL_TAGS.has(tag)) {
-        // Replace element with its children (unwrap, don't discard text)
-        const frag = document.createDocumentFragment();
-        while (el.firstChild) frag.appendChild(el.firstChild);
-        node.replaceChild(frag, el);
-        // The moved children are already in the parent — recurse from parent
+        // Unwrap: move children up before removing the wrapper, then resume the
+        // walk at the first moved child so they are sanitized in turn.
+        const firstMoved = el.firstChild;
+        while (el.firstChild) node.insertBefore(el.firstChild, el);
+        node.removeChild(el);
+        child = firstMoved ?? next;
         continue;
       }
+
       // Strip disallowed or dangerous attributes
       for (const attr of Array.from(el.attributes)) {
         const name = attr.name.toLowerCase();
@@ -287,6 +301,7 @@ export class SecureTable extends SecureBaseComponent {
         }
       }
       this.#sanitizeDomNode(el);
+      child = next;
     }
   }
 
