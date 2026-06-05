@@ -271,19 +271,29 @@ describe('SecureForm', () => {
       expect(typeof form.sanitizeValue).toBe('function');
     });
 
-    it('should sanitize HTML tags', () => {
+    it('returns plain text unchanged (XSS safety is via DOM property assignment, not entity encoding)', () => {
       document.body.appendChild(form);
 
-      const result = form.sanitizeValue('<script>alert("xss")</script>');
-      expect(result).not.toContain('<script>');
+      // sanitizeValue mirrors SecureBaseComponent.sanitizeValue: it strips control
+      // characters and returns PLAIN text. It must NOT HTML-entity-encode, which
+      // would double-encode when the result is assigned to .textContent/.value.
+      const malicious = '<script>alert("xss")</script>';
+      expect(form.sanitizeValue(malicious)).toBe(malicious);
     });
 
-    it('should sanitize event handlers', () => {
+    it('does not entity-encode event-handler markup', () => {
       document.body.appendChild(form);
 
-      const result = form.sanitizeValue('<img onerror="alert(1)">');
-      // Sanitization removes < and > which breaks HTML tags
-      expect(result).not.toContain('<img');
+      const malicious = '<img onerror="alert(1)">';
+      expect(form.sanitizeValue(malicious)).toBe(malicious);
+    });
+
+    it('strips null bytes and ASCII control characters', () => {
+      document.body.appendChild(form);
+
+      expect(form.sanitizeValue('a\x00b\x07c\x1Fd\x7Fe')).toBe('abcde');
+      // Tab, LF and CR are preserved (legitimate whitespace).
+      expect(form.sanitizeValue('a\tb\nc\rd')).toBe('a\tb\nc\rd');
     });
   });
 

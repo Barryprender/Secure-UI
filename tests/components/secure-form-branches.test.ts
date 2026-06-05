@@ -11,6 +11,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureForm } from '../../src/components/secure-form/secure-form.js';
 import { SecureInput } from '../../src/components/secure-input/secure-input.js';
+// Imported for its side-effect (self-registers <secure-card>) used by the
+// card-collection regression test below.
+import '../../src/components/secure-card/secure-card.js';
 
 if (!customElements.get('secure-form')) {
   customElements.define('secure-form', SecureForm);
@@ -360,16 +363,83 @@ describe('SecureForm branch coverage', () => {
   });
 
   // ── sanitizeValue ─────────────────────────────────────────────────────────
-  it('sanitizeValue encodes HTML entities', () => {
+  it('sanitizeValue returns plain text (no entity encoding) and strips control chars', () => {
     document.body.appendChild(form);
-    const result = form.sanitizeValue('<script>alert(1)</script>');
-    expect(result).not.toContain('<script>');
+    // Plain text is returned unchanged — safety comes from .textContent/.value
+    // assignment at the call site, not from entity encoding (which would double-encode).
+    expect(form.sanitizeValue('<script>alert(1)</script>')).toBe('<script>alert(1)</script>');
+    // Control characters are stripped.
+    expect(form.sanitizeValue('x\x00\x1Fy')).toBe('xy');
   });
 
   it('sanitizeValue returns empty string for non-string input', () => {
     document.body.appendChild(form);
     const result = form.sanitizeValue(42 as unknown as string);
     expect(result).toBe('');
+  });
+
+  // ── injection block / unblock transition (regression) ─────────────────────
+  it('blocks on secure-threat-detected and lifts the block on secure-threat-cleared', () => {
+    form.innerHTML = '<secure-input name="bio" security-tier="public"></secure-input>';
+    document.body.appendChild(form);
+
+    form.dispatchEvent(new CustomEvent('secure-threat-detected', {
+      detail: { fieldName: 'bio', threatType: 'injection', patternId: 'script-tag', tier: 'public', timestamp: Date.now() },
+      bubbles: true,
+    }));
+    expect(form.dataset['state']).toBe('blocked');
+
+    // Field corrected → cleared event must lift the block.
+    form.dispatchEvent(new CustomEvent('secure-threat-cleared', {
+      detail: { fieldName: 'bio', tier: 'public', timestamp: Date.now() },
+      bubbles: true,
+    }));
+    expect(form.dataset['state']).toBeUndefined();
+  });
+
+  it('keeps the block while a different field still has an active injection', () => {
+    form.innerHTML =
+      '<secure-input name="a" security-tier="public"></secure-input>' +
+      '<secure-input name="b" security-tier="public"></secure-input>';
+    document.body.appendChild(form);
+
+    const threat = (name: string) => new CustomEvent('secure-threat-detected', {
+      detail: { fieldName: name, threatType: 'injection', patternId: 'script-tag', tier: 'public', timestamp: Date.now() },
+      bubbles: true,
+    });
+    form.dispatchEvent(threat('a'));
+    form.dispatchEvent(threat('b'));
+    expect(form.dataset['state']).toBe('blocked');
+
+    // Clearing only field "a" must NOT unblock — "b" is still flagged.
+    form.dispatchEvent(new CustomEvent('secure-threat-cleared', {
+      detail: { fieldName: 'a', tier: 'public', timestamp: Date.now() },
+      bubbles: true,
+    }));
+    expect(form.dataset['state']).toBe('blocked');
+
+    form.dispatchEvent(new CustomEvent('secure-threat-cleared', {
+      detail: { fieldName: 'b', tier: 'public', timestamp: Date.now() },
+      bubbles: true,
+    }));
+    expect(form.dataset['state']).toBeUndefined();
+  });
+
+  // ── secure-card data collection (regression) ──────────────────────────────
+  it('collects secure-card light-DOM hidden inputs in getData()', () => {
+    form.innerHTML = '<secure-card name="payment"></secure-card>';
+    document.body.appendChild(form);
+
+    const card = form.querySelector('secure-card')!;
+    const last4 = card.querySelector<HTMLInputElement>('input[type="hidden"][name="payment"]')!;
+    last4.value = '4242';
+
+    const data = form.getData();
+    // last4 / expiry / holder are submitted; CVC has no hidden input (PCI).
+    expect(data['payment']).toBe('4242');
+    expect(Object.keys(data)).toContain('payment-expiry');
+    expect(Object.keys(data)).toContain('payment-holder');
+    expect(Object.keys(data)).not.toContain('payment-cvc');
   });
 
   // ── secure-field events clear status ─────────────────────────────────────

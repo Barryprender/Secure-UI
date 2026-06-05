@@ -607,13 +607,18 @@ export class SecureFileUpload extends SecureBaseComponent {
         continue;
       }
 
-      // Content validation for critical tier
-      if (this.securityTier === SecurityTier.CRITICAL) {
-        const contentCheck = await this.#validateFileContent(file);
-        if (!contentCheck.valid) {
-          errors.push(`${file.name}: ${contentCheck.error}`);
-          continue;
-        }
+      // Magic-number content validation for ALL tiers. This catches the
+      // common spoof of renaming an executable/HTML file to an allowed
+      // extension so its declared MIME type passes #isFileTypeAllowed.
+      // #validateFileContent only asserts signatures for types it knows
+      // (pdf/jpeg/png) and passes everything else through, so running it for
+      // every tier adds defense-in-depth without rejecting legitimate types.
+      // NOTE: still client-side and bypassable by a direct upload — server-side
+      // validation and the scan hook remain mandatory.
+      const contentCheck = await this.#validateFileContent(file);
+      if (!contentCheck.valid) {
+        errors.push(`${file.name}: ${contentCheck.error}`);
+        continue;
       }
 
       // Run scan hook if registered

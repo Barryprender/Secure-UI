@@ -22,7 +22,8 @@ import type {
   AuditLogEntry,
   FieldTelemetry,
   FieldTelemetryState,
-  ThreatDetectedDetail
+  ThreatDetectedDetail,
+  ThreatClearedDetail
 } from './types.js';
 
 export abstract class SecureBaseComponent extends HTMLElement {
@@ -66,6 +67,9 @@ export abstract class SecureBaseComponent extends HTMLElement {
     windowStart: Date.now()
   };
   #initialized: boolean = false;
+  // Field names currently matching an injection pattern. Used to emit a
+  // 'secure-threat-cleared' transition event when a flagged field becomes clean.
+  #activeThreatFields: Set<string> = new Set();
   #telemetryState: FieldTelemetryState = {
     focusAt: null,
     firstKeystrokeAt: null,
@@ -422,6 +426,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
     const feedbackEnabled = showFeedback || this.hasAttribute('threat-feedback');
     for (const { id, pattern } of SecureBaseComponent.#INJECTION_PATTERNS) {
       if (pattern.test(value)) {
+        this.#activeThreatFields.add(fieldName);
         this.audit('threat_detected', {
           fieldName,
           patternId: id,
@@ -444,7 +449,24 @@ export abstract class SecureBaseComponent extends HTMLElement {
         return; // first match only
       }
     }
-    // No threat found — clear any lingering feedback
+    // No injection pattern matched the current value. If this field was flagged
+    // by a previous call, emit a transition 'secure-threat-cleared' so a parent
+    // <secure-form> can lift the submission block now that the content is clean.
+    // Without this, a form blocked on injection stays blocked even after the user
+    // removes the offending input.
+    if (this.#activeThreatFields.delete(fieldName)) {
+      this.audit('threat_cleared', { fieldName });
+      this.dispatchEvent(new CustomEvent<ThreatClearedDetail>('secure-threat-cleared', {
+        detail: {
+          fieldName,
+          tier: this.securityTier,
+          timestamp: Date.now(),
+        },
+        bubbles: true,
+        composed: true,
+      }));
+    }
+    // Clear any lingering inline feedback
     if (feedbackEnabled) {
       this.clearThreatFeedback();
     }

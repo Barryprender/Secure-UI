@@ -434,6 +434,21 @@ export interface ThreatDetectedDetail {
 }
 
 /**
+ * Fired by an input component when a field that previously matched an injection
+ * pattern no longer does (e.g. the user edited or cleared the offending value).
+ * Lets a parent <secure-form> lift a submission block it raised in response to a
+ * prior `secure-threat-detected` event. The raw field value is intentionally absent.
+ */
+export interface ThreatClearedDetail {
+  /** The name attribute of the field whose threat was cleared */
+  fieldName: string;
+  /** Security tier of the component at the time of clearing */
+  tier: SecurityTierValue;
+  /** Unix timestamp (ms) of clearing */
+  timestamp: number;
+}
+
+/**
  * Custom event detail for secure-password-confirm match/mismatch events.
  * Raw password values are intentionally absent — use element.getPasswordValue()
  * to retrieve the value only when needed for submission.

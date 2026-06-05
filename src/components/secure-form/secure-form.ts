@@ -6,7 +6,8 @@ import type {
   FieldTelemetry,
   FieldTelemetrySnapshot,
   SessionTelemetry,
-  ThreatDetectedDetail
+  ThreatDetectedDetail,
+  ThreatClearedDetail
 } from '../../core/types.js';
 
 // Light-DOM form component — extends HTMLElement directly (no Shadow DOM) so that
@@ -264,6 +265,26 @@ export class SecureForm extends HTMLElement {
         );
       }
     });
+
+    // A field that was previously flagged is now clean — drop its recorded
+    // threats and lift the block if no injection threats remain. Without this
+    // the form stays permanently blocked after a single flagged keystroke, even
+    // once the user corrects the field (false positives included).
+    this.addEventListener('secure-threat-cleared', (e: Event) => {
+      const detail = (e as CustomEvent<ThreatClearedDetail>).detail;
+      if (!detail) return;
+      this.#detectedThreats = this.#detectedThreats.filter(
+        t => t.fieldName !== detail.fieldName
+      );
+      const field = this.querySelector<HTMLElement>(
+        `[name="${CSS.escape(detail.fieldName)}"]`
+      ) as (HTMLElement & { clearExternalError?: () => void }) | null;
+      field?.clearExternalError?.();
+      if (!this.#detectedThreats.some(t => t.threatType === 'injection')) {
+        this.#setFormState(null);
+        this.#clearStatus();
+      }
+    });
   }
 
   #handleFieldChange(_event: Event): void {
@@ -507,6 +528,20 @@ export class SecureForm extends HTMLElement {
       const typedInput = input as HTMLInputElement;
       if (typedInput.name) {
         formData[typedInput.name] = typedInput.value;
+      }
+    });
+
+    // secure-card exposes its submittable data only through light-DOM hidden
+    // inputs ({name}=last4, {name}-expiry, {name}-holder). They are type=hidden,
+    // so the standardInputs query above skips them — collect them explicitly.
+    // The full PAN and CVC are never in a hidden input by design (PCI DSS), so
+    // nothing sensitive is captured here.
+    const cardHiddenInputs = this.#formElement!.querySelectorAll<HTMLInputElement>(
+      'secure-card input[type="hidden"]'
+    );
+    cardHiddenInputs.forEach((input) => {
+      if (input.name) {
+        formData[input.name] = input.value;
       }
     });
 
@@ -889,11 +924,15 @@ export class SecureForm extends HTMLElement {
     return this.#securityTier;
   }
 
+  // Mirrors SecureBaseComponent.sanitizeValue: strips null bytes and ASCII
+  // control characters and returns PLAIN text. It deliberately does NOT
+  // HTML-entity-encode — every call site assigns the result to a DOM property
+  // (.textContent / .value), where property assignment already prevents HTML
+  // injection; entity-encoding there would double-encode (& → &amp;). HTML
+  // output encoding is a server-side responsibility at the render layer.
   sanitizeValue(value: string): string {
     if (typeof value !== 'string') return '';
-    const div = document.createElement('div');
-    div.textContent = value;
-    return div.innerHTML;
+    return value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
   }
 
   audit(action: string, data: Record<string, unknown>): void {
