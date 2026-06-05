@@ -127,7 +127,10 @@ async function generateDistPackageJson() {
     distPackageJson.exports[`./${component}`] = `./components/${component}/${component}.js`;
   });
 
-  distPackageJson.exports['./base-component'] = './core/base-component.js';
+  // NOTE: ./base-component is intentionally NOT exported. SecureBaseComponent is
+  // not part of the public API — subclassing it breaks the closed-shadow,
+  // tier-immutability and sanitization-order invariants. Consumers compose by
+  // wrapping a <secure-*> element, not by extending the base class.
   distPackageJson.exports['./security-config'] = './core/security-config.js';
   distPackageJson.exports['./tokens.css'] = './styles/tokens.css';
   distPackageJson.exports['./secure-ui.css'] = './styles/secure-ui.css';
