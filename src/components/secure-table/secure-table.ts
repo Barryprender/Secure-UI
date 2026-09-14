@@ -11,6 +11,9 @@ export class SecureTable extends SecureBaseComponent {
   #sortConfig: TableSortConfig = { column: null, direction: 'asc' };
   #pagination: TablePaginationState = { currentPage: 1, pageSize: 10 };
   #usingSlottedContent: boolean = false;
+  // True once the delegated action listener is bound to the current #tableContent.
+  // Reset in #render(), which recreates that container.
+  #actionListenerAttached: boolean = false;
 
   constructor() {
     super();
@@ -242,6 +245,41 @@ export class SecureTable extends SecureBaseComponent {
     'class', 'href', 'title', 'aria-label', 'aria-hidden', 'type', 'datetime'
   ]);
 
+  // Attributes whose value the browser resolves as a URL.
+  static readonly #URL_ATTRS: ReadonlySet<string> = new Set(['href', 'src', 'action']);
+
+  // The only schemes a table cell may navigate to. Everything else — including
+  // javascript:, data:, blob: and vbscript: — is rejected.
+  static readonly #SAFE_URL_SCHEMES: ReadonlySet<string> = new Set([
+    'http', 'https', 'mailto', 'tel'
+  ]);
+
+  /**
+   * Decide whether a URL attribute value is safe to keep.
+   *
+   * ⚠ SECURITY: this replaces a denylist regex that required the scheme to
+   * appear as one contiguous string. Browsers strip TAB, LF and CR from *inside*
+   * a URL scheme, and strip leading C0 controls, before parsing it — and the
+   * regex `\s` class does not cover the C0 range. So `java&#9;script:alert(1)`
+   * failed the test, survived sanitization, and was re-serialized with the raw
+   * TAB intact (the HTML attribute serializer escapes only `&`, `"` and NBSP),
+   * after which the browser resolved it straight back to `javascript:`.
+   *
+   * Normalising first and then matching an allowlist removes the whole class:
+   * an unrecognised scheme is rejected whether or not we anticipated it.
+   */
+  static #isSafeUrl(value: string): boolean {
+    const normalized = value
+      .replace(/[\t\n\r]/g, '')
+      .replace(/^[\u0000-\u0020]+/, '')
+      .toLowerCase();
+    const scheme = /^([a-z][a-z0-9+.-]*):/.exec(normalized)?.[1];
+    // No scheme at all means a relative URL, a fragment, or a
+    // protocol-relative path - none of which can execute script.
+    return scheme === undefined || SecureTable.#SAFE_URL_SCHEMES.has(scheme);
+  }
+
+
   /**
    * Sanitize an HTML string using a strict tag/attribute allowlist.
    * Uses DOMParser (does not execute scripts) and walks the result tree,
@@ -295,8 +333,7 @@ export class SecureTable extends SecureBaseComponent {
           el.removeAttribute(attr.name);
           continue;
         }
-        if ((name === 'href' || name === 'src' || name === 'action') &&
-            /^\s*(javascript|data)\s*:/i.test(attr.value)) {
+        if (SecureTable.#URL_ATTRS.has(name) && !SecureTable.#isSafeUrl(attr.value)) {
           el.removeAttribute(attr.name);
           continue;
         }
@@ -315,7 +352,10 @@ export class SecureTable extends SecureBaseComponent {
     const strValue = String(value);
 
     if (tier === SecurityTier.SENSITIVE && strValue.length > 4) {
-      return '\u2022'.repeat(strValue.length - 4) + strValue.slice(-4);
+      // The visible tail must be escaped: this return value is interpolated raw
+      // into `<td>${...}</td>` and written via innerHTML. Every other branch in
+      // this method escapes; this one did not.
+      return '\u2022'.repeat(strValue.length - 4) + this.#sanitize(strValue.slice(-4));
     }
 
     if (tier === SecurityTier.CRITICAL) {
@@ -326,6 +366,17 @@ export class SecureTable extends SecureBaseComponent {
   }
 
   #renderCell(value: unknown, row: Record<string, unknown>, column: TableColumnDefinition): string {
+    // ⚠ SECURITY: masking wins over HTML pass-through, and is decided first.
+    //
+    // The HTML branch used to run before masking, and #parseSlottedTable creates
+    // `${key}_html` for EVERY cell whose innerHTML contains a `<`. So a CRITICAL
+    // or SENSITIVE column rendered its value in full whenever the server had
+    // wrapped it in any markup at all — even a <span> or a stray <br>. A column
+    // declared `data-tier="critical"` showed a complete SSN after upgrade.
+    if (column.tier === SecurityTier.SENSITIVE || column.tier === SecurityTier.CRITICAL) {
+      return this.#maskValue(value, column.tier);
+    }
+
     if (typeof column.render === 'function') {
       return this.#sanitizeHtml(column.render(value, row, column.key));
     }
@@ -421,6 +472,9 @@ export class SecureTable extends SecureBaseComponent {
 
     // Clear child nodes (adoptedStyleSheets survive this).
     internals(this).root.innerHTML = '';
+    // The #tableContent container is recreated below, so its delegated listener
+    // is gone with it and must be bound again.
+    this.#actionListenerAttached = false;
 
     // Inject styles via addComponentStyles — handles both URL (ESM/dev mode) and
     // inlined CSS text (bundle mode) transparently.
@@ -549,8 +603,14 @@ export class SecureTable extends SecureBaseComponent {
     // element when any [data-action] element inside the table is clicked.
     // This allows page-level scripts to handle action buttons without needing
     // access to the closed shadow DOM.
+    // Attach exactly once. #updateTableContent() replaces only the inner HTML,
+    // so this container survives every sort, filter keystroke and page change —
+    // and each call added another distinct closure. Eight search keystrokes then
+    // one "delete" click fired nine secure-table-action events: nine real
+    // deletions from one user click, and nine audit entries for one action.
     const tableContent = internals(this).root.getElementById('tableContent');
-    if (tableContent) {
+    if (tableContent && !this.#actionListenerAttached) {
+      this.#actionListenerAttached = true;
       tableContent.addEventListener('click', (e: Event) => {
         const target = (e.target as HTMLElement).closest('[data-action]');
         if (!target) return;
