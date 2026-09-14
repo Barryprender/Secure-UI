@@ -710,6 +710,24 @@ export class SecureForm extends HTMLElement {
       headers[csrfHeaderName] = this.#csrfInput.value;
     }
 
+    // Resolve the signing promise handed over by secure-telemetry-provider during
+    // the synchronous secure-form-submit dispatch. Without this await the
+    // envelope was attached after JSON.stringify had already run, so the
+    // signature never left the browser and every submission arrived unsigned.
+    const signable = telemetry as SessionTelemetry & {
+      _env?: unknown;
+      _envPromise?: Promise<unknown>;
+    };
+    if (signable._envPromise) {
+      try {
+        signable._env = await signable._envPromise;
+      } catch {
+        // Signing failure must not block submission. The server treats a missing
+        // _env as an unsigned, lowest-trust submission.
+      }
+      delete signable._envPromise;
+    }
+
     const payload: Record<string, unknown> = { ...formData, _telemetry: telemetry };
 
     const response = await fetch(action, {

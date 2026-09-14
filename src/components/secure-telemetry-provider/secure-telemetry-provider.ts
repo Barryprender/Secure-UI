@@ -107,7 +107,8 @@ export class SecureTelemetryProvider extends HTMLElement {
   #onPointerDown: (e: PointerEvent) => void = (e: PointerEvent) => {
     this.#state.pointerType = e.pointerType as 'mouse' | 'touch' | 'pen';
   };
-  #onFormSubmit: (e: Event) => void = (e: Event) => { void this.#handleFormSubmit(e); };
+  // Synchronous by design — see #handleFormSubmit.
+  #onFormSubmit: (e: Event) => void = (e: Event) => { this.#handleFormSubmit(e); };
   #onThreatDetected: (e: Event) => void = (e: Event) => {
     this.#state.threatSignals.push((e as CustomEvent<ThreatDetectedDetail>).detail);
   };
@@ -270,15 +271,64 @@ export class SecureTelemetryProvider extends HTMLElement {
    * unavailable (non-secure HTTP context). Treat unsigned envelopes as
    * lowest-trust submissions.
    */
-  async sign(signals: EnvironmentalSignals): Promise<SignedTelemetryEnvelope> {
+  async sign(
+    signals: EnvironmentalSignals,
+    telemetry?: unknown,
+    boundTo?: string | null
+  ): Promise<SignedTelemetryEnvelope> {
     const nonce = this.#generateNonce();
     const issuedAt = new Date().toISOString();
     const signingKey = this.#signingKey;
 
-    const payload = `${nonce}.${issuedAt}.${JSON.stringify(signals)}`;
-    const signature = await this.#hmacSha256(signingKey, payload);
+    // Digest the telemetry so the envelope cannot be lifted onto a different
+    // submission. Canonical serialization (recursively sorted keys) so a server
+    // that parses and re-serializes the JSON reproduces the same bytes —
+    // `JSON.stringify` alone depends on insertion order and on which optional
+    // fields happen to be present.
+    const telemetryDigest = telemetry === undefined
+      ? ''
+      : await this.#sha256(SecureTelemetryProvider.#canonicalJson(telemetry));
+    const bound = boundTo ?? null;
 
-    return { nonce, issuedAt, environment: signals, signature };
+    const claims = {
+      v: 1 as const,
+      nonce,
+      issuedAt,
+      environment: signals,
+      telemetryDigest,
+      boundTo: bound,
+    };
+    const signature = await this.#hmacSha256(
+      signingKey,
+      SecureTelemetryProvider.#canonicalJson(claims)
+    );
+
+    return { ...claims, signature };
+  }
+
+  /**
+   * Deterministic JSON: object keys sorted recursively, `undefined` dropped.
+   * Both sides must produce identical bytes or verification fails for honest
+   * traffic, which pushes integrators toward verifying loosely or not at all.
+   */
+  static #canonicalJson(value: unknown): string {
+    if (value === null || typeof value !== 'object') {
+      return JSON.stringify(value) ?? 'null';
+    }
+    if (Array.isArray(value)) {
+      return `[${value.map(v => SecureTelemetryProvider.#canonicalJson(v)).join(',')}]`;
+    }
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([k, v]) => `${JSON.stringify(k)}:${SecureTelemetryProvider.#canonicalJson(v)}`);
+    return `{${entries.join(',')}}`;
+  }
+
+  async #sha256(data: string): Promise<string> {
+    if (!crypto.subtle) return '';
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
+    return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
   }
 
   #generateNonce(): string {
@@ -313,26 +363,39 @@ export class SecureTelemetryProvider extends HTMLElement {
 
   // ── Form submit interception ─────────────────────────────────────────────────
 
-  async #handleFormSubmit(event: Event): Promise<void> {
+  /**
+   * Attach a signing promise to the outgoing telemetry — synchronously.
+   *
+   * ⚠ SECURITY: this handler used to `await this.sign(...)` and then assign
+   * `detail.telemetry._env`. `dispatchEvent` is synchronous, so it returned at
+   * that first `await`; SecureForm then ran on to `JSON.stringify(payload)`
+   * inside the same task. A SubtleCrypto promise cannot settle before the task
+   * ends, so `_env` was always attached AFTER the body had been serialized and
+   * the signature never reached the server. Every submission was silently
+   * unsigned while appearing to be signed.
+   *
+   * Handing over a promise instead keeps this synchronous, and SecureForm awaits
+   * it immediately before building the request body.
+   */
+  #handleFormSubmit(event: Event): void {
     const detail = (event as CustomEvent).detail as {
-      telemetry?: SessionTelemetry & { _env?: SignedTelemetryEnvelope };
-    };
+      telemetry?: SessionTelemetry & {
+        _env?: SignedTelemetryEnvelope;
+        _envPromise?: Promise<SignedTelemetryEnvelope>;
+      };
+    } | null;
 
-    if (!detail?.telemetry) return;
+    const telemetry = detail?.telemetry;
+    if (!telemetry) return;
 
-    try {
-      const signals = this.collectSignals();
-      const envelope = await this.sign(signals);
+    // The digest must cover the telemetry as it will be sent, so exclude the
+    // envelope fields themselves.
+    const signable: Record<string, unknown> = { ...telemetry };
+    delete signable['_env'];
+    delete signable['_envPromise'];
+    const action = this.querySelector('secure-form')?.getAttribute('action') ?? null;
 
-      // Attach the signed envelope directly onto the telemetry object.
-      // Because both this handler and downstream listeners receive the same
-      // detail object reference, waiting listeners that check after an async
-      // tick will see the enriched value.
-      detail.telemetry._env = envelope;
-    } catch {
-      // Signing failure (e.g. non-secure context) must not block form submission.
-      // The server should treat a missing _env as an unsigned, lower-trust submission.
-    }
+    telemetry._envPromise = this.sign(this.collectSignals(), signable, action);
   }
 
   // ── Public API ────────────────────────────────────────────────────────────────

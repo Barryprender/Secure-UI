@@ -298,12 +298,13 @@ describe('SecureTelemetryProvider', () => {
   // ── Form submit envelope injection ───────────────────────────────────────
 
   describe('form submit integration', () => {
-    it('injects _env onto telemetry object after secure-form-submit fires', async () => {
+    it('attaches _envPromise synchronously during the dispatch', async () => {
       provider = mountProvider('test-key');
 
-      // Directly dispatch a synthetic secure-form-submit on the provider
-      // to isolate the provider's handler without the full form async chain.
-      const telemetryPayload: SessionTelemetry & { _env?: SignedTelemetryEnvelope } = {
+      const telemetryPayload: SessionTelemetry & {
+        _env?: SignedTelemetryEnvelope;
+        _envPromise?: Promise<SignedTelemetryEnvelope>;
+      } = {
         sessionDuration: 5000,
         fieldCount: 1,
         fields: [],
@@ -318,13 +319,42 @@ describe('SecureTelemetryProvider', () => {
         composed: false,
       }));
 
-      // Wait for the async sign() to complete and set _env
-      await new Promise(r => setTimeout(r, 100));
+      // Must be present the instant dispatchEvent returns. The handler used to
+      // await SubtleCrypto here and assign _env in a later task — by which point
+      // SecureForm had already serialized the request body, so the signature
+      // never reached the server.
+      expect(telemetryPayload._envPromise).toBeInstanceOf(Promise);
 
-      expect(telemetryPayload._env).toBeDefined();
-      expect(typeof telemetryPayload._env!.nonce).toBe('string');
-      expect(telemetryPayload._env!.nonce.length).toBe(32);
-      expect(telemetryPayload._env!.environment).toBeDefined();
+      const envelope = await telemetryPayload._envPromise!;
+      expect(envelope.v).toBe(1);
+      expect(typeof envelope.nonce).toBe('string');
+      expect(envelope.nonce.length).toBe(32);
+      expect(envelope.environment).toBeDefined();
+      expect(typeof envelope.telemetryDigest).toBe('string');
+    });
+
+    it('binds the envelope to the telemetry it was issued for', async () => {
+      provider = mountProvider('test-key');
+      const base = {
+        sessionDuration: 5000,
+        fieldCount: 1,
+        fields: [],
+        riskSignals: [],
+        submittedAt: new Date().toISOString(),
+      };
+
+      const sign = async (riskScore: number): Promise<string> => {
+        const payload: SessionTelemetry & { _envPromise?: Promise<SignedTelemetryEnvelope> } =
+          { ...base, riskScore };
+        provider.dispatchEvent(new CustomEvent('secure-form-submit', {
+          detail: { telemetry: payload }, bubbles: false, composed: false,
+        }));
+        return (await payload._envPromise!).telemetryDigest;
+      };
+
+      // A different risk score must produce a different digest, or a harvested
+      // envelope could be replayed onto an automated submission claiming zero risk.
+      expect(await sign(10)).not.toBe(await sign(0));
     });
 
     it('does not throw when telemetry is absent from the event detail', async () => {

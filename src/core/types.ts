@@ -403,13 +403,32 @@ export interface EnvironmentalSignals {
  * The nonce + timestamp allow the server to detect replay attacks.
  */
 export interface SignedTelemetryEnvelope {
+  /** envelope format version — servers must reject an unexpected value */
+  v: 1;
   /** one-time nonce (random hex, 32 chars) */
   nonce: string;
   /** ISO timestamp when the envelope was created */
   issuedAt: string;
   /** environmental signals snapshot */
   environment: EnvironmentalSignals;
-  /** HMAC-like integrity hash over nonce + issuedAt + environment (SHA-256 hex) */
+  /**
+   * Digest of the session telemetry this envelope was issued for: risk score,
+   * risk signals, per-field snapshots and detected threats.
+   *
+   * ⚠ The signature previously covered only `environment`. Everything else in
+   * `_telemetry` sat outside it and nothing bound the envelope to a particular
+   * submission, so a genuine envelope harvested from a real browser session
+   * verified against an automated submission carrying `riskScore: 0` and an
+   * empty field list.
+   */
+  telemetryDigest: string;
+  /** Same-origin path the submission is bound to, or null when unbound. */
+  boundTo: string | null;
+  /**
+   * HMAC-SHA-256 over the canonical serialization of every field above
+   * (SHA-256 hex). Empty string when SubtleCrypto is unavailable — treat an
+   * empty signature as an unsigned, lowest-trust submission.
+   */
   signature: string;
 }
 
