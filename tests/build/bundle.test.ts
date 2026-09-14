@@ -202,4 +202,36 @@ describe('dist/package.json — exports map', () => {
   it.each(COMPONENTS)('exports package entry: ./%s', (name) => {
     expect((pkg.exports as Record<string, unknown>)?.[`./${name}`]).toBeDefined();
   });
+
+  // ADR-0002: SecureBaseComponent is not public. Subclassing is unsupported because
+  // the security invariants (closed shadow root, tier immutability, sanitisation
+  // order, event-detail redaction) are enforced by statement order inside
+  // overridable methods, not by types. The assertions above only prove which entries
+  // are present, so without these the export could be reintroduced silently.
+  it('does not export ./base-component', () => {
+    expect((pkg.exports as Record<string, unknown>)?.['./base-component']).toBeUndefined();
+  });
+
+  it('exposes no exports map entry referencing base-component', () => {
+    const entries = Object.entries(pkg.exports as Record<string, unknown>);
+    const leaked = entries.filter(
+      ([key, value]) => key.includes('base-component') || JSON.stringify(value).includes('base-component')
+    );
+    expect(leaked).toEqual([]);
+  });
+});
+
+// ─── SecureBaseComponent is not reachable from the package entry (ADR-0002) ─────
+
+describe('dist entry points — SecureBaseComponent is withheld', () => {
+  if (!distExists) {
+    it.skip('dist/ not found — run `npm run build` first', () => {});
+    return;
+  }
+
+  it.each(['index.js', 'index.d.ts'])('%s re-exports no base class', (file) => {
+    const source = fs.readFileSync(path.join(DIST, file), 'utf-8');
+    expect(source).not.toMatch(/SecureBaseComponent/);
+    expect(source).not.toMatch(/base-component/);
+  });
 });

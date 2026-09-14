@@ -97,6 +97,8 @@ audit, which is the property a security library is actually judged on.
 2. If a consumer's field type cannot be expressed by wrapping, that is evidence the
    component set is missing a member. Add the component here rather than reopening the
    base class.
-3. `tests/build/bundle.test.ts` asserts which exports are present but not which are
-   absent, so the `./base-component` entry could be reintroduced without failing a
-   test. Add a negative assertion, and require the same of any new build target.
+3. `tests/build/bundle.test.ts` asserts that the generated `dist/package.json`
+   carries no `./base-component` entry, that no exports entry references
+   `base-component` at all, and that neither `dist/index.js` nor `dist/index.d.ts`
+   names `SecureBaseComponent`. Any new build target must carry the same assertions,
+   because the surrounding tests prove only which exports are present.
