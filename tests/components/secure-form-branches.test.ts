@@ -403,26 +403,51 @@ describe('SecureForm branch coverage', () => {
       '<secure-input name="b" security-tier="public"></secure-input>';
     document.body.appendChild(form);
 
+    // Threats must be raised BY the field, not merely named in a detail: the form
+    // keys its records on the emitting element so a forged event cannot clear a
+    // different field's block.
+    const fieldA = form.querySelector('secure-input[name="a"]')!;
+    const fieldB = form.querySelector('secure-input[name="b"]')!;
     const threat = (name: string) => new CustomEvent('secure-threat-detected', {
       detail: { fieldName: name, threatType: 'injection', patternId: 'script-tag', tier: 'public', timestamp: Date.now() },
       bubbles: true,
     });
-    form.dispatchEvent(threat('a'));
-    form.dispatchEvent(threat('b'));
+    fieldA.dispatchEvent(threat('a'));
+    fieldB.dispatchEvent(threat('b'));
     expect(form.dataset['state']).toBe('blocked');
 
     // Clearing only field "a" must NOT unblock — "b" is still flagged.
-    form.dispatchEvent(new CustomEvent('secure-threat-cleared', {
+    fieldA.dispatchEvent(new CustomEvent('secure-threat-cleared', {
       detail: { fieldName: 'a', tier: 'public', timestamp: Date.now() },
       bubbles: true,
     }));
     expect(form.dataset['state']).toBe('blocked');
 
-    form.dispatchEvent(new CustomEvent('secure-threat-cleared', {
+    fieldB.dispatchEvent(new CustomEvent('secure-threat-cleared', {
       detail: { fieldName: 'b', tier: 'public', timestamp: Date.now() },
       bubbles: true,
     }));
     expect(form.dataset['state']).toBeUndefined();
+  });
+
+  it('ignores a forged threat-cleared from an element that is not a secure field', () => {
+    form.innerHTML =
+      '<secure-input name="a" security-tier="public"></secure-input><div id="untrusted"></div>';
+    document.body.appendChild(form);
+
+    const field = form.querySelector('secure-input[name="a"]')!;
+    field.dispatchEvent(new CustomEvent('secure-threat-detected', {
+      detail: { fieldName: 'a', threatType: 'injection', patternId: 'script-tag', tier: 'public', timestamp: Date.now() },
+      bubbles: true,
+    }));
+    expect(form.dataset['state']).toBe('blocked');
+
+    // A third-party widget inside the form must not be able to lift the block.
+    form.querySelector('#untrusted')!.dispatchEvent(new CustomEvent('secure-threat-cleared', {
+      detail: { fieldName: 'a', tier: 'public', timestamp: Date.now() },
+      bubbles: true,
+    }));
+    expect(form.dataset['state']).toBe('blocked');
   });
 
   // ── secure-card data collection (regression) ──────────────────────────────

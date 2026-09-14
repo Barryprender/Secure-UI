@@ -16,6 +16,29 @@ export class SecureForm extends HTMLElement {
   static #stylesAdded: boolean = false;
   static readonly #MAX_AUDIT_LOG_SIZE = 1000;
 
+  /**
+   * Every secure field tag. Used for validation, telemetry aggregation and for
+   * deciding whether a threat event came from a field this form owns.
+   *
+   * secure-password-confirm and secure-card were previously absent from the
+   * validation and telemetry queries, so the form's advertised guarantee —
+   * "submission is blocked unless every secure field is valid" — did not hold
+   * for the two components carrying the highest-value data.
+   */
+  static readonly #SECURE_FIELD_SELECTOR =
+    'secure-input, secure-textarea, secure-select, secure-datetime, ' +
+    'secure-file-upload, secure-card, secure-password-confirm';
+
+  /**
+   * Fields whose value may be mirrored into a light-DOM hidden input for native
+   * submission. secure-card is deliberately excluded: PCI forbids the PAN or CVC
+   * reaching the light DOM. It contributes only its own last4/expiry/holder
+   * hidden inputs, collected separately in #collectFormData.
+   */
+  static readonly #SYNCABLE_FIELD_SELECTOR =
+    'secure-input, secure-textarea, secure-select, secure-datetime, ' +
+    'secure-file-upload, secure-password-confirm';
+
   #formElement: HTMLFormElement | null = null;
   #auditLog: AuditLogEntry[] = [];
   #csrfInput: HTMLInputElement | null = null;
@@ -81,8 +104,10 @@ export class SecureForm extends HTMLElement {
       const existingCsrf = existingForm.querySelector<HTMLInputElement>(`input[name="${CSS.escape(csrfFieldName)}"]`);
       if (existingCsrf) {
         this.#csrfInput = existingCsrf;
-        // Update token value from attribute if it differs
-        const csrfToken = this.getAttribute('csrf-token');
+        // Update token value from attribute if it differs. Trimmed for the same
+        // reason as #createCsrfField: a whitespace-only token is truthy and would
+        // otherwise satisfy the fail-closed gate in #handleSubmit.
+        const csrfToken = (this.getAttribute('csrf-token') ?? '').trim();
         if (csrfToken && existingCsrf.value !== csrfToken) {
           existingCsrf.value = csrfToken;
         }
@@ -170,7 +195,42 @@ export class SecureForm extends HTMLElement {
     }
   }
 
+  /**
+   * Reject a cross-origin action already present on the form element.
+   *
+   * ⚠ SECURITY: on the progressive-enhancement path SecureForm adopts a
+   * server-rendered `<form>` wholesale. Its own `action` attribute was never
+   * read, never validated and never overwritten — only an `action` on the
+   * custom element went through #isSameOriginOrRelative. `method` was
+   * unconditionally reassigned one line below, which is what made the omission
+   * an oversight rather than a decision.
+   *
+   * The consequence was full credential exfiltration: the native submit path
+   * returns without preventDefault(), so the browser POSTed every field to the
+   * attacker's origin — and #createCsrfField() had already injected the CSRF
+   * token into that same form.
+   *
+   * Removing the attribute makes the form submit to the current document URL,
+   * which is the correct fail-safe.
+   */
+  #rejectUnsafeFormAction(): void {
+    const inherited = this.#formElement?.getAttribute('action');
+    if (inherited && !this.#isSameOriginOrRelative(inherited)) {
+      this.#formElement!.removeAttribute('action');
+      console.warn(
+        `SecureForm: cross-origin or non-http action "${inherited}" on the ` +
+        `server-rendered form was removed. Forms must submit to the same origin ` +
+        `to prevent credential exfiltration.`
+      );
+      this.audit('form_action_rejected', { action: inherited, source: 'adopted-form' });
+    }
+  }
+
   #applyFormAttributes(): void {
+    // Validate what the adopted form already carries before considering the
+    // custom element's own action.
+    this.#rejectUnsafeFormAction();
+
     const action = this.getAttribute('action');
     if (action) {
       if (this.#isSameOriginOrRelative(action)) {
@@ -211,7 +271,10 @@ export class SecureForm extends HTMLElement {
   }
 
   #createCsrfField(): void {
-    const csrfToken = this.getAttribute('csrf-token');
+    // Trim: a template rendering `csrf-token="{{ .Token }}"` with an empty token
+    // yields `" "`, which is truthy. The gate in #handleSubmit then passed a
+    // blank token straight through, turning a fail-closed tier into fail-open.
+    const csrfToken = (this.getAttribute('csrf-token') ?? '').trim();
 
     if (csrfToken) {
       this.#csrfInput = document.createElement('input');
@@ -255,7 +318,10 @@ export class SecureForm extends HTMLElement {
     this.addEventListener('secure-threat-detected', (e: Event) => {
       const detail = (e as CustomEvent<ThreatDetectedDetail>).detail;
       if (!detail) return;
-      this.#detectedThreats.push(detail);
+      // Only a secure field belonging to this form may write threat state.
+      const source = this.#emittingSecureField(e);
+      if (!source) return;
+      this.#threatRecords.push({ detail, source });
       if (detail.threatType === 'injection') {
         this.#setFormState('blocked');
         this.#reportFieldError(
@@ -270,17 +336,22 @@ export class SecureForm extends HTMLElement {
     // threats and lift the block if no injection threats remain. Without this
     // the form stays permanently blocked after a single flagged keystroke, even
     // once the user corrects the field (false positives included).
+    //
+    // ⚠ SECURITY: the clearing element is resolved from the event path and the
+    // record is matched by element identity, never by detail.fieldName. These
+    // events are {bubbles:true, composed:true}, so previously ANY descendant —
+    // a third-party widget, an injected <div> — could dispatch a forged
+    // secure-threat-cleared naming a genuinely flagged field and lift the block
+    // with the payload still in place.
     this.addEventListener('secure-threat-cleared', (e: Event) => {
       const detail = (e as CustomEvent<ThreatClearedDetail>).detail;
       if (!detail) return;
-      this.#detectedThreats = this.#detectedThreats.filter(
-        t => t.fieldName !== detail.fieldName
-      );
-      const field = this.querySelector<HTMLElement>(
-        `[name="${CSS.escape(detail.fieldName)}"]`
-      ) as (HTMLElement & { clearExternalError?: () => void }) | null;
-      field?.clearExternalError?.();
-      if (!this.#detectedThreats.some(t => t.threatType === 'injection')) {
+      const source = this.#emittingSecureField(e);
+      if (!source) return;
+      this.#threatRecords = this.#threatRecords.filter(r => r.source !== source);
+      const field = source as HTMLElement & { clearExternalError?: () => void };
+      field.clearExternalError?.();
+      if (!this.#threatRecords.some(r => r.detail.threatType === 'injection')) {
         this.#setFormState(null);
         this.#clearStatus();
       }
@@ -304,7 +375,7 @@ export class SecureForm extends HTMLElement {
     // the threat event. We must prevent the native submit and any fetch path.
     if (
       (this.#securityTier === SecurityTier.SENSITIVE || this.#securityTier === SecurityTier.CRITICAL) &&
-      !this.#csrfInput?.value
+      !this.#csrfInput?.value.trim()
     ) {
       event.preventDefault();
       this.dispatchEvent(new CustomEvent<ThreatDetectedDetail>('secure-threat-detected', {
@@ -351,7 +422,7 @@ export class SecureForm extends HTMLElement {
     }
 
     // Block if any injection threat was detected during this session
-    const hasInjection = this.#detectedThreats.some(t => t.threatType === 'injection');
+    const hasInjection = this.#threatRecords.some(r => r.detail.threatType === 'injection');
     if (hasInjection) {
       event.preventDefault();
       this.#setFormState('blocked');
@@ -361,12 +432,26 @@ export class SecureForm extends HTMLElement {
       );
       this.audit('form_blocked_injection', {
         formId: this.#instanceId,
-        count: this.#detectedThreats.filter(t => t.threatType === 'injection').length
+        count: this.#threatRecords.filter(r => r.detail.threatType === 'injection').length
       });
       return;
     }
 
     if (!shouldEnhance) {
+      // Re-validate immediately before handing control to the browser. Mount-time
+      // validation alone leaves a window in which any script can rewrite
+      // form.action and have the native submit carry every field — plus the CSRF
+      // token — to another origin. This is the last point at which we can stop it.
+      const outgoing = this.#formElement!.getAttribute('action');
+      if (outgoing && !this.#isSameOriginOrRelative(outgoing)) {
+        event.preventDefault();
+        this.#formElement!.removeAttribute('action');
+        this.#setFormState('blocked');
+        this.#showStatus('Submission blocked: the form target is not on this origin.', 'error');
+        this.audit('form_action_rejected', { action: outgoing, source: 'submit-time' });
+        return;
+      }
+
       this.#syncSecureInputsToForm();
 
       this.audit('form_submitted_native', {
@@ -455,7 +540,7 @@ export class SecureForm extends HTMLElement {
   // Shadow DOM inputs can't participate in native form submission — create/update
   // light-DOM hidden inputs so the browser includes their values on submit.
   #syncSecureInputsToForm(): void {
-    const secureInputs = this.#formElement!.querySelectorAll('secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload');
+    const secureInputs = this.#formElement!.querySelectorAll(SecureForm.#SYNCABLE_FIELD_SELECTOR);
 
     secureInputs.forEach((input) => {
       const name = input.getAttribute('name');
@@ -470,7 +555,14 @@ export class SecureForm extends HTMLElement {
       });
 
       // Check if hidden input already exists
-      let hiddenInput = this.#formElement!.querySelector<HTMLInputElement>(`input[type="hidden"][data-secure-input="${name}"]`);
+      // CSS.escape is mandatory here: a crafted `name` such as
+      // `a"], input[type="hidden"][data-secure-input="victim` otherwise selects
+      // another field's hidden input and the sync below overwrites its value.
+      // An unbalanced quote throws instead, aborting the loop mid-way — and the
+      // native path does not preventDefault(), so a partly-synced form submits.
+      let hiddenInput = this.#formElement!.querySelector<HTMLInputElement>(
+        `input[type="hidden"][data-secure-input="${escapedName}"]`
+      );
 
       if (!hiddenInput) {
         // Create hidden input for this secure-input
@@ -490,7 +582,7 @@ export class SecureForm extends HTMLElement {
     const errors: string[] = [];
 
     // Find all secure input components within the form
-    const inputs = this.#formElement!.querySelectorAll('secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload');
+    const inputs = this.#formElement!.querySelectorAll(SecureForm.#SECURE_FIELD_SELECTOR);
 
     inputs.forEach((input) => {
       if (typeof (input as HTMLElement & { valid: boolean }).valid === 'boolean' && !(input as HTMLElement & { valid: boolean }).valid) {
@@ -509,7 +601,7 @@ export class SecureForm extends HTMLElement {
     const formData = Object.create(null) as Record<string, string>;
 
     // Collect from secure components within the form
-    const secureInputs = this.#formElement!.querySelectorAll('secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload');
+    const secureInputs = this.#formElement!.querySelectorAll(SecureForm.#SYNCABLE_FIELD_SELECTOR);
 
     secureInputs.forEach((input) => {
       const typedInput = input as HTMLElement & { name: string; value: string };
@@ -560,7 +652,26 @@ export class SecureForm extends HTMLElement {
    *
    * @private
    */
-  #detectedThreats: ThreatDetectedDetail[] = [];
+  // Threats are keyed by the element that raised them, not by a caller-supplied
+  // name. The detail still travels to the server; the element never does.
+  #threatRecords: { detail: ThreatDetectedDetail; source: Element }[] = [];
+
+  /**
+   * Resolve the secure field that actually dispatched a threat event, or null.
+   *
+   * composedPath()[0] is the true origin even across a shadow boundary, where
+   * event.target is retargeted to the host. Returns null for anything that is
+   * not a secure field inside this form.
+   */
+  #emittingSecureField(e: Event): Element | null {
+    const origin = (e.composedPath()[0] ?? e.target) as Node | null;
+    const el = origin instanceof Element ? origin : null;
+    if (!el) return null;
+    // The form raises its own threats (e.g. csrf-token-absent) against itself.
+    if (el === this) return this;
+    const field = el.closest?.(SecureForm.#SECURE_FIELD_SELECTOR) ?? null;
+    return field && this.contains(field) ? field : null;
+  }
   #formStateTimeout: ReturnType<typeof setTimeout> | null = null;
 
   #submitAbortController: AbortController | null = null;
@@ -629,7 +740,7 @@ export class SecureForm extends HTMLElement {
       (control as HTMLInputElement).disabled = true;
     });
 
-    const secureFields = this.querySelectorAll('secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload');
+    const secureFields = this.querySelectorAll(SecureForm.#SECURE_FIELD_SELECTOR);
     secureFields.forEach((field) => {
       field.setAttribute('disabled', '');
     });
@@ -641,7 +752,7 @@ export class SecureForm extends HTMLElement {
       (control as HTMLInputElement).disabled = false;
     });
 
-    const secureFields = this.querySelectorAll('secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload');
+    const secureFields = this.querySelectorAll(SecureForm.#SECURE_FIELD_SELECTOR);
     secureFields.forEach((field) => {
       field.removeAttribute('disabled');
     });
@@ -658,7 +769,7 @@ export class SecureForm extends HTMLElement {
   }
 
   #collectTelemetry(): SessionTelemetry {
-    const selector = 'secure-input, secure-textarea, secure-select, secure-datetime, secure-card';
+    const selector = SecureForm.#SECURE_FIELD_SELECTOR;
     const secureFields = this.querySelectorAll(selector);
 
     const fields: FieldTelemetrySnapshot[] = [];
@@ -677,7 +788,8 @@ export class SecureForm extends HTMLElement {
     });
 
     const sessionDuration = Date.now() - this.#sessionStart;
-    const { riskScore, riskSignals } = this.#computeRiskScore(fields, sessionDuration, this.#detectedThreats);
+    const detectedThreats = this.#threatRecords.map(r => r.detail);
+    const { riskScore, riskSignals } = this.#computeRiskScore(fields, sessionDuration, detectedThreats);
 
     return {
       sessionDuration,
@@ -686,7 +798,7 @@ export class SecureForm extends HTMLElement {
       riskScore,
       riskSignals,
       submittedAt: new Date().toISOString(),
-      detectedThreats: this.#detectedThreats.length > 0 ? [...this.#detectedThreats] : undefined,
+      detectedThreats: detectedThreats.length > 0 ? detectedThreats : undefined,
     };
   }
 
@@ -793,7 +905,7 @@ export class SecureForm extends HTMLElement {
 
   #clearAllExternalErrors(): void {
     const fields = this.querySelectorAll<HTMLElement>(
-      'secure-input, secure-textarea, secure-select, secure-datetime, secure-card, secure-file-upload'
+      SecureForm.#SECURE_FIELD_SELECTOR
     );
     fields.forEach(field => {
       (field as HTMLElement & { clearExternalError?: () => void }).clearExternalError?.();
@@ -840,7 +952,7 @@ export class SecureForm extends HTMLElement {
     if (this.#formElement) {
       this.#formElement.reset();
       this.#clearStatus();
-      this.#detectedThreats = [];
+      this.#threatRecords = [];
       if (this.#formStateTimeout !== null) {
         clearTimeout(this.#formStateTimeout);
         this.#formStateTimeout = null;
