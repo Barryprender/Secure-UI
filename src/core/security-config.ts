@@ -159,14 +159,24 @@ export const TIER_CONFIG: Readonly<Record<SecurityTierValue, TierConfig>> = Obje
   })
 });
 
-/** Returns tier config; falls back to CRITICAL for invalid input (fail-secure). */
+/**
+ * Returns tier config; falls back to CRITICAL for invalid input (fail-secure).
+ *
+ * ⚠ SECURITY: the guard must be `isValidTier`, not a truthiness check on the
+ * lookup. `TIER_CONFIG` is an object literal, so `TIER_CONFIG['constructor']`,
+ * `['__proto__']`, `['toString']` and friends are all truthy — the previous
+ * guard let them through and returned the `Object` constructor or
+ * `Object.prototype` instead of a TierConfig, without warning. The documented
+ * fail-secure guarantee did not hold. `isValidTier` uses `Object.values(...)`
+ * and is immune to the prototype chain.
+ */
 export function getTierConfig(tier: string): TierConfig {
-  if (!tier || !TIER_CONFIG[tier as SecurityTierValue]) {
+  if (!isValidTier(tier)) {
     console.warn(`Invalid security tier "${tier}", defaulting to CRITICAL`);
     return TIER_CONFIG[SecurityTier.CRITICAL];
   }
 
-  return TIER_CONFIG[tier as SecurityTierValue];
+  return TIER_CONFIG[tier];
 }
 
 export function isValidTier(tier: string): tier is SecurityTierValue {

@@ -61,6 +61,19 @@ export type ScanHookFn = (file: File) => Promise<ScanHookResult>;
  * @extends SecureBaseComponent
  */
 export class SecureFileUpload extends SecureBaseComponent {
+  // Types that can execute script in the app's own origin when served back.
+  // Applied after every allow path, including wildcards.
+  static readonly #DENIED_TYPES: ReadonlySet<string> = new Set([
+    'image/svg+xml', 'text/html', 'application/xhtml+xml',
+    'text/xml', 'application/xml', 'application/xhtml',
+  ]);
+  static readonly #DENIED_EXTENSIONS = /\.(svgz?|x?html?|xml|mhtml?)$/i;
+
+  // C0 controls, DEL, zero-width and bidirectional-override characters. These
+  // let a filename render as something other than what it is.
+  static readonly #UNSAFE_NAME_CHARS =
+    /[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/;
+
   /**
    * File input element reference
    * @private
@@ -114,6 +127,13 @@ export class SecureFileUpload extends SecureBaseComponent {
    * @private
    */
   #allowedTypes: Set<string> = new Set();
+  // Extensions from `accept` that have no MIME mapping. Without these an accept
+  // list of only unrecognised extensions produced an empty allowlist, and the
+  // type check was skipped altogether.
+  #allowedExtensions: Set<string> = new Set();
+  // True when `accept` asked for any restriction at all. The type check gates on
+  // this, not on allowlist size, so an unrecognised accept fails closed.
+  #acceptSpecified: boolean = false;
 
   /**
    * Maximum file size in bytes
@@ -354,20 +374,37 @@ export class SecureFileUpload extends SecureBaseComponent {
    *
    * @private
    */
+  /**
+   * Parse the `accept` attribute into the MIME and extension allowlists.
+   *
+   * ⚠ SECURITY: extensions this component does not recognise used to be dropped
+   * silently. If every entry was unrecognised — `accept=".webp,.avif"` — the MIME
+   * allowlist ended up empty and #validateFiles skipped the type check entirely,
+   * because it gated on `#allowedTypes.size > 0`. The component then accepted
+   * `.html`, `.svg`, `.exe`, anything. Magic-number validation did not catch it
+   * either: signatures exist only for PDF, JPEG and PNG.
+   *
+   * The unrecognised extension is now kept in its own allowlist and
+   * #acceptSpecified records that a restriction was asked for, so the check runs
+   * and fails closed.
+   */
   #parseAcceptTypes(accept: string): void {
     this.#allowedTypes.clear();
+    this.#allowedExtensions.clear();
+    this.#acceptSpecified = accept.trim().length > 0;
 
-    const types = accept.split(',').map(t => t.trim());
+    const types = accept.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
 
     types.forEach((type) => {
       if (type.startsWith('.')) {
-        // File extension - convert to MIME type
+        this.#allowedExtensions.add(type);
+        // Also record the MIME type when we know it, so a correctly-typed file
+        // matches even if its name has a different extension.
         const mimeType = this.#extensionToMimeType(type);
         if (mimeType) {
           this.#allowedTypes.add(mimeType);
         }
       } else {
-        // MIME type
         this.#allowedTypes.add(type);
       }
     });
@@ -593,7 +630,7 @@ export class SecureFileUpload extends SecureBaseComponent {
       }
 
       // Validate file type
-      if (this.#allowedTypes.size > 0) {
+      if (this.#acceptSpecified) {
         const isAllowed = this.#isFileTypeAllowed(file);
         if (!isAllowed) {
           errors.push(`${file.name}: File type not allowed`);
@@ -643,18 +680,40 @@ export class SecureFileUpload extends SecureBaseComponent {
    * @private
    */
   #isFileTypeAllowed(file: File): boolean {
-    // Check MIME type
-    if (this.#allowedTypes.has(file.type)) {
+    const type = file.type.toLowerCase();
+    const name = file.name.toLowerCase();
+
+    // ⚠ Deny list first, and it overrides every allow path below.
+    //
+    // SVG is deliberately absent from #extensionToMimeType because an SVG can
+    // carry <script> and event-handler attributes — stored XSS when the file is
+    // served back from the app's own origin. But `accept="image/*"`, the most
+    // idiomatic way to write an image upload, matched `image/svg+xml` through
+    // the wildcard branch and let it straight back in.
+    if (SecureFileUpload.#DENIED_TYPES.has(type)) {
+      return false;
+    }
+    if (SecureFileUpload.#DENIED_EXTENSIONS.test(name)) {
+      return false;
+    }
+
+    // Exact MIME match
+    if (this.#allowedTypes.has(type)) {
       return true;
     }
 
-    // Check wildcard patterns (e.g., image/*)
+    // Wildcard patterns (e.g. image/*). Keep the '/' in the prefix: slicing two
+    // characters left "image", which would also match a hypothetical "imagex/…".
     for (const allowedType of this.#allowedTypes) {
-      if (allowedType.endsWith('/*')) {
-        const prefix = allowedType.slice(0, -2);
-        if (file.type.startsWith(prefix)) {
-          return true;
-        }
+      if (allowedType.endsWith('/*') && type.startsWith(allowedType.slice(0, -1))) {
+        return true;
+      }
+    }
+
+    // Extension match, for types this component has no MIME mapping for.
+    for (const ext of this.#allowedExtensions) {
+      if (name.endsWith(ext)) {
+        return true;
       }
     }
 
@@ -671,6 +730,14 @@ export class SecureFileUpload extends SecureBaseComponent {
   #isFileNameDangerous(fileName: string): boolean {
     // Check for path traversal attempts
     if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+      return true;
+    }
+
+    // Bidirectional overrides, zero-width characters and C0 controls. A file
+    // named `invoice‮fdp.exe` renders as `invoiceexe.pdf` in the drop zone,
+    // the preview, the change event and every downstream UI — a reviewer
+    // approving uploads by eye passes an executable.
+    if (SecureFileUpload.#UNSAFE_NAME_CHARS.test(fileName)) {
       return true;
     }
 
