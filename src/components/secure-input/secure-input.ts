@@ -108,7 +108,6 @@ export class SecureInput extends SecureBaseComponent {
     //    validation, silently blocking form submission (browser can't show the
     //    validation popup for a hidden element, so "nothing happens" on click)
     // 3. They still have 'name' attributes causing duplicate empty form fields
-    this.#neutralizeFallbackInputs();
 
     internals(this).addComponentStyles(this.#getComponentStyles());
 
@@ -124,6 +123,18 @@ export class SecureInput extends SecureBaseComponent {
     if (!name) return;
 
     if (this.closest('secure-form')) return;
+
+    // A masked or password value must never reach the light DOM — see
+    // mayExposeValueToLightDom(). Outside a <secure-form> such a field simply
+    // does not participate in native submission.
+    const isPassword = (this.getAttribute('type') ?? 'text') === 'password';
+    if (!this.mayExposeValueToLightDom(isPassword)) {
+      console.warn(
+        `secure-input[name="${name}"]: value is masked at the "${this.securityTier}" tier, ` +
+        `so no hidden input is created. Wrap the field in <secure-form> for form submission.`
+      );
+      return;
+    }
 
     this.#hiddenInput = document.createElement('input');
     this.#hiddenInput.type = 'hidden';
@@ -142,25 +153,6 @@ export class SecureInput extends SecureBaseComponent {
 
   // Server-rendered fallback inputs must be neutralised after JS upgrade:
   // active required/name attributes cause silent validation blocks and duplicate fields.
-  #neutralizeFallbackInputs(): void {
-    const fallbacks = this.querySelectorAll('input, textarea, select');
-    fallbacks.forEach((el) => {
-      // Skip the hidden input we created for form submission
-      if (el === this.#hiddenInput) return;
-
-      const input = el as HTMLInputElement;
-      // Remove attributes that interfere with form submission
-      input.removeAttribute('required');
-      input.removeAttribute('name');
-      input.removeAttribute('minlength');
-      input.removeAttribute('maxlength');
-      input.removeAttribute('pattern');
-      // Mark as inert so it's completely non-interactive
-      input.setAttribute('tabindex', '-1');
-      input.setAttribute('aria-hidden', 'true');
-    });
-  }
-
   #applyInputAttributes(): void {
     const config = this.config;
 
@@ -716,6 +708,13 @@ export class SecureInput extends SecureBaseComponent {
     this.#pendingPaste = null;
     if (this.#inputElement) {
       this.#inputElement.value = '';
+    }
+    // The hidden input is light DOM and survives a detach, so it kept — and on
+    // re-attach would have submitted — the stale cleartext value.
+    if (this.#hiddenInput) {
+      this.#hiddenInput.value = '';
+      this.#hiddenInput.remove();
+      this.#hiddenInput = null;
     }
   }
 }

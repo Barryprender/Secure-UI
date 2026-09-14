@@ -186,7 +186,11 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
     this.#passwordInput!.addEventListener('input', (e: Event) => {
       internals(this).recordTelemetryInput(e);
       this.#passwordValue = this.#passwordInput!.value;
-      internals(this).detectInjection(this.#passwordValue, this.getAttribute('name') ?? '');
+      // Distinct threat keys per input. Both used to pass the same `name`, and
+      // the base class keys #activeThreatFields on that string — so a clean
+      // keystroke in the confirm box cleared the flag raised by the password
+      // box, lifting the form's injection block with the payload still present.
+      internals(this).detectInjection(this.#passwordValue, this.#threatKey('password'));
       if (this.#confirmTouched) {
         this.#checkMatch();
       }
@@ -206,7 +210,7 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
   #attachConfirmListeners(): void {
     this.#confirmInput!.addEventListener('input', () => {
       this.#confirmValue = this.#confirmInput!.value;
-      internals(this).detectInjection(this.#confirmValue, this.getAttribute('name') ?? '');
+      internals(this).detectInjection(this.#confirmValue, this.#threatKey('confirm'));
       if (this.#confirmTouched) {
         this.#checkMatch();
       }
@@ -338,11 +342,29 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
     this.#matchIndicator.textContent = matched ? '✓ Passwords match' : '✗ Passwords do not match';
   }
 
+  /** Per-input threat key, so the two boxes cannot clear each other's flag. */
+  #threatKey(which: 'password' | 'confirm'): string {
+    const base = this.getAttribute('name') ?? '';
+    return which === 'password' ? base : `${base}:confirm`;
+  }
+
   // ── Form participation ────────────────────────────────────────────────────
 
   #createHiddenInput(): void {
     const name = this.getAttribute('name');
     if (!name || this.closest('secure-form')) return;
+
+    // This component is locked to CRITICAL, so the guard always refuses: the
+    // password must never be mirrored into the light DOM, where
+    // document.querySelector('input[type=hidden]') reads it in cleartext.
+    // Native submission for a password goes through <secure-form>.
+    if (!this.mayExposeValueToLightDom(true)) {
+      console.warn(
+        `secure-password-confirm[name="${name}"]: the password is not written to a ` +
+        `hidden input. Wrap the component in <secure-form> for form submission.`
+      );
+      return;
+    }
 
     this.#hiddenInput = document.createElement('input');
     this.#hiddenInput.type = 'hidden';
@@ -382,7 +404,11 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
     this.#confirmValue = '';
     if (this.#passwordInput) this.#passwordInput.value = '';
     if (this.#confirmInput) this.#confirmInput.value = '';
-    if (this.#hiddenInput) this.#hiddenInput.value = '';
+    if (this.#hiddenInput) {
+      this.#hiddenInput.value = '';
+      this.#hiddenInput.remove();
+      this.#hiddenInput = null;
+    }
   }
 }
 

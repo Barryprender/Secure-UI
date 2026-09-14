@@ -105,6 +105,46 @@ export abstract class SecureBaseComponent extends HTMLElement {
     'template-syntax': 'Template injection blocked',
   };
 
+  /**
+   * Which tier flag, if any, gates each audit event.
+   *
+   * `always` events are security-relevant at every tier. Anything not listed
+   * falls back to #inferAuditGate, which keeps the historical substring
+   * behaviour for component-specific event names.
+   */
+  static readonly #AUDIT_GATES: Readonly<Record<string, 'always' | 'logAccess' | 'logChanges' | 'logSubmission'>> = {
+    component_initialized: 'always',
+    component_disconnected: 'logAccess',
+    invalid_tier: 'always',
+    threat_tier_change_blocked: 'always',
+    threat_detected: 'always',
+    threat_cleared: 'always',
+    validation_failed: 'always',
+    rate_limit_exceeded: 'always',
+  };
+
+  /** Fallback for component-specific event names not in #AUDIT_GATES. */
+  static #inferAuditGate(event: string): 'always' | 'logAccess' | 'logChanges' | 'logSubmission' | 'never' {
+    if (event.includes('threat') || event.includes('rate_limit') ||
+        event.includes('validation') || event.includes('initialized')) {
+      return 'always';
+    }
+    if (event.includes('submit')) return 'logSubmission';
+    if (event.includes('change')) return 'logChanges';
+    if (event.includes('access')) return 'logAccess';
+    return 'never';
+  }
+
+  /** Coarse length bucket, so an audit event cannot reveal an exact value length. */
+  static #bucketLength(length: number): string {
+    if (length === 0) return '0';
+    if (length <= 8) return '1-8';
+    if (length <= 16) return '9-16';
+    if (length <= 32) return '17-32';
+    if (length <= 64) return '33-64';
+    return '65+';
+  }
+
   static readonly #INJECTION_PATTERNS: ReadonlyArray<{
     readonly id: string;
     readonly pattern: RegExp;
@@ -290,6 +330,61 @@ export abstract class SecureBaseComponent extends HTMLElement {
     this.#externalErrorEl.className = 'external-error hidden';
     this.#externalErrorEl.setAttribute('aria-live', 'polite');
     this.#shadow.appendChild(this.#externalErrorEl);
+
+    // Every field component inherits fallback neutralisation. render() has just
+    // created any hidden input, so it is excluded correctly.
+    this.#neutralizeFallbackInputs();
+  }
+
+  /**
+   * May this component mirror its raw value into a light-DOM hidden input?
+   *
+   * ⚠ SECURITY: no. Not when the tier masks the value, and not for a password.
+   * The hidden input is plain light DOM, so `document.querySelector('input[type=hidden]')`
+   * read the cleartext value on every keystroke — defeating the closed shadow
+   * root, the masking, and the deliberate omission of `value` from the change
+   * event in a single call, with no need to pierce anything.
+   *
+   * Native form participation for those fields goes through `<secure-form>`,
+   * which never writes the value to the DOM. A field that needs it outside a
+   * form should use `ElementInternals.setFormValue` once the browser baseline
+   * allows form-associated custom elements.
+   */
+  protected mayExposeValueToLightDom(isPassword: boolean): boolean {
+    if (isPassword) return false;
+    return !this.#config.masking.enabled;
+  }
+
+  /**
+   * Neutralise the server-rendered no-JS fallback control once JS has upgraded
+   * the component.
+   *
+   * ⚠ SECURITY: only secure-input used to do this. For secure-textarea,
+   * secure-select and secure-datetime the light-DOM fallback kept its `name`,
+   * and SecureForm's #collectFormData collects raw light-DOM controls AFTER the
+   * secure components — under the same key. The stale fallback value therefore
+   * OVERWROTE the value the user actually typed, and the server received input
+   * that no validation, masking or injection check had ever seen.
+   *
+   * A retained `required`/`pattern` is the other half: the browser runs
+   * constraint validation against the hidden control before the submit event
+   * fires, so the form silently does nothing on click.
+   */
+  #neutralizeFallbackInputs(): void {
+    const fallbacks = this.querySelectorAll('input, textarea, select');
+    fallbacks.forEach((el) => {
+      // Never touch a hidden input the component created for form participation.
+      if (el instanceof HTMLInputElement && el.type === 'hidden') return;
+
+      el.removeAttribute('required');
+      el.removeAttribute('name');
+      el.removeAttribute('minlength');
+      el.removeAttribute('maxlength');
+      el.removeAttribute('pattern');
+      // Mark as inert so it is completely non-interactive.
+      el.setAttribute('tabindex', '-1');
+      el.setAttribute('aria-hidden', 'true');
+    });
   }
 
   /**
@@ -377,9 +472,15 @@ export abstract class SecureBaseComponent extends HTMLElement {
     }
 
     if (config.validation.strict && errors.length > 0) {
+      // strict is true only for SENSITIVE and CRITICAL — the tiers holding
+      // passwords, SSNs and payment data. This event is composed and bubbling,
+      // so the exact character count plus the specific failure reasons ("must
+      // include a special character") reached every listener on the page,
+      // narrowing the search space for the value itself. Send a count and a
+      // coarse bucket; the detailed reasons are already shown to the user.
       this.#audit('validation_failed', {
-        errors,
-        valueLength: value ? value.length : 0
+        errorCount: errors.length,
+        lengthBucket: SecureBaseComponent.#bucketLength(value ? value.length : 0)
       });
     }
 
@@ -428,14 +529,20 @@ export abstract class SecureBaseComponent extends HTMLElement {
   #audit(event: string, data: Record<string, unknown> = {}): void {
     const config = this.#config.audit;
 
+    // Explicit event -> gate mapping. Substring matching let
+    // 'component_disconnected' fall through every branch, so component teardown —
+    // the event that would reveal a field being ripped out of the DOM mid-session
+    // — was never logged at any tier, despite disconnectedCallback checking
+    // config.logAccess before calling. It also meant any future event containing
+    // the word "change" was silently governed by logChanges.
+    const gate = SecureBaseComponent.#AUDIT_GATES[event]
+      ?? SecureBaseComponent.#inferAuditGate(event);
+
     const shouldLog =
-      (event.includes('access') && config.logAccess) ||
-      (event.includes('change') && config.logChanges) ||
-      (event.includes('submit') && config.logSubmission) ||
-      event.includes('initialized') ||
-      event.includes('rate_limit') ||
-      event.includes('validation') ||
-      event.includes('threat');
+      gate === 'always' ||
+      (gate === 'logAccess' && config.logAccess) ||
+      (gate === 'logChanges' && config.logChanges) ||
+      (gate === 'logSubmission' && config.logSubmission);
 
     if (!shouldLog) {
       return;
@@ -457,11 +564,19 @@ export abstract class SecureBaseComponent extends HTMLElement {
     if (this.#auditLog.length >= SecureBaseComponent.#MAX_AUDIT_LOG_SIZE) {
       this.#auditLog.shift();
     }
-    this.#auditLog.push(logEntry);
+    // Freeze what we retain, and dispatch a copy. The same object used to be both
+    // pushed and placed in the event detail, so a listener registered first could
+    // rewrite a threat_detected record in place — and getAuditLog() copies only
+    // the array, so every later read returned the attacker's version.
+    const stored: AuditLogEntry = Object.freeze({
+      ...logEntry,
+      data: logEntry.data ? Object.freeze({ ...logEntry.data }) : undefined
+    });
+    this.#auditLog.push(stored);
 
     this.dispatchEvent(
       new CustomEvent('secure-audit', {
-        detail: logEntry,
+        detail: { ...logEntry, data: logEntry.data ? { ...logEntry.data } : undefined },
         bubbles: true,
         composed: true
       })

@@ -650,41 +650,34 @@ describe('SecurePasswordConfirm', () => {
       document.body.appendChild(el);
     });
 
-    it('creates a hidden input in light DOM when name is set', () => {
-      const hidden = el.querySelector('input[type="hidden"]');
-      expect(hidden).not.toBeNull();
+    // The password is NEVER mirrored into the light DOM. A hidden input is plain
+    // light DOM, so document.querySelector('input[type=hidden]').value read the
+    // cleartext password on every keystroke — defeating the closed shadow root,
+    // the masking and the value-free change event in one call. Native form
+    // submission for a password goes through <secure-form>.
+    it('creates no hidden input, even with a name set', () => {
+      expect(el.querySelector('input[type="hidden"]')).toBeNull();
     });
 
-    it('hidden input has the correct name attribute', () => {
-      const hidden = el.querySelector<HTMLInputElement>('input[type="hidden"]')!;
-      expect(hidden.name).toBe('password');
-    });
-
-    it('hidden input value is empty when passwords do not match', () => {
-      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
-      typeInto(passwordInput, 'StrongPass1!');
-      typeInto(confirmInput, 'WrongPass2@');
-      blurInput(confirmInput);
-
-      const hidden = el.querySelector<HTMLInputElement>('input[type="hidden"]')!;
-      expect(hidden.value).toBe('');
-    });
-
-    it('hidden input value is the password when passwords match', () => {
+    it('does not leak the password to the light DOM when the passwords match', () => {
       const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
       const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'StrongPass1!');
       blurInput(confirmInput);
 
-      const hidden = el.querySelector<HTMLInputElement>('input[type="hidden"]')!;
-      expect(hidden.value).toBe('StrongPass1!');
+      expect(el.innerHTML).not.toContain('StrongPass1!');
+      expect(el.querySelector('input[type="hidden"]')).toBeNull();
     });
 
-    it('creates only one hidden input (not one per field)', () => {
-      const hiddenInputs = el.querySelectorAll('input[type="hidden"]');
-      expect(hiddenInputs.length).toBe(1);
+    it('still exposes the password to page code through getPasswordValue()', () => {
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      typeInto(passwordInput, 'StrongPass1!');
+      typeInto(confirmInput, 'StrongPass1!');
+      blurInput(confirmInput);
+
+      expect(el.getPasswordValue()).toBe('StrongPass1!');
     });
 
     it('does not create a hidden input when inside secure-form', () => {
@@ -761,7 +754,7 @@ describe('SecurePasswordConfirm', () => {
       expect(el.getPasswordValue()).toBeNull();
     });
 
-    it('clears the hidden input value on disconnect', () => {
+    it('leaves no password anywhere in the light DOM after disconnect', () => {
       document.body.appendChild(el);
       const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
       const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
@@ -770,11 +763,11 @@ describe('SecurePasswordConfirm', () => {
       typeInto(confirmInput, 'StrongPass1!');
       blurInput(confirmInput);
 
-      const hidden = el.querySelector<HTMLInputElement>('input[type="hidden"]')!;
-      expect(hidden.value).toBe('StrongPass1!');
-
       el.remove();
-      expect(hidden.value).toBe('');
+
+      expect(el.querySelector('input[type="hidden"]')).toBeNull();
+      expect(el.innerHTML).not.toContain('StrongPass1!');
+      expect(el.getPasswordValue()).toBeNull();
     });
   });
 });

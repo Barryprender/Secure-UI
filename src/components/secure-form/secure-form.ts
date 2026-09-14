@@ -605,9 +605,23 @@ export class SecureForm extends HTMLElement {
 
     secureInputs.forEach((input) => {
       const typedInput = input as HTMLElement & { name: string; value: string };
-      if (typedInput.name) {
-        formData[typedInput.name] = typedInput.value;
+      if (!typedInput.name) return;
+
+      // secure-password-confirm has no `value` property and, by design, writes
+      // no hidden input — the password must not reach the light DOM. It was
+      // therefore collected as `undefined`: inside a <secure-form> the password
+      // was silently never submitted, while the form reported success.
+      if (input.tagName === 'SECURE-PASSWORD-CONFIRM') {
+        const password = (input as HTMLElement & {
+          getPasswordValue?: () => string | null;
+        }).getPasswordValue?.();
+        if (password !== null && password !== undefined) {
+          formData[typedInput.name] = password;
+        }
+        return;
       }
+
+      formData[typedInput.name] = typedInput.value;
     });
 
     // Shadow DOM inputs are not reachable here; only actual light-DOM inputs are collected.
