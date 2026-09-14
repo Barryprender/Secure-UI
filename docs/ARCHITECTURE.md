@@ -168,7 +168,7 @@ secure-input::part(input) {
 - All 11 components + base class bundled into a single ESM file
 - All CSS inlined as constructable stylesheets (`CSSStyleSheet.replaceSync` / `adoptedStyleSheets`) — no external CSS file requests, no `import.meta.url` path resolution
 - Constructable stylesheets are **explicitly exempt** from CSP `style-src 'unsafe-inline'` — that restriction applies only to `<style>` elements and `style=""` attributes
-- `addComponentStyles()` auto-detects which mode it is in: CSS text (contains `{`) → `adoptedStyleSheets`; URL → `<link>`
+- `internals(this).addComponentStyles()` auto-detects which mode it is in: CSS text (contains `{`) → `adoptedStyleSheets`; URL → `<link>`. It is on the privileged surface, not the prototype — arbitrary CSS injected into a closed shadow root is not blocked by a strict CSP and enables attribute-selector exfiltration of a masked value (`docs/adr/0006-*`)
 - Use via: `import 'secure-ui-components/bundle'` (any bundler) or `<script type="module" src="...bundle.js">` (vanilla HTML / CDN)
 
 **Build pipeline:**
@@ -574,8 +574,13 @@ The correct composition pattern is to **wrap** an existing secure component insi
 
 ```javascript
 class MyLabelledInput extends HTMLElement {
+  #built = false;
+
   connectedCallback() {
-    if (this.shadowRoot) return;
+    // A closed shadow root makes `this.shadowRoot` null, so it cannot be used as
+    // an "already built" guard. Track it yourself.
+    if (this.#built) return;
+    this.#built = true;
     const shadow = this.attachShadow({ mode: 'closed' });
 
     const label = document.createElement('p');

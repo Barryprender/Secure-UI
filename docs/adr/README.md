@@ -23,7 +23,8 @@ Titles state the decision in the imperative, not the question it answered.
 | ADR | Title | Status |
 |-----|-------|--------|
 | [0001](0001-default-to-the-critical-tier-and-freeze-it-after-mount.md) | Default every component to the CRITICAL tier and freeze the tier after mount | Accepted |
-| [0002](0002-close-the-shadow-root-and-withhold-the-base-component.md) | Close the shadow root and withhold SecureBaseComponent from the public API | Accepted |
+| [0002](0002-close-the-shadow-root-and-withhold-the-base-component.md) | Close the shadow root and withhold SecureBaseComponent from the public API | Amended by ADR-0006 |
 | [0003](0003-carry-component-css-as-a-link-in-source-and-a-constructable-sheet-in-the-bundle.md) | Carry component CSS as a linked stylesheet in source and a constructable sheet in the bundle | Accepted |
 | [0004](0004-exclude-field-values-from-custom-event-details.md) | Exclude field values from custom event details | Accepted |
 | [0005](0005-classify-client-side-rate-limiting-and-injection-detection-as-ux-controls.md) | Classify client-side rate limiting and injection detection as UX controls, not security controls | Accepted |
+| [0006](0006-hold-the-privileged-surface-in-a-module-scoped-weakmap.md) | Hold the privileged surface in a module-scoped WeakMap, not in `protected` members | Accepted |

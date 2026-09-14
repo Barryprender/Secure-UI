@@ -44,26 +44,48 @@ src/
 ### Class structure
 - All field components extend `SecureBaseComponent` from `src/core/base-component.ts`
 - **Exception**: `SecureTelemetryProvider` extends `HTMLElement` directly — it is a light-DOM orchestration layer, not a form field, and must not inherit shadow DOM or security-tier machinery from `SecureBaseComponent`
-- **Exception**: `SecureCard` is locked to `CRITICAL` tier unconditionally — do not expose `security-tier` as a configurable attribute; reject any attempt to change it
+- **Exception**: `SecureCard` is locked to `CRITICAL` tier unconditionally — its `connectedCallback` strips any `security-tier` attribute before `super.connectedCallback()` and warns. Do not remove that override: the lock was documented but unimplemented until 0.5.0, and `<secure-card security-tier="public">` silently demoted a payment field
 - **Exception**: `SecurePasswordConfirm` is locked to `CRITICAL` tier unconditionally — silently removes any `security-tier` attribute set before mount and warns if a non-critical tier is attempted
 - **`SecureBaseComponent` is NOT exported** — extension is intentionally unsupported. Security invariants (closed shadow DOM, tier immutability, sanitization order) are too easy to break via subclassing. Consumers who need custom components should wrap a `<secure-input>` (or other component) inside their own custom element rather than extending the base class.
 - Private fields use ES2022 `#field` syntax — never `_field` or `private` keyword alone
 - `static get observedAttributes()` must spread `...super.observedAttributes`
 - Override `protected render(): DocumentFragment | HTMLElement | null` — never touch `connectedCallback` directly unless you need to bypass the base render (see `secure-table` pattern)
 - Override `protected handleAttributeChange()` for reactive attribute updates
-- Call `this.addComponentStyles(new URL('./my-component.css', import.meta.url).href)` inside `render()` to inject component CSS
+- Call `internals(this).addComponentStyles(new URL('./my-component.css', import.meta.url).href)` inside `render()` to inject component CSS
 - Register with `customElements.define('secure-foo', SecureFoo)` at the bottom of the file
 
 ### Shadow DOM
-- Shadow root is **closed** (`mode: 'closed'`) — access it only via `this.shadowRoot` (the protected getter on base class)
+- Shadow root is **closed** (`mode: 'closed'`) — reach it only via `internals(this).root`
 - Never use `innerHTML` with unsanitised strings; use `document.createElement` + `.textContent`
 - All user-visible strings pass through `this.sanitizeValue()` before being set as `textContent`
 - Styles are injected via `<link rel="stylesheet">` pointing to `'self'` — **never** `adoptedStyleSheets` with inline strings (breaks strict CSP `style-src 'self'`)
 
+### The privileged surface (`internals`) — ADR-0006
+`protected` is erased by TypeScript, so a `protected` member ships as a public
+prototype method. Everything privileged therefore lives in a module-scoped WeakMap,
+reached with `internals(component)` from `src/core/base-component.ts`:
+
+`root`, `addComponentStyles`, `getBaseStylesheetUrl`, `audit`, `clearAuditLog`,
+`checkRateLimit`, `detectInjection`, `rerender`, `recordTelemetryFocus`,
+`recordTelemetryInput`, `recordTelemetryBlur`, `setupAutofillDetection`.
+
+- Import it alongside the base class:
+  `import { SecureBaseComponent, internals } from '../../core/base-component.js';`
+- **Never** re-export `internals` from `src/index.ts` — that would put the whole
+  privileged surface back in the public API.
+- **Never** add a new privileged member as `protected`. Ask not "should a subclass
+  call this?" but "what happens when a page script does?".
+- Tests reach it through `tests/helpers/internals.ts` (`shadowOf(el)`, `internals(el)`).
+- A component that manages its own rendering sets
+  `protected static override readonly managesOwnRendering = true` and calls
+  `super.connectedCallback()` — it must never re-run security initialisation itself.
+
 ### Progressive Enhancement / Form Participation
 - Shadow DOM inputs cannot participate in native `<form>` submission — create a hidden `<input type="hidden">` in the **light DOM** and keep it in sync
+- **Never for a masked or password value.** Call `this.mayExposeValueToLightDom(isPassword)` first; a hidden input is plain light DOM, so one `document.querySelector` reads the cleartext and defeats masking, the closed root and the value-free events at once. Such a field participates only inside `<secure-form>`.
+- Remove the hidden input in `disconnectedCallback()` — it is light DOM and survives a detach
 - If the component is nested inside `<secure-form>`, skip the hidden input — `secure-form` handles it
-- Server-rendered native fallback inputs (for no-JS) must be neutralised on upgrade: remove `name`, `required`, `minlength`, `maxlength`, `pattern`; set `tabindex="-1"` and `aria-hidden="true"`
+- Server-rendered native fallback inputs (for no-JS) are neutralised for you by the base `#render()` (remove `name`, `required`, `minlength`, `maxlength`, `pattern`; set `tabindex="-1"` and `aria-hidden="true"`). Do not reimplement it per component — when only `secure-input` did this, the stale fallback value overwrote the real one in `#collectFormData`
 
 ### CSS Parts API
 Every component must expose named `part` attributes on key internal elements:
@@ -125,9 +147,9 @@ Every component must expose named `part` attributes on key internal elements:
 
 ### Behavioral Telemetry
 `SecureBaseComponent` provides field-level telemetry hooks that all field components must call:
-- `this.recordTelemetryFocus()` — call from the field's `focus` event listener
-- `this.recordTelemetryInput(event)` — call from the field's `input` event listener (detects velocity, corrections, paste, autofill)
-- `this.recordTelemetryBlur()` — call from the field's `blur` event listener
+- `internals(this).recordTelemetryFocus()` — call from the field's `focus` event listener
+- `internals(this).recordTelemetryInput(event)` — call from the field's `input` event listener (detects velocity, corrections, paste, autofill)
+- `internals(this).recordTelemetryBlur()` — call from the field's `blur` event listener
 - `this.getFieldTelemetry()` — public method; returns `FieldTelemetry` (no raw values — safe to log/transmit)
 
 `SecureForm` aggregates telemetry from all child fields at submission via `getFieldTelemetry()` and computes a composite risk score. **Do not replicate this logic in individual components.**
@@ -182,7 +204,7 @@ All tokens live in `src/styles/tokens.css` under the `--secure-ui-*` namespace a
 2. Extend `SecureBaseComponent`, implement `protected render()`
 3. Declare `static get observedAttributes()` spreading `...super.observedAttributes`
 4. Expose CSS `part` attributes on all key elements
-5. Inject styles via `this.addComponentStyles(new URL('./secure-<name>.css', import.meta.url).href)`
+5. Inject styles via `internals(this).addComponentStyles(new URL('./secure-<name>.css', import.meta.url).href)`
 6. If the component is a field (has user input): wire up `recordTelemetryFocus()`, `recordTelemetryInput(event)`, and `recordTelemetryBlur()` in the corresponding DOM event listeners
 7. Register: `customElements.define('secure-<name>', SecureName)`
 8. Export from `src/index.ts`

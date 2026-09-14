@@ -1,12 +1,18 @@
 # ADR-0002: Close the shadow root and withhold SecureBaseComponent from the public API
 
 ## Status
-**Accepted** — 14 September 2026.
+**Amended by ADR-0006** — 14 September 2026.
 Two decisions with one rationale, and the pair most often challenged from outside the
 project. The 0.4.0 release removed the `shadowRoot` override and the
 `./base-component` export was dropped from the generated `dist/package.json` in 0.4.2,
 so the code now enforces what was previously only intended. This record states why,
 because both changes read as gratuitous restrictions to a consumer who hits them.
+
+The decisions here stand. The *mechanism* described below did not hold: a security
+audit on the same day found that `protected get root()` compiled to a public getter,
+so the closed shadow root — and with it the raw value of every masked field — was
+handed to any script that asked. ADR-0006 records the replacement. Read this record
+for the reasoning and ADR-0006 for how it is now enforced.
 
 ## Context
 `SecureBaseComponent` holds every invariant the library exists to provide: the tier is
@@ -30,11 +36,11 @@ that the tier configuration was masking, and a way to rewrite the field's markup
 without the component noticing. Masking that any script can step around is theatre.
 
 ## Decision
-The shadow root is attached with `mode: 'closed'` (`src/core/base-component.ts:89`).
-The root is stored in the private `#shadow` field and exposed to subclasses only
-through the `protected root` accessor. `Element.shadowRoot` is not overridden, and so
-returns `null` to external callers, which is the correct and expected answer for a
-closed root.
+The shadow root is attached with `mode: 'closed'`. The root is stored in the private
+`#shadow` field and exposed to subclasses only through the privileged surface described
+in ADR-0006 — originally a `protected root` accessor, which proved not to be a
+restriction at all. `Element.shadowRoot` is not overridden, and so returns `null` to
+external callers, which is the correct and expected answer for a closed root.
 
 `SecureBaseComponent` is not exported from `src/index.ts`, and `build/css-inliner.js`
 does not emit a `./base-component` entry in the generated `dist/package.json`. The

