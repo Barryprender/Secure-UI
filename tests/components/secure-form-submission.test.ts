@@ -10,6 +10,7 @@ import { SecureForm } from '../../src/components/secure-form/secure-form.js';
 import { SecureInput } from '../../src/components/secure-input/secure-input.js';
 import { SecureSubmitButton } from '../../src/components/secure-submit-button/secure-submit-button.js';
 import type { ThreatDetectedDetail } from '../../src/core/types.js';
+import { shadowOf } from '../helpers/internals.js';
 
 if (!customElements.get('secure-form')) {
   customElements.define('secure-form', SecureForm);
@@ -118,7 +119,7 @@ describe('SecureForm — submission', () => {
     await new Promise(r => setTimeout(r, 50));
     input.value = 'alice';
 
-    const internalForm = form.querySelector('form') ?? (form as any).root?.querySelector('form');
+    const internalForm = form.querySelector('form') ?? shadowOf(form)?.querySelector('form');
     internalForm?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 
     await new Promise(r => setTimeout(r, 100));
@@ -167,7 +168,7 @@ describe('SecureForm — submission', () => {
     await new Promise(r => setTimeout(r, 50));
     input.value = 'testuser';
 
-    const internalForm = form.querySelector('form') ?? (form as any).root?.querySelector('form');
+    const internalForm = form.querySelector('form') ?? shadowOf(form)?.querySelector('form');
     internalForm?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 
     await new Promise(r => setTimeout(r, 100));
@@ -212,14 +213,14 @@ describe('SecureForm — attribute changes', () => {
   it('updates action attribute on the inner form', async () => {
     form.setAttribute('action', '/api/v1/submit');
     await new Promise(r => setTimeout(r, 50));
-    const inner = form.querySelector('form') ?? (form as any).root?.querySelector('form');
+    const inner = form.querySelector('form') ?? shadowOf(form)?.querySelector('form');
     expect(inner?.getAttribute('action')).toBe('/api/v1/submit');
   });
 
   it('updates method attribute on the inner form', async () => {
     form.setAttribute('method', 'POST');
     await new Promise(r => setTimeout(r, 50));
-    const inner = form.querySelector('form') ?? (form as any).root?.querySelector('form');
+    const inner = form.querySelector('form') ?? shadowOf(form)?.querySelector('form');
     expect(inner?.getAttribute('method')?.toUpperCase()).toBe('POST');
   });
 });
@@ -236,7 +237,7 @@ describe('SecureForm — CSRF threat detection on submission', () => {
   }
 
   function triggerSubmit(f: SecureForm): void {
-    const inner = f.querySelector('form') ?? (f as any).root?.querySelector('form');
+    const inner = f.querySelector('form') ?? shadowOf(f)?.querySelector('form');
     inner?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
   }
 

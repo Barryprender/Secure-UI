@@ -1,4 +1,4 @@
-import { SecureBaseComponent } from '../../core/base-component.js';
+import { SecureBaseComponent, internals } from '../../core/base-component.js';
 import type { SecurePasswordConfirmChangeDetail } from '../../core/types.js';
 
 export class SecurePasswordConfirm extends SecureBaseComponent {
@@ -110,7 +110,7 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
     this.#attachToggleListeners();
     this.#createHiddenInput();
 
-    this.addComponentStyles(new URL('./secure-password-confirm.css', import.meta.url).href);
+    internals(this).addComponentStyles(new URL('./secure-password-confirm.css', import.meta.url).href);
 
     fragment.appendChild(container);
     return fragment;
@@ -177,16 +177,16 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
   // ── Event wiring ──────────────────────────────────────────────────────────
 
   #attachPasswordListeners(): void {
-    this.setupAutofillDetection(this.#passwordInput!);
+    internals(this).setupAutofillDetection(this.#passwordInput!);
 
     this.#passwordInput!.addEventListener('focus', () => {
-      this.recordTelemetryFocus();
+      internals(this).recordTelemetryFocus();
     });
 
     this.#passwordInput!.addEventListener('input', (e: Event) => {
-      this.recordTelemetryInput(e);
+      internals(this).recordTelemetryInput(e);
       this.#passwordValue = this.#passwordInput!.value;
-      this.detectInjection(this.#passwordValue, this.getAttribute('name') ?? '');
+      internals(this).detectInjection(this.#passwordValue, this.getAttribute('name') ?? '');
       if (this.#confirmTouched) {
         this.#checkMatch();
       }
@@ -198,7 +198,7 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
     });
 
     this.#passwordInput!.addEventListener('blur', () => {
-      this.recordTelemetryBlur();
+      internals(this).recordTelemetryBlur();
       this.#validateStrength();
     });
   }
@@ -206,7 +206,7 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
   #attachConfirmListeners(): void {
     this.#confirmInput!.addEventListener('input', () => {
       this.#confirmValue = this.#confirmInput!.value;
-      this.detectInjection(this.#confirmValue, this.getAttribute('name') ?? '');
+      internals(this).detectInjection(this.#confirmValue, this.getAttribute('name') ?? '');
       if (this.#confirmTouched) {
         this.#checkMatch();
       }

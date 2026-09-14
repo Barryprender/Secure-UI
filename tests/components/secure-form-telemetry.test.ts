@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureForm } from '../../src/components/secure-form/secure-form.js';
 import { SecureInput } from '../../src/components/secure-input/secure-input.js';
 import type { SessionTelemetry } from '../../src/core/types.js';
+import { shadowOf } from '../helpers/internals.js';
 
 // ── Custom element registration ───────────────────────────────────────────────
 
@@ -50,7 +51,7 @@ function buildForm(fields: { name: string; value?: string }[] = []): SecureForm 
 }
 
 function getInputEl(secureInput: Element): HTMLInputElement {
-  return ((secureInput as unknown as { root: ShadowRoot }).root).querySelector('input')!;
+  return shadowOf(secureInput).querySelector('input')!;
 }
 
 function fireFocus(el: HTMLInputElement): void {

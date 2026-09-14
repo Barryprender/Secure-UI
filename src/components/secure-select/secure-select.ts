@@ -1,5 +1,5 @@
 
-import { SecureBaseComponent } from '../../core/base-component.js';
+import { SecureBaseComponent, internals } from '../../core/base-component.js';
 
 export class SecureSelect extends SecureBaseComponent {
   #selectElement: HTMLSelectElement | null = null;
@@ -69,7 +69,7 @@ export class SecureSelect extends SecureBaseComponent {
     this.#errorContainer.id = `${this.#instanceId}-error`;
     container.appendChild(this.#errorContainer);
 
-    this.addComponentStyles(this.#getComponentStyles());
+    internals(this).addComponentStyles(this.#getComponentStyles());
 
     fragment.appendChild(container);
 
@@ -152,21 +152,21 @@ export class SecureSelect extends SecureBaseComponent {
 
   #attachEventListeners(): void {
     this.#selectElement!.addEventListener('focus', () => {
-      this.recordTelemetryFocus();
-      this.audit('select_focused', {
+      internals(this).recordTelemetryFocus();
+      internals(this).audit('select_focused', {
         name: this.#selectElement!.name
       });
     });
 
     this.#selectElement!.addEventListener('change', (e: Event) => {
-      this.recordTelemetryInput(e);
+      internals(this).recordTelemetryInput(e);
       this.#handleChange(e);
     });
 
     this.#selectElement!.addEventListener('blur', () => {
-      this.recordTelemetryBlur();
+      internals(this).recordTelemetryBlur();
       this.#validateAndShowErrors();
-      this.audit('select_blurred', {
+      internals(this).audit('select_blurred', {
         name: this.#selectElement!.name,
         hasValue: this.#isMultiple
           ? this.#selectElement!.selectedOptions.length > 0
@@ -183,7 +183,7 @@ export class SecureSelect extends SecureBaseComponent {
 
       if (invalidValues.length > 0) {
         this.#showError('Invalid option selected');
-        this.audit('invalid_option_detected', {
+        internals(this).audit('invalid_option_detected', {
           name: this.#selectElement!.name,
           attemptedValues: invalidValues
         });
@@ -191,7 +191,7 @@ export class SecureSelect extends SecureBaseComponent {
       }
 
       this.#clearErrors();
-      this.audit('select_changed', { name: this.#selectElement!.name, values: selectedValues });
+      internals(this).audit('select_changed', { name: this.#selectElement!.name, values: selectedValues });
       this.dispatchEvent(new CustomEvent('secure-select-change', {
         detail: { name: this.#selectElement!.name, value: selectedValues, tier: this.securityTier },
         bubbles: true, composed: true
@@ -201,7 +201,7 @@ export class SecureSelect extends SecureBaseComponent {
 
       if (selectedValue && !this.#validOptions.has(selectedValue)) {
         this.#showError('Invalid option selected');
-        this.audit('invalid_option_detected', {
+        internals(this).audit('invalid_option_detected', {
           name: this.#selectElement!.name,
           attemptedValue: selectedValue
         });
@@ -211,7 +211,7 @@ export class SecureSelect extends SecureBaseComponent {
       }
 
       this.#clearErrors();
-      this.audit('select_changed', { name: this.#selectElement!.name, value: selectedValue });
+      internals(this).audit('select_changed', { name: this.#selectElement!.name, value: selectedValue });
       this.dispatchEvent(new CustomEvent('secure-select-change', {
         detail: { name: this.#selectElement!.name, value: selectedValue, tier: this.securityTier },
         bubbles: true, composed: true
@@ -220,7 +220,7 @@ export class SecureSelect extends SecureBaseComponent {
   }
 
   #validateAndShowErrors(): void {
-    const rateLimitCheck = this.checkRateLimit();
+    const rateLimitCheck = internals(this).checkRateLimit();
     if (!rateLimitCheck.allowed) {
       this.#showError(
         `Too many attempts. Please wait ${Math.ceil(rateLimitCheck.retryAfter / 1000)} seconds.`

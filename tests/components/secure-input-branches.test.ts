@@ -12,6 +12,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureInput } from '../../src/components/secure-input/secure-input.js';
+import { shadowOf } from '../helpers/internals.js';
 
 if (!customElements.get('secure-input')) {
   customElements.define('secure-input', SecureInput);
@@ -20,11 +21,11 @@ if (!customElements.get('secure-input')) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getInternalInput(input: SecureInput): HTMLInputElement {
-  return (input as any).root!.querySelector('input') as HTMLInputElement;
+  return shadowOf(input)!.querySelector('input') as HTMLInputElement;
 }
 
 function getErrorContainer(input: SecureInput): HTMLElement {
-  return (input as any).root!.querySelector('.error-container') as HTMLElement;
+  return shadowOf(input)!.querySelector('.error-container') as HTMLElement;
 }
 
 /**
@@ -574,7 +575,7 @@ describe('SecureInput — fallback masked input (unknown inputType)', () => {
   afterEach(() => input.remove());
 
   function getInternalInput(si: SecureInput): HTMLInputElement {
-    return (si as any).root!.querySelector('input') as HTMLInputElement;
+    return shadowOf(si)!.querySelector('input') as HTMLInputElement;
   }
 
   it('clears value when an unhandled inputType fires on a masked input (was: newLength > oldLength)', () => {
@@ -640,11 +641,11 @@ describe('SecureInput — native checkValidity() failure path', () => {
   });
 
   function getInternalInput(si: SecureInput): HTMLInputElement {
-    return (si as any).root!.querySelector('input') as HTMLInputElement;
+    return shadowOf(si)!.querySelector('input') as HTMLInputElement;
   }
 
   function getErrorContainer(si: SecureInput): HTMLElement {
-    return (si as any).root!.querySelector('.error-container') as HTMLElement;
+    return shadowOf(si)!.querySelector('.error-container') as HTMLElement;
   }
 
   it('shows native validationMessage when checkValidity returns false on a non-masked input', () => {
@@ -678,11 +679,11 @@ describe('SecureInput — transitionend callback in #clearErrors', () => {
   afterEach(() => input.remove());
 
   function getInternalInput(si: SecureInput): HTMLInputElement {
-    return (si as any).root!.querySelector('input') as HTMLInputElement;
+    return shadowOf(si)!.querySelector('input') as HTMLInputElement;
   }
 
   function getErrorContainer(si: SecureInput): HTMLElement {
-    return (si as any).root!.querySelector('.error-container') as HTMLElement;
+    return shadowOf(si)!.querySelector('.error-container') as HTMLElement;
   }
 
   function blur(si: SecureInput): void {
@@ -765,7 +766,7 @@ describe('SecureInput — invalid regex pattern catch block (lines 469–471)', 
     // Leave value empty so checkValidity() is not called (avoids happy-dom
     // throwing on the invalid pattern in the native element). The catch block
     // is still exercised when new RegExp('[invalid') is attempted.
-    const internal = (input as any).root?.querySelector('input') as HTMLInputElement;
+    const internal = shadowOf(input)?.querySelector('input') as HTMLInputElement;
     internal.dispatchEvent(new FocusEvent('blur'));
 
     // No value + no required → valid despite the broken pattern
@@ -786,13 +787,13 @@ describe('SecureInput — clearThreatFeedback transitionend callback (lines 692�
     input.setAttribute('threat-feedback', '');
     document.body.appendChild(input);
 
-    const internal = (input as any).root?.querySelector('input') as HTMLInputElement;
+    const internal = shadowOf(input)?.querySelector('input') as HTMLInputElement;
 
     // 1. Show threat feedback
     internal.value = 'javascript:alert(1)';
     internal.dispatchEvent(new Event('input', { bubbles: true }));
 
-    const threatContainer = (input as any).root?.querySelector('.threat-container') as HTMLElement;
+    const threatContainer = shadowOf(input)?.querySelector('.threat-container') as HTMLElement;
     expect(threatContainer.textContent!.length).toBeGreaterThan(0);
 
     // 2. Trigger the clear cycle via the protected method so the transitionend

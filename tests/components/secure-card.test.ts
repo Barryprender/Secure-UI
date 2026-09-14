@@ -7,6 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureCard } from '../../src/components/secure-card/secure-card.js';
+import { shadowOf } from '../helpers/internals.js';
 
 if (!customElements.get('secure-card')) {
   customElements.define('secure-card', SecureCard);
@@ -15,19 +16,19 @@ if (!customElements.get('secure-card')) {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function getNumberInput(card: SecureCard): HTMLInputElement {
-  return (card as any).root!.querySelector<HTMLInputElement>('.card-number-input')!;
+  return shadowOf(card)!.querySelector<HTMLInputElement>('.card-number-input')!;
 }
 function getExpiryInput(card: SecureCard): HTMLInputElement {
-  return (card as any).root!.querySelector<HTMLInputElement>('input[part="expiry-input"]')!;
+  return shadowOf(card)!.querySelector<HTMLInputElement>('input[part="expiry-input"]')!;
 }
 function getCvcInput(card: SecureCard): HTMLInputElement {
-  return (card as any).root!.querySelector<HTMLInputElement>('input[part="cvc-input"]')!;
+  return shadowOf(card)!.querySelector<HTMLInputElement>('input[part="cvc-input"]')!;
 }
 function getNameInput(card: SecureCard): HTMLInputElement {
-  return (card as any).root!.querySelector<HTMLInputElement>('input[part="name-input"]')!;
+  return shadowOf(card)!.querySelector<HTMLInputElement>('input[part="name-input"]')!;
 }
 function getCardEl(card: SecureCard): HTMLElement {
-  return (card as any).root!.querySelector<HTMLElement>('.card')!;
+  return shadowOf(card)!.querySelector<HTMLElement>('.card')!;
 }
 
 function typeInto(input: HTMLInputElement, value: string): void {
@@ -71,8 +72,8 @@ describe('SecureCard', () => {
 
     it('has a shadow DOM', () => {
       document.body.appendChild(card);
-      expect((card as any).root).toBeDefined();
-      expect((card as any).root).not.toBeNull();
+      expect(shadowOf(card)).toBeDefined();
+      expect(shadowOf(card)).not.toBeNull();
     });
 
     it('defaults to CRITICAL security tier', () => {
@@ -82,15 +83,15 @@ describe('SecureCard', () => {
 
     it('renders the decorative card scene', () => {
       document.body.appendChild(card);
-      const scene = (card as any).root!.querySelector('.card-scene');
+      const scene = shadowOf(card)!.querySelector('.card-scene');
       expect(scene).not.toBeNull();
       expect(scene!.getAttribute('aria-hidden')).toBe('true');
     });
 
     it('renders front and back card faces', () => {
       document.body.appendChild(card);
-      expect((card as any).root!.querySelector('.card-front')).not.toBeNull();
-      expect((card as any).root!.querySelector('.card-back')).not.toBeNull();
+      expect(shadowOf(card)!.querySelector('.card-front')).not.toBeNull();
+      expect(shadowOf(card)!.querySelector('.card-back')).not.toBeNull();
     });
 
     it('renders card number input with correct attributes', () => {
@@ -121,21 +122,21 @@ describe('SecureCard', () => {
 
     it('hides name field by default', () => {
       document.body.appendChild(card);
-      const nameGroup = (card as any).root!.querySelector<HTMLElement>('[id$="-name-group"]');
+      const nameGroup = shadowOf(card)!.querySelector<HTMLElement>('[id$="-name-group"]');
       expect(nameGroup!.hidden).toBe(true);
     });
 
     it('shows name field when show-name attribute is set', () => {
       card.setAttribute('show-name', '');
       document.body.appendChild(card);
-      const nameGroup = (card as any).root!.querySelector<HTMLElement>('[id$="-name-group"]');
+      const nameGroup = shadowOf(card)!.querySelector<HTMLElement>('[id$="-name-group"]');
       expect(nameGroup!.hidden).toBe(false);
     });
 
     it('renders label when provided', () => {
       card.setAttribute('label', 'Payment details');
       document.body.appendChild(card);
-      expect((card as any).root!.innerHTML).toContain('Payment details');
+      expect(shadowOf(card)!.innerHTML).toContain('Payment details');
     });
 
     it('creates hidden inputs in the light DOM', () => {
@@ -212,7 +213,7 @@ describe('SecureCard', () => {
 
     it('updates card type label text', () => {
       typeInto(getNumberInput(card), '4111111111111111');
-      const label = (card as any).root!.querySelector('.card-type-label');
+      const label = shadowOf(card)!.querySelector('.card-type-label');
       expect(label!.textContent).toBe('Visa');
     });
   });
@@ -249,7 +250,7 @@ describe('SecureCard', () => {
 
     it('updates the card face number display', () => {
       typeInto(getNumberInput(card), '4111111111111111');
-      const display = (card as any).root!.querySelector('.card-number-display');
+      const display = shadowOf(card)!.querySelector('.card-number-display');
       expect(display!.textContent).toContain('4111');
     });
   });
@@ -281,7 +282,7 @@ describe('SecureCard', () => {
 
     it('updates the card face expiry display', () => {
       typeInto(getExpiryInput(card), '1230');
-      const display = (card as any).root!.querySelector('.card-expiry-display');
+      const display = shadowOf(card)!.querySelector('.card-expiry-display');
       expect(display!.textContent).toBe('12/30');
     });
   });
@@ -318,7 +319,7 @@ describe('SecureCard', () => {
 
     it('shows bullets on card back (never actual CVC)', () => {
       typeInto(getCvcInput(card), '123');
-      const display = (card as any).root!.querySelector('.card-cvc-display');
+      const display = shadowOf(card)!.querySelector('.card-cvc-display');
       expect(display!.textContent).toBe('•••');
       expect(display!.textContent).not.toContain('123');
     });
@@ -468,7 +469,7 @@ describe('SecureCard', () => {
     it('resets card face displays', () => {
       fillValid(card);
       card.reset();
-      const display = (card as any).root!.querySelector('.card-number-display');
+      const display = shadowOf(card)!.querySelector('.card-number-display');
       expect(display!.textContent).toContain('•');
     });
 
@@ -581,7 +582,7 @@ describe('SecureCard', () => {
     it('shows name group when show-name added after connection', () => {
       document.body.appendChild(card);
       card.setAttribute('show-name', '');
-      const group = (card as any).root!.querySelector<HTMLElement>('[id$="-name-group"]');
+      const group = shadowOf(card)!.querySelector<HTMLElement>('[id$="-name-group"]');
       expect(group!.hidden).toBe(false);
     });
 
@@ -589,7 +590,7 @@ describe('SecureCard', () => {
       card.setAttribute('show-name', '');
       document.body.appendChild(card);
       card.removeAttribute('show-name');
-      const group = (card as any).root!.querySelector<HTMLElement>('[id$="-name-group"]');
+      const group = shadowOf(card)!.querySelector<HTMLElement>('[id$="-name-group"]');
       expect(group!.hidden).toBe(true);
     });
   });
@@ -660,7 +661,7 @@ describe('SecureCard', () => {
 
     it('updates the card face name display in uppercase', () => {
       typeInto(getNameInput(card), 'Jane Doe');
-      const display = (card as any).root!.querySelector('.card-name-display');
+      const display = shadowOf(card)!.querySelector('.card-name-display');
       expect(display!.textContent).toBe('JANE DOE');
     });
   });

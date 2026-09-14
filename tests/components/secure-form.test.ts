@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureForm } from '../../src/components/secure-form/secure-form.js';
 import { SecureInput } from '../../src/components/secure-input/secure-input.js';
+import { shadowOf } from '../helpers/internals.js';
 
 // Register components if not already defined
 if (!customElements.get('secure-form')) {
@@ -43,7 +44,7 @@ describe('SecureForm', () => {
       // It may or may not have shadowRoot depending on implementation
       // The key is that it contains a <form> element in light DOM
       const formElement = form.querySelector('form');
-      expect(formElement || (form as any).root?.querySelector('form')).toBeDefined();
+      expect(formElement || shadowOf(form)?.querySelector('form')).toBeDefined();
     });
 
     it('should accept security tier configuration', () => {
@@ -105,7 +106,7 @@ describe('SecureForm', () => {
 
       // Look for hidden input with CSRF token
       const hiddenInput = form.querySelector('input[type="hidden"][name="_csrf"]') ||
-                          (form as any).root?.querySelector('input[type="hidden"][name="_csrf"]');
+                          shadowOf(form)?.querySelector('input[type="hidden"][name="_csrf"]');
 
       if (hiddenInput) {
         expect((hiddenInput as HTMLInputElement).value).toBe('my-csrf-token');
@@ -191,7 +192,7 @@ describe('SecureForm', () => {
       });
       form.addEventListener('secure-form-submit', eventHandler);
 
-      const formElement = form.querySelector('form') ?? (form as any).root?.querySelector('form');
+      const formElement = form.querySelector('form') ?? shadowOf(form)?.querySelector('form');
       expect(formElement).not.toBeNull();
       formElement!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 
@@ -206,7 +207,7 @@ describe('SecureForm', () => {
       form.setAttribute('security-tier', 'critical');
       document.body.appendChild(form);
 
-      const formElement = form.querySelector('form') || (form as any).root?.querySelector('form');
+      const formElement = form.querySelector('form') || shadowOf(form)?.querySelector('form');
       // Form may set autocomplete on itself or child elements
       expect(formElement || form).toBeDefined();
     });
@@ -215,7 +216,7 @@ describe('SecureForm', () => {
       form.setAttribute('security-tier', 'sensitive');
       document.body.appendChild(form);
 
-      const formElement = form.querySelector('form') || (form as any).root?.querySelector('form');
+      const formElement = form.querySelector('form') || shadowOf(form)?.querySelector('form');
       // Form may set autocomplete on itself or child elements
       expect(formElement || form).toBeDefined();
     });

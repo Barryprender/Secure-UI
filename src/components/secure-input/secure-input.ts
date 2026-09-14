@@ -1,5 +1,5 @@
 
-import { SecureBaseComponent } from '../../core/base-component.js';
+import { SecureBaseComponent, internals } from '../../core/base-component.js';
 import { SecurityTier } from '../../core/security-config.js';
 
 export class SecureInput extends SecureBaseComponent {
@@ -110,7 +110,7 @@ export class SecureInput extends SecureBaseComponent {
     // 3. They still have 'name' attributes causing duplicate empty form fields
     this.#neutralizeFallbackInputs();
 
-    this.addComponentStyles(this.#getComponentStyles());
+    internals(this).addComponentStyles(this.#getComponentStyles());
 
     fragment.appendChild(container);
 
@@ -241,24 +241,24 @@ export class SecureInput extends SecureBaseComponent {
   }
 
   #attachEventListeners(): void {
-    this.setupAutofillDetection(this.#inputElement!);
+    internals(this).setupAutofillDetection(this.#inputElement!);
 
     this.#inputElement!.addEventListener('focus', () => {
-      this.recordTelemetryFocus();
-      this.audit('input_focused', {
+      internals(this).recordTelemetryFocus();
+      internals(this).audit('input_focused', {
         name: this.#inputElement!.name
       });
     });
 
     this.#inputElement!.addEventListener('input', (e: Event) => {
-      this.recordTelemetryInput(e);
+      internals(this).recordTelemetryInput(e);
       this.#handleInput(e);
     });
 
     this.#inputElement!.addEventListener('blur', () => {
-      this.recordTelemetryBlur();
+      internals(this).recordTelemetryBlur();
       this.#validateAndShowErrors();
-      this.audit('input_blurred', {
+      internals(this).audit('input_blurred', {
         name: this.#inputElement!.name,
         hasValue: this.#actualValue.length > 0
       });
@@ -274,7 +274,7 @@ export class SecureInput extends SecureBaseComponent {
     });
 
     this.#inputElement!.addEventListener('change', () => {
-      this.audit('input_changed', {
+      internals(this).audit('input_changed', {
         name: this.#inputElement!.name,
         valueLength: this.#actualValue.length
       });
@@ -339,7 +339,7 @@ export class SecureInput extends SecureBaseComponent {
 
     const inputType = this.#inputElement!.type;
     if (inputType !== 'number') {
-      this.detectInjection(
+      internals(this).detectInjection(
         this.#actualValue,
         this.#inputElement!.name,
         SecureInput.#FEEDBACK_DEFAULT_TYPES.has(inputType)
@@ -457,7 +457,7 @@ export class SecureInput extends SecureBaseComponent {
   }
 
   #validateAndShowErrors(): void {
-    const rateLimitCheck = this.checkRateLimit();
+    const rateLimitCheck = internals(this).checkRateLimit();
     if (!rateLimitCheck.allowed) {
       this.#showError(
         `Too many attempts. Please wait ${Math.ceil(rateLimitCheck.retryAfter / 1000)} seconds.`

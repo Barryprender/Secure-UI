@@ -1,5 +1,5 @@
 
-import { SecureBaseComponent } from '../../core/base-component.js';
+import { SecureBaseComponent, internals } from '../../core/base-component.js';
 
 export class SecureTextarea extends SecureBaseComponent {
   #textareaElement: HTMLTextAreaElement | null = null;
@@ -78,7 +78,7 @@ export class SecureTextarea extends SecureBaseComponent {
     this.#threatContainer.id = `${this.#instanceId}-threat`;
     container.appendChild(this.#threatContainer);
 
-    this.addComponentStyles(this.#getComponentStyles());
+    internals(this).addComponentStyles(this.#getComponentStyles());
 
     fragment.appendChild(container);
 
@@ -152,31 +152,31 @@ export class SecureTextarea extends SecureBaseComponent {
   }
 
   #attachEventListeners(): void {
-    this.setupAutofillDetection(this.#textareaElement!);
+    internals(this).setupAutofillDetection(this.#textareaElement!);
 
     this.#textareaElement!.addEventListener('focus', () => {
-      this.recordTelemetryFocus();
-      this.audit('textarea_focused', {
+      internals(this).recordTelemetryFocus();
+      internals(this).audit('textarea_focused', {
         name: this.#textareaElement!.name
       });
     });
 
     this.#textareaElement!.addEventListener('input', (e: Event) => {
-      this.recordTelemetryInput(e);
+      internals(this).recordTelemetryInput(e);
       this.#handleInput(e);
     });
 
     this.#textareaElement!.addEventListener('blur', () => {
-      this.recordTelemetryBlur();
+      internals(this).recordTelemetryBlur();
       this.#validateAndShowErrors();
-      this.audit('textarea_blurred', {
+      internals(this).audit('textarea_blurred', {
         name: this.#textareaElement!.name,
         hasValue: this.#textareaElement!.value.length > 0
       });
     });
 
     this.#textareaElement!.addEventListener('change', () => {
-      this.audit('textarea_changed', {
+      internals(this).audit('textarea_changed', {
         name: this.#textareaElement!.name,
         valueLength: this.#textareaElement!.value.length
       });
@@ -184,7 +184,7 @@ export class SecureTextarea extends SecureBaseComponent {
   }
 
   #handleInput(_event: Event): void {
-    this.detectInjection(this.#textareaElement!.value, this.#textareaElement!.name);
+    internals(this).detectInjection(this.#textareaElement!.value, this.#textareaElement!.name);
     this.#updateCharCount();
     this.#clearErrors();
     // value is intentionally excluded from the event detail — the raw value
@@ -220,7 +220,7 @@ export class SecureTextarea extends SecureBaseComponent {
   }
 
   #validateAndShowErrors(): void {
-    const rateLimitCheck = this.checkRateLimit();
+    const rateLimitCheck = internals(this).checkRateLimit();
     if (!rateLimitCheck.allowed) {
       this.#showError(
         `Too many attempts. Please wait ${Math.ceil(rateLimitCheck.retryAfter / 1000)} seconds.`

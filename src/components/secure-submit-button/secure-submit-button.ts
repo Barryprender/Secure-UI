@@ -1,5 +1,5 @@
 
-import { SecureBaseComponent } from '../../core/base-component.js';
+import { SecureBaseComponent, internals } from '../../core/base-component.js';
 import { getTierConfig } from '../../core/security-config.js';
 import type { SecurityTierValue, TierConfig } from '../../core/types.js';
 
@@ -60,7 +60,7 @@ export class SecureSubmitButton extends SecureBaseComponent {
       this.#resolveEffectiveTier();
       this.#attachFormListeners();
       this.#evaluateValidity();
-      this.audit('submit_button_initialized', {
+      internals(this).audit('submit_button_initialized', {
         tier: this.#effectiveTier,
         hasParentForm: !!this.#parentForm
       });
@@ -121,7 +121,7 @@ export class SecureSubmitButton extends SecureBaseComponent {
     container.appendChild(this.#buttonElement);
     fragment.appendChild(container);
 
-    this.addComponentStyles(this.#getComponentStyles());
+    internals(this).addComponentStyles(this.#getComponentStyles());
 
     return fragment;
   }
@@ -213,15 +213,15 @@ export class SecureSubmitButton extends SecureBaseComponent {
   #handleClick(): void {
     if (this.#isSubmitting || this.#buttonElement?.disabled) return;
 
-    const rateLimitCheck = this.checkRateLimit();
+    const rateLimitCheck = internals(this).checkRateLimit();
     if (!rateLimitCheck.allowed) {
-      this.audit('submit_button_rate_limited', {
+      internals(this).audit('submit_button_rate_limited', {
         retryAfter: rateLimitCheck.retryAfter
       });
       return;
     }
 
-    this.audit('submit_button_clicked', {
+    internals(this).audit('submit_button_clicked', {
       tier: this.#effectiveTier,
       formValid: this.#isFormValid
     });

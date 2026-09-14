@@ -9,6 +9,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { SecureTextarea } from '../../src/components/secure-textarea/secure-textarea.js';
+import { shadowOf } from '../helpers/internals.js';
 
 if (!customElements.get('secure-textarea')) {
   customElements.define('secure-textarea', SecureTextarea);
@@ -24,7 +25,7 @@ function mount(attrs: Record<string, string> = {}): SecureTextarea {
 }
 
 function ta(el: SecureTextarea): HTMLTextAreaElement {
-  return (el as any).root!.querySelector('textarea')!;
+  return shadowOf(el)!.querySelector('textarea')!;
 }
 
 // ── Pre-render getter/setter branches (lines 450, 459) ────────────────────────
@@ -104,14 +105,14 @@ describe('SecureTextarea — char-count (line 336)', () => {
   it('shows count/max format when maxlength is set', () => {
     el = mount({ 'security-tier': 'public', maxlength: '100' });
     el.value = 'hi';
-    const charCount = (el as any).root?.querySelector('.char-count');
+    const charCount = shadowOf(el)?.querySelector('.char-count');
     expect(charCount?.textContent).toContain('/ 100');
   });
 
   it('adds warning class when value exceeds 90% of maxlength', () => {
     el = mount({ 'security-tier': 'public', maxlength: '10' });
     el.value = 'abcdefghij'; // 10 chars = 100% of 10 > 90%
-    const charCount = (el as any).root?.querySelector('.char-count');
+    const charCount = shadowOf(el)?.querySelector('.char-count');
     expect(charCount?.classList.contains('warning')).toBe(true);
   });
 });
@@ -179,7 +180,7 @@ describe('SecureTextarea — blur event triggers validateAndShowErrors (lines 35
     el = mount({ 'security-tier': 'public', name: 'bio', minlength: '3' });
     ta(el).value = 'hello';
     ta(el).dispatchEvent(new Event('blur'));
-    const errorContainer = (el as any).root?.querySelector('.error-container');
+    const errorContainer = shadowOf(el)?.querySelector('.error-container');
     expect(errorContainer?.classList.contains('hidden')).toBe(true);
   });
 
@@ -187,7 +188,7 @@ describe('SecureTextarea — blur event triggers validateAndShowErrors (lines 35
     el = mount({ 'security-tier': 'public', name: 'bio', minlength: '10' });
     ta(el).value = 'hi';
     ta(el).dispatchEvent(new Event('blur'));
-    const errorContainer = (el as any).root?.querySelector('.error-container');
+    const errorContainer = shadowOf(el)?.querySelector('.error-container');
     expect(errorContainer?.classList.contains('hidden')).toBe(false);
     expect(errorContainer?.textContent?.length).toBeGreaterThan(0);
   });

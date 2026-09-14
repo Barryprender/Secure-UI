@@ -21,7 +21,8 @@
  * @license MIT
  */
 
-import { SecureBaseComponent } from '../../core/base-component.js';
+import { SecureBaseComponent, internals } from '../../core/base-component.js';
+import { SecurityTier } from '../../core/security-config.js';
 import type { CardType } from '../../core/types.js';
 
 export type { CardType };
@@ -193,6 +194,27 @@ export class SecureCard extends SecureBaseComponent {
 
   static override get observedAttributes(): string[] {
     return [...super.observedAttributes, 'name', 'label', 'show-name'];
+  }
+
+  /**
+   * PCI: this component is locked to CRITICAL unconditionally.
+   *
+   * The lock was documented but never implemented — `security-tier` is in the
+   * inherited observed list and there was no `connectedCallback` override, so
+   * `<secure-card security-tier="public">` silently demoted a payment field:
+   * access, change and submission auditing all off, and the `tier` reported in
+   * `secure-card-change` claiming "public" for a live PAN field, poisoning any
+   * server-side risk correlation keyed off it. Mirrors SecurePasswordConfirm.
+   */
+  override connectedCallback(): void {
+    const requested = this.getAttribute('security-tier');
+    if (requested !== null && requested !== SecurityTier.CRITICAL) {
+      console.warn(
+        `secure-card: security-tier="${requested}" ignored — this component is locked to CRITICAL (PCI).`
+      );
+    }
+    this.removeAttribute('security-tier');
+    super.connectedCallback();
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -411,31 +433,31 @@ export class SecureCard extends SecureBaseComponent {
     this.#createHiddenInputs();
 
     // ── Component styles ──────────────────────────────────────────────────────
-    this.addComponentStyles(new URL('./secure-card.css', import.meta.url).href);
+    internals(this).addComponentStyles(new URL('./secure-card.css', import.meta.url).href);
 
     // ── Event listeners ───────────────────────────────────────────────────────
     // Telemetry hooks aggregate signals across all card inputs into one
     // composite behavioral fingerprint for the overall card interaction.
-    this.setupAutofillDetection(this.#numberInput);
-    this.setupAutofillDetection(this.#expiryInput);
-    this.setupAutofillDetection(this.#cvcInput);
-    this.setupAutofillDetection(this.#nameInput);
+    internals(this).setupAutofillDetection(this.#numberInput);
+    internals(this).setupAutofillDetection(this.#expiryInput);
+    internals(this).setupAutofillDetection(this.#cvcInput);
+    internals(this).setupAutofillDetection(this.#nameInput);
 
-    this.#numberInput.addEventListener('input', (e) => { this.recordTelemetryInput(e); this.#handleNumberInput(e); });
-    this.#numberInput.addEventListener('focus', () => { this.recordTelemetryFocus(); this.#handleNumberFocus(); });
-    this.#numberInput.addEventListener('blur', () => { this.recordTelemetryBlur(); this.#handleNumberBlur(); });
+    this.#numberInput.addEventListener('input', (e) => { internals(this).recordTelemetryInput(e); this.#handleNumberInput(e); });
+    this.#numberInput.addEventListener('focus', () => { internals(this).recordTelemetryFocus(); this.#handleNumberFocus(); });
+    this.#numberInput.addEventListener('blur', () => { internals(this).recordTelemetryBlur(); this.#handleNumberBlur(); });
 
-    this.#expiryInput.addEventListener('input', (e) => { this.recordTelemetryInput(e); this.#handleExpiryInput(e); });
-    this.#expiryInput.addEventListener('focus', () => { this.recordTelemetryFocus(); this.#flipCard(false); });
-    this.#expiryInput.addEventListener('blur', () => { this.recordTelemetryBlur(); this.#handleExpiryBlur(); });
+    this.#expiryInput.addEventListener('input', (e) => { internals(this).recordTelemetryInput(e); this.#handleExpiryInput(e); });
+    this.#expiryInput.addEventListener('focus', () => { internals(this).recordTelemetryFocus(); this.#flipCard(false); });
+    this.#expiryInput.addEventListener('blur', () => { internals(this).recordTelemetryBlur(); this.#handleExpiryBlur(); });
 
-    this.#cvcInput.addEventListener('input', (e) => { this.recordTelemetryInput(e); this.#handleCvcInput(e); });
-    this.#cvcInput.addEventListener('focus', () => { this.recordTelemetryFocus(); this.#flipCard(true); });
-    this.#cvcInput.addEventListener('blur', () => { this.recordTelemetryBlur(); this.#handleCvcBlur(); });
+    this.#cvcInput.addEventListener('input', (e) => { internals(this).recordTelemetryInput(e); this.#handleCvcInput(e); });
+    this.#cvcInput.addEventListener('focus', () => { internals(this).recordTelemetryFocus(); this.#flipCard(true); });
+    this.#cvcInput.addEventListener('blur', () => { internals(this).recordTelemetryBlur(); this.#handleCvcBlur(); });
 
-    this.#nameInput.addEventListener('input', (e) => { this.recordTelemetryInput(e); this.#handleNameInput(e); });
-    this.#nameInput.addEventListener('focus', () => { this.recordTelemetryFocus(); this.#flipCard(false); });
-    this.#nameInput.addEventListener('blur', () => { this.recordTelemetryBlur(); this.#handleNameBlur(); });
+    this.#nameInput.addEventListener('input', (e) => { internals(this).recordTelemetryInput(e); this.#handleNameInput(e); });
+    this.#nameInput.addEventListener('focus', () => { internals(this).recordTelemetryFocus(); this.#flipCard(false); });
+    this.#nameInput.addEventListener('blur', () => { internals(this).recordTelemetryBlur(); this.#handleNameBlur(); });
 
     fragment.appendChild(container);
     return fragment;
@@ -473,7 +495,7 @@ export class SecureCard extends SecureBaseComponent {
     _oldValue: string | null,
     newValue: string | null
   ): void {
-    if (!this.root) return;
+    if (!internals(this).root) return;
 
     switch (name) {
       case 'disabled': {
@@ -485,7 +507,7 @@ export class SecureCard extends SecureBaseComponent {
         break;
       }
       case 'show-name': {
-        const group = this.root.querySelector<HTMLElement>(
+        const group = internals(this).root.querySelector<HTMLElement>(
           `#${this.#instanceId}-name-group`
         );
         if (group) group.hidden = newValue === null;
@@ -543,7 +565,7 @@ export class SecureCard extends SecureBaseComponent {
   }
 
   #handleNumberBlur(): void {
-    const rl = this.checkRateLimit();
+    const rl = internals(this).checkRateLimit();
     if (!rl.allowed) {
       this.#showError(
         this.#numberError,
@@ -565,7 +587,7 @@ export class SecureCard extends SecureBaseComponent {
 
     // Mask middle digits on blur — last 4 remain visible
     this.#applyNumberMask();
-    this.audit('card-number-blur', { cardType: this.#cardTypeConfig?.type ?? 'unknown' });
+    internals(this).audit('card-number-blur', { cardType: this.#cardTypeConfig?.type ?? 'unknown' });
   }
 
   #applyNumberMask(): void {
@@ -614,7 +636,7 @@ export class SecureCard extends SecureBaseComponent {
       this.#expiryInput?.removeAttribute('aria-invalid');
     }
 
-    this.audit('card-expiry-blur', {});
+    internals(this).audit('card-expiry-blur', {});
   }
 
   // ── CVC handlers ──────────────────────────────────────────────────────────
@@ -651,7 +673,7 @@ export class SecureCard extends SecureBaseComponent {
 
     this.#flipCard(false);
     // CVC value is never audited
-    this.audit('card-cvc-blur', {});
+    internals(this).audit('card-cvc-blur', {});
   }
 
   // ── Name handlers ─────────────────────────────────────────────────────────
@@ -913,7 +935,7 @@ export class SecureCard extends SecureBaseComponent {
     this.#clearError(this.#cvcError);
     this.#clearError(this.#nameError);
 
-    this.audit('card-reset', {});
+    internals(this).audit('card-reset', {});
   }
 
   /**

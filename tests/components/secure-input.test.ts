@@ -34,8 +34,8 @@ describe('SecureInput', () => {
     it('should have shadow DOM', () => {
       document.body.appendChild(input);
 
-      expect((input as any).root).toBeDefined();
-      expect((input as any).root).not.toBeNull();
+      expect(shadowOf(input)).toBeDefined();
+      expect(shadowOf(input)).not.toBeNull();
     });
 
     it('should default to CRITICAL security tier', () => {
@@ -55,7 +55,7 @@ describe('SecureInput', () => {
       input.setAttribute('label', 'Username');
       document.body.appendChild(input);
 
-      const shadowContent = (input as any).root?.innerHTML || '';
+      const shadowContent = shadowOf(input)?.innerHTML || '';
       expect(shadowContent).toContain('Username');
     });
 
@@ -63,7 +63,7 @@ describe('SecureInput', () => {
       input.setAttribute('placeholder', 'Enter value');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.placeholder).toBe('Enter value');
       }
@@ -72,7 +72,7 @@ describe('SecureInput', () => {
     it('should default to text type', () => {
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.type).toBe('text');
       }
@@ -84,7 +84,7 @@ describe('SecureInput', () => {
       input.setAttribute('type', 'text');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.type).toBe('text');
       }
@@ -94,7 +94,7 @@ describe('SecureInput', () => {
       input.setAttribute('type', 'password');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.type).toBe('password');
       }
@@ -104,7 +104,7 @@ describe('SecureInput', () => {
       input.setAttribute('type', 'email');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.type).toBe('email');
       }
@@ -114,7 +114,7 @@ describe('SecureInput', () => {
       input.setAttribute('type', 'tel');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.type).toBe('tel');
       }
@@ -124,7 +124,7 @@ describe('SecureInput', () => {
       input.setAttribute('type', 'number');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.type).toBe('number');
       }
@@ -134,7 +134,7 @@ describe('SecureInput', () => {
       input.setAttribute('type', 'url');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.type).toBe('url');
       }
@@ -144,7 +144,7 @@ describe('SecureInput', () => {
       input.setAttribute('type', 'search');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.type).toBe('search');
       }
@@ -215,7 +215,7 @@ describe('SecureInput', () => {
       input.value = '<script>alert("xss")</script>';
 
       // Value is stored but not executed
-      const shadowContent = (input as any).root?.innerHTML || '';
+      const shadowContent = shadowOf(input)?.innerHTML || '';
       expect(shadowContent).not.toContain('<script>alert');
     });
 
@@ -324,7 +324,7 @@ describe('SecureInput', () => {
       document.body.appendChild(emailInput);
 
       try {
-        const internalInput = (emailInput as any).root?.querySelector('input');
+        const internalInput = shadowOf(emailInput)?.querySelector('input');
         // The internal element MUST carry type="email" — without it the browser
         // never validates email format regardless of what the component does.
         expect(internalInput?.type).toBe('email');
@@ -380,7 +380,7 @@ describe('SecureInput', () => {
       const eventHandler = vi.fn();
       input.addEventListener('secure-input-change', eventHandler);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         internalInput.value = 'test';
         internalInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -400,7 +400,7 @@ describe('SecureInput', () => {
         eventDetail = e.detail;
       }) as EventListener);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         internalInput.value = 'test';
         internalInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -418,7 +418,7 @@ describe('SecureInput', () => {
         eventDetail = e.detail;
       }) as EventListener);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         internalInput.value = 'test';
         internalInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -436,7 +436,7 @@ describe('SecureInput', () => {
       input.setAttribute('security-tier', 'critical');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.autocomplete).toBe('off');
       }
@@ -446,7 +446,7 @@ describe('SecureInput', () => {
       input.setAttribute('security-tier', 'sensitive');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.autocomplete).toBe('off');
       }
@@ -456,7 +456,7 @@ describe('SecureInput', () => {
       input.setAttribute('security-tier', 'public');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       // PUBLIC tier must NOT disable autocomplete
       expect(internalInput?.autocomplete).not.toBe('off');
     });
@@ -466,7 +466,7 @@ describe('SecureInput', () => {
       input.setAttribute('security-tier', 'critical');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.autocomplete).toBe('new-password');
       }
@@ -506,7 +506,7 @@ describe('SecureInput', () => {
       input.setAttribute('security-tier', 'critical');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       // The internal input MUST be type="password" — this is how the browser
       // visually masks characters. Any other type leaks the value in plaintext.
       expect(internalInput?.type).toBe('password');
@@ -533,7 +533,7 @@ describe('SecureInput', () => {
 
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         internalInput.dispatchEvent(new FocusEvent('focus'));
       }
@@ -551,7 +551,7 @@ describe('SecureInput', () => {
       input.setAttribute('disabled', '');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.disabled).toBe(true);
       }
@@ -561,7 +561,7 @@ describe('SecureInput', () => {
       input.setAttribute('readonly', '');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.readOnly).toBe(true);
       }
@@ -571,7 +571,7 @@ describe('SecureInput', () => {
       input.setAttribute('disabled', '');
       document.body.appendChild(input);
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       expect(internalInput?.disabled).toBe(true);
     });
   });
@@ -584,7 +584,7 @@ describe('SecureInput', () => {
     it('should have aria-required when required', () => {
       input.setAttribute('required', '');
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         expect(internalInput.getAttribute('aria-required')).toBe('true');
       }
@@ -597,13 +597,13 @@ describe('SecureInput', () => {
       // Trigger validation
       input.blur();
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       // May or may not set aria-invalid immediately
       expect(internalInput).toBeDefined();
     });
 
     it('should have error container with aria-live', () => {
-      const shadowContent = (input as any).root?.innerHTML || '';
+      const shadowContent = shadowOf(input)?.innerHTML || '';
       // Should have accessible error container
       expect(shadowContent.length).toBeGreaterThan(0);
     });
@@ -693,7 +693,7 @@ describe('SecureInput', () => {
       // Value must be stored, no exception thrown
       expect(input.value).toBe(rtlValue);
       // Shadow DOM must not contain executable content
-      expect((input as any).root?.innerHTML).not.toContain('<script');
+      expect(shadowOf(input)?.innerHTML).not.toContain('<script');
     });
 
     it('should store zero-width characters without executing code', () => {
@@ -702,7 +702,7 @@ describe('SecureInput', () => {
       input.value = zwValue;
 
       expect(input.value).toBe(zwValue);
-      expect((input as any).root?.innerHTML).not.toContain('<script');
+      expect(shadowOf(input)?.innerHTML).not.toContain('<script');
     });
   });
 
@@ -714,7 +714,7 @@ describe('SecureInput', () => {
       await new Promise(resolve => setTimeout(resolve, 50));
 
       // Make many rapid inputs
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         for (let i = 0; i < 20; i++) {
           internalInput.value = `test-${i}`;
@@ -736,7 +736,7 @@ describe('SecureInput', () => {
     it('should show error for invalid input on blur', async () => {
       input.value = '';
 
-      const internalInput = (input as any).root?.querySelector('input');
+      const internalInput = shadowOf(input)?.querySelector('input');
       if (internalInput) {
         internalInput.dispatchEvent(new FocusEvent('blur'));
       }
@@ -744,7 +744,7 @@ describe('SecureInput', () => {
       await new Promise(resolve => setTimeout(resolve, 50));
 
       // Error container should be present
-      const shadowContent = (input as any).root?.innerHTML || '';
+      const shadowContent = shadowOf(input)?.innerHTML || '';
       expect(shadowContent.length).toBeGreaterThan(0);
     });
 
@@ -756,7 +756,7 @@ describe('SecureInput', () => {
       document.body.appendChild(emailInput);
 
       try {
-        const internalInput = (emailInput as any).root?.querySelector('input');
+        const internalInput = shadowOf(emailInput)?.querySelector('input');
         if (!internalInput) return;
 
         // Only meaningful when the browser enforces email constraint validation
@@ -768,7 +768,7 @@ describe('SecureInput', () => {
 
         await new Promise(resolve => setTimeout(resolve, 50));
 
-        const errorContainer = (emailInput as any).root?.querySelector('[part="error"]');
+        const errorContainer = shadowOf(emailInput)?.querySelector('[part="error"]');
         expect(errorContainer?.classList.contains('hidden')).toBe(false);
         expect(emailInput.valid).toBe(false);
       } finally {
@@ -796,6 +796,7 @@ declare global {
 // ── Injection detection integration ──────────────────────────────────────────
 
 import type { ThreatDetectedDetail } from '../../src/core/types.js';
+import { shadowOf } from '../helpers/internals.js';
 
 describe('SecureInput — injection detection', () => {
   let input: SecureInput;
@@ -816,7 +817,7 @@ describe('SecureInput — injection detection', () => {
     const handler = vi.fn();
     document.addEventListener('secure-threat-detected', handler);
 
-    const internalInput = (input as any).root?.querySelector('input');
+    const internalInput = shadowOf(input)?.querySelector('input');
     if (internalInput) {
       internalInput.value = '<script>alert(1)</script>';
       internalInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -835,7 +836,7 @@ describe('SecureInput — injection detection', () => {
     const handler = vi.fn();
     document.addEventListener('secure-threat-detected', handler);
 
-    const internalInput = (input as any).root?.querySelector('input');
+    const internalInput = shadowOf(input)?.querySelector('input');
     if (internalInput) {
       internalInput.value = 'hello world';
       internalInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -851,7 +852,7 @@ describe('SecureInput — injection detection', () => {
     const handler = vi.fn();
     document.addEventListener('secure-threat-detected', handler);
 
-    const internalInput = (input as any).root?.querySelector('input');
+    const internalInput = shadowOf(input)?.querySelector('input');
     if (internalInput) {
       // Both script-tag and event-handler would match this value
       internalInput.value = '<script onclick=x>';
@@ -885,7 +886,7 @@ describe('SecureInput — threat-feedback UI', () => {
   afterEach(() => { input.remove(); });
 
   const fireInput = async (value: string) => {
-    const el = (input as any).root?.querySelector('input');
+    const el = shadowOf(input)?.querySelector('input');
     if (el) {
       el.value = value;
       el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -895,7 +896,7 @@ describe('SecureInput — threat-feedback UI', () => {
 
   it('threat container has role="alert" and part="threat"', async () => {
     await setup(true);
-    const container = (input as any).root?.querySelector('[part="threat"]');
+    const container = shadowOf(input)?.querySelector('[part="threat"]');
     expect(container).not.toBeNull();
     expect(container?.getAttribute('role')).toBe('alert');
   });
@@ -904,7 +905,7 @@ describe('SecureInput — threat-feedback UI', () => {
     await setup(true);
     await fireInput('<script>alert(1)</script>');
 
-    const container = (input as any).root?.querySelector('[part="threat"]');
+    const container = shadowOf(input)?.querySelector('[part="threat"]');
     expect(container?.classList.contains('hidden')).toBe(false);
     expect(container?.querySelector('.threat-message')?.textContent).toBe('Script injection blocked');
     expect(container?.querySelector('.threat-badge')?.textContent).toBe('script-tag');
@@ -915,7 +916,7 @@ describe('SecureInput — threat-feedback UI', () => {
     await setup(true);
     await fireInput('javascript:void(0)');
 
-    const el = (input as any).root?.querySelector('input');
+    const el = shadowOf(input)?.querySelector('input');
     // aria-invalid is set by showThreatFeedback() but cleared synchronously by #clearErrors()
     // in the same input handler — test the stable state: threat class and container visibility
     expect(el?.classList.contains('threat')).toBe(true);
@@ -926,7 +927,7 @@ describe('SecureInput — threat-feedback UI', () => {
     await fireInput('<script>x</script>');
     await fireInput('clean value');
 
-    const el = (input as any).root?.querySelector('input');
+    const el = shadowOf(input)?.querySelector('input');
     expect(el?.classList.contains('threat')).toBe(false);
     // aria-invalid was already removed by #clearErrors() after the threat input, so hasAttribute is false here too
     expect(el?.hasAttribute('aria-invalid')).toBe(false);
@@ -937,7 +938,7 @@ describe('SecureInput — threat-feedback UI', () => {
     await fireInput('{{payload}}');
     await fireInput('safe text');
 
-    const container = (input as any).root?.querySelector('[part="threat"]');
+    const container = shadowOf(input)?.querySelector('[part="threat"]');
     expect(container?.classList.contains('hidden')).toBe(true);
   });
 
@@ -945,7 +946,7 @@ describe('SecureInput — threat-feedback UI', () => {
     await setup(false);
     await fireInput('<script>alert(1)</script>');
 
-    const container = (input as any).root?.querySelector('[part="threat"]');
+    const container = shadowOf(input)?.querySelector('[part="threat"]');
     // email is not in the default-feedback set — container must stay hidden
     expect(container?.classList.contains('hidden')).toBe(true);
   });
@@ -955,7 +956,7 @@ describe('SecureInput — threat-feedback UI', () => {
     await fireInput('javascript:void(0)');
     await fireInput('vbscript:alert(1)'); // same-length value to keep #actualValue stable under masking (moot with email type, but explicit)
 
-    const container = (input as any).root?.querySelector('[part="threat"]');
+    const container = shadowOf(input)?.querySelector('[part="threat"]');
     expect(container?.querySelector('.threat-message')?.textContent).toBe('VBScript injection blocked');
     expect(container?.querySelector('.threat-badge')?.textContent).toBe('vbscript');
   });
@@ -980,7 +981,7 @@ describe('SecureInput — default threat-feedback by type', () => {
   afterEach(() => { input.remove(); });
 
   const fireInput = async (value: string) => {
-    const el = (input as any).root?.querySelector('input');
+    const el = shadowOf(input)?.querySelector('input');
     if (el) {
       el.value = value;
       el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -993,7 +994,7 @@ describe('SecureInput — default threat-feedback by type', () => {
       await setupType(type);
       await fireInput('<script>alert(1)</script>');
 
-      const container = (input as any).root?.querySelector('[part="threat"]');
+      const container = shadowOf(input)?.querySelector('[part="threat"]');
       expect(container?.classList.contains('hidden')).toBe(false);
       expect(container?.querySelector('.threat-message')?.textContent).toBe('Script injection blocked');
     });
@@ -1003,7 +1004,7 @@ describe('SecureInput — default threat-feedback by type', () => {
       await fireInput('<script>x</script>');
       await fireInput('safe text');
 
-      const container = (input as any).root?.querySelector('[part="threat"]');
+      const container = shadowOf(input)?.querySelector('[part="threat"]');
       expect(container?.classList.contains('hidden')).toBe(true);
     });
   }
@@ -1013,7 +1014,7 @@ describe('SecureInput — default threat-feedback by type', () => {
       await setupType(type);
       await fireInput('<script>alert(1)</script>');
 
-      const container = (input as any).root?.querySelector('[part="threat"]');
+      const container = shadowOf(input)?.querySelector('[part="threat"]');
       expect(container?.classList.contains('hidden')).toBe(true);
     });
   }
@@ -1022,7 +1023,7 @@ describe('SecureInput — default threat-feedback by type', () => {
     await setupType('url');
     await fireInput('javascript:alert(1)');
 
-    const container = (input as any).root?.querySelector('[part="threat"]');
+    const container = shadowOf(input)?.querySelector('[part="threat"]');
     expect(container?.classList.contains('hidden')).toBe(false);
     expect(container?.querySelector('.threat-badge')?.textContent).toBe('js-protocol');
   });
@@ -1031,7 +1032,7 @@ describe('SecureInput — default threat-feedback by type', () => {
     await setupType('url');
     await fireInput('data:text/html,<h1>hi</h1>');
 
-    const container = (input as any).root?.querySelector('[part="threat"]');
+    const container = shadowOf(input)?.querySelector('[part="threat"]');
     expect(container?.classList.contains('hidden')).toBe(false);
     expect(container?.querySelector('.threat-badge')?.textContent).toBe('data-uri-html');
   });
@@ -1042,7 +1043,7 @@ describe('SecureInput — default threat-feedback by type', () => {
     document.addEventListener('secure-threat-detected', handler);
 
     // Fire a numeric value — no injection possible, detection is skipped entirely
-    const el = (input as any).root?.querySelector('input');
+    const el = shadowOf(input)?.querySelector('input');
     if (el) {
       el.dispatchEvent(new Event('input', { bubbles: true }));
     }

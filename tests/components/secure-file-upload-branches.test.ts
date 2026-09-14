@@ -20,6 +20,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureFileUpload, type ScanHookFn } from '../../src/components/secure-file-upload/secure-file-upload.js';
+import { shadowOf } from '../helpers/internals.js';
 
 if (!customElements.get('secure-file-upload')) {
   customElements.define('secure-file-upload', SecureFileUpload);
@@ -28,19 +29,19 @@ if (!customElements.get('secure-file-upload')) {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function getDropZone(upload: SecureFileUpload): HTMLElement {
-  return (upload as any).root!.querySelector('.drop-zone') as HTMLElement;
+  return shadowOf(upload)!.querySelector('.drop-zone') as HTMLElement;
 }
 
 function getFileInput(upload: SecureFileUpload): HTMLInputElement {
-  return (upload as any).root!.querySelector('input[type="file"]') as HTMLInputElement;
+  return shadowOf(upload)!.querySelector('input[type="file"]') as HTMLInputElement;
 }
 
 function getErrorContainer(upload: SecureFileUpload): HTMLElement {
-  return (upload as any).root!.querySelector('.error-container') as HTMLElement;
+  return shadowOf(upload)!.querySelector('.error-container') as HTMLElement;
 }
 
 function getFileNameDisplay(upload: SecureFileUpload): HTMLElement {
-  return (upload as any).root!.querySelector('.file-name-display') as HTMLElement;
+  return shadowOf(upload)!.querySelector('.file-name-display') as HTMLElement;
 }
 
 /**
@@ -303,7 +304,7 @@ describe('SecureFileUpload — branch coverage', () => {
       expect(upload.files).not.toBeNull();
       expect(getFileNameDisplay(upload).textContent).toBe('document.txt');
 
-      const removeBtn = (upload as any).root!.querySelector('.remove-file') as HTMLButtonElement;
+      const removeBtn = shadowOf(upload)!.querySelector('.remove-file') as HTMLButtonElement;
       expect(removeBtn).not.toBeNull();
       removeBtn.click();
 
@@ -317,10 +318,10 @@ describe('SecureFileUpload — branch coverage', () => {
 
       await selectFiles(upload, [makeTxtFile()]);
 
-      const preview = (upload as any).root!.querySelector('.preview-container') as HTMLElement;
+      const preview = shadowOf(upload)!.querySelector('.preview-container') as HTMLElement;
       expect(preview.innerHTML).not.toBe('');
 
-      const removeBtn = (upload as any).root!.querySelector('.remove-file') as HTMLButtonElement;
+      const removeBtn = shadowOf(upload)!.querySelector('.remove-file') as HTMLButtonElement;
       removeBtn.click();
 
       expect(preview.innerHTML).toBe('');
@@ -331,7 +332,7 @@ describe('SecureFileUpload — branch coverage', () => {
       document.body.appendChild(upload);
 
       await selectFiles(upload, [makeTxtFile()]);
-      const removeBtn = (upload as any).root!.querySelector('.remove-file') as HTMLButtonElement;
+      const removeBtn = shadowOf(upload)!.querySelector('.remove-file') as HTMLButtonElement;
       removeBtn.click();
 
       expect(getDropZone(upload).classList.contains('error')).toBe(false);
@@ -418,7 +419,7 @@ describe('SecureFileUpload — branch coverage', () => {
 
       expect(upload.files).toBeNull();
       expect(getFileNameDisplay(upload).textContent).toBe('No file selected');
-      const preview = (upload as any).root!.querySelector('.preview-container') as HTMLElement;
+      const preview = shadowOf(upload)!.querySelector('.preview-container') as HTMLElement;
       expect(preview.innerHTML).toBe('');
     });
   });

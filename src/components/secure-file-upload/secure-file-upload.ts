@@ -32,7 +32,7 @@
  * @license MIT
  */
 
-import { SecureBaseComponent } from '../../core/base-component.js';
+import { SecureBaseComponent, internals } from '../../core/base-component.js';
 import { SecurityTier } from '../../core/security-config.js';
 
 /**
@@ -285,7 +285,7 @@ export class SecureFileUpload extends SecureBaseComponent {
     this.#fileInput.setAttribute('aria-describedby', `${this.#instanceId}-error`);
 
     // Add component styles (CSP-compliant via adoptedStyleSheets)
-    this.addComponentStyles(this.#getComponentStyles());
+    internals(this).addComponentStyles(this.#getComponentStyles());
 
     fragment.appendChild(container);
 
@@ -511,7 +511,7 @@ export class SecureFileUpload extends SecureBaseComponent {
     }
 
     // Check rate limit
-    const rateLimitCheck = this.checkRateLimit();
+    const rateLimitCheck = internals(this).checkRateLimit();
     if (!rateLimitCheck.allowed) {
       this.#showError(
         `Too many upload attempts. Please wait ${Math.ceil(rateLimitCheck.retryAfter / 1000)} seconds.`
@@ -543,7 +543,7 @@ export class SecureFileUpload extends SecureBaseComponent {
     this.#showPreview(files);
 
     // Audit log
-    this.audit('files_selected', {
+    internals(this).audit('files_selected', {
       name: this.#fileInput!.name,
       fileCount: files.length,
       totalSize: Array.from(files).reduce((sum, f) => sum + f.size, 0)
@@ -695,7 +695,7 @@ export class SecureFileUpload extends SecureBaseComponent {
     this.#scanning = true;
     this.#showScanningState(file.name);
 
-    this.audit('scan_started', {
+    internals(this).audit('scan_started', {
       name: this.#fileInput?.name ?? '',
       fileName: file.name,
       fileSize: file.size
@@ -704,7 +704,7 @@ export class SecureFileUpload extends SecureBaseComponent {
     try {
       const result = await this.#scanHook!(file);
 
-      this.audit(result.valid ? 'scan_passed' : 'scan_rejected', {
+      internals(this).audit(result.valid ? 'scan_passed' : 'scan_rejected', {
         name: this.#fileInput?.name ?? '',
         fileName: file.name,
         reason: result.reason ?? ''
@@ -714,7 +714,7 @@ export class SecureFileUpload extends SecureBaseComponent {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Scan failed';
 
-      this.audit('scan_error', {
+      internals(this).audit('scan_error', {
         name: this.#fileInput?.name ?? '',
         fileName: file.name,
         error: message
@@ -880,7 +880,7 @@ export class SecureFileUpload extends SecureBaseComponent {
     this.#updateFileNameDisplay(null);
     this.#clearErrors();
 
-    this.audit('file_removed', {
+    internals(this).audit('file_removed', {
       name: this.#fileInput!.name
     });
   }
@@ -1006,7 +1006,7 @@ export class SecureFileUpload extends SecureBaseComponent {
       throw new TypeError('setScanHook expects a function');
     }
     this.#scanHook = hook;
-    this.audit('scan_hook_registered', {
+    internals(this).audit('scan_hook_registered', {
       name: this.#fileInput?.name ?? ''
     });
   }

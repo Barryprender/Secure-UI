@@ -31,7 +31,7 @@
  * @license MIT
  */
 
-import { SecureBaseComponent } from '../../core/base-component.js';
+import { SecureBaseComponent, internals } from '../../core/base-component.js';
 import { SecurityTier } from '../../core/security-config.js';
 
 /**
@@ -166,7 +166,7 @@ export class SecureDateTime extends SecureBaseComponent {
     container.appendChild(this.#errorContainer);
 
     // Add component styles (CSP-compliant via adoptedStyleSheets)
-    this.addComponentStyles(this.#getComponentStyles());
+    internals(this).addComponentStyles(this.#getComponentStyles());
 
     fragment.appendChild(container);
 
@@ -309,12 +309,12 @@ export class SecureDateTime extends SecureBaseComponent {
    * @private
    */
   #attachEventListeners(): void {
-    this.setupAutofillDetection(this.#inputElement!);
+    internals(this).setupAutofillDetection(this.#inputElement!);
 
     // Focus event - audit logging + telemetry
     this.#inputElement!.addEventListener('focus', () => {
-      this.recordTelemetryFocus();
-      this.audit('datetime_focused', {
+      internals(this).recordTelemetryFocus();
+      internals(this).audit('datetime_focused', {
         name: this.#inputElement!.name,
         type: this.#inputElement!.type
       });
@@ -322,7 +322,7 @@ export class SecureDateTime extends SecureBaseComponent {
 
     // Input event - real-time validation + telemetry
     this.#inputElement!.addEventListener('input', (e: Event) => {
-      this.recordTelemetryInput(e);
+      internals(this).recordTelemetryInput(e);
       this.#handleInput(e);
     });
 
@@ -333,9 +333,9 @@ export class SecureDateTime extends SecureBaseComponent {
 
     // Blur event - final validation + telemetry
     this.#inputElement!.addEventListener('blur', () => {
-      this.recordTelemetryBlur();
+      internals(this).recordTelemetryBlur();
       this.#validateAndShowErrors();
-      this.audit('datetime_blurred', {
+      internals(this).audit('datetime_blurred', {
         name: this.#inputElement!.name,
         hasValue: this.#inputElement!.value.length > 0
       });
@@ -386,7 +386,7 @@ export class SecureDateTime extends SecureBaseComponent {
     this.#clearErrors();
 
     // Audit log — raw value intentionally omitted (PII risk for date-of-birth etc.)
-    this.audit('datetime_changed', {
+    internals(this).audit('datetime_changed', {
       name: this.#inputElement!.name,
       type: this.#inputElement!.type,
       hasValue: value.length > 0
@@ -400,7 +400,7 @@ export class SecureDateTime extends SecureBaseComponent {
    */
   #validateAndShowErrors(): void {
     // Check rate limit first
-    const rateLimitCheck = this.checkRateLimit();
+    const rateLimitCheck = internals(this).checkRateLimit();
     if (!rateLimitCheck.allowed) {
       this.#showError(
         `Too many attempts. Please wait ${Math.ceil(rateLimitCheck.retryAfter / 1000)} seconds.`

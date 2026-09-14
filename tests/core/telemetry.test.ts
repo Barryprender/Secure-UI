@@ -9,6 +9,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SecureInput } from '../../src/components/secure-input/secure-input.js';
 import type { FieldTelemetry } from '../../src/core/types.js';
+import { shadowOf } from '../helpers/internals.js';
 
 if (!customElements.get('secure-input')) {
   customElements.define('secure-input', SecureInput);
@@ -26,7 +27,7 @@ function mount(attrs: Record<string, string> = {}): SecureInput {
 }
 
 function getInput(el: SecureInput): HTMLInputElement {
-  return (el as any).root!.querySelector('input')!;
+  return shadowOf(el)!.querySelector('input')!;
 }
 
 function fireInput(input: HTMLInputElement, inputType: string, data = ''): void {

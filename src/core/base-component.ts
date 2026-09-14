@@ -26,9 +26,71 @@ import type {
   ThreatClearedDetail
 } from './types.js';
 
+/**
+ * The privileged surface of a secure component.
+ *
+ * ⚠ SECURITY: every member here was previously declared `protected`. TypeScript
+ * erases `protected` at compile time, so each one shipped as an ordinary public
+ * prototype method — `el.root` handed the closed shadow root (and therefore the
+ * raw value of every masked field) to any script on the page, and
+ * `el.initializeSecurity()` re-read the `security-tier` attribute, allowing a
+ * post-mount downgrade to `public`.
+ *
+ * These members are now reachable only through {@link internals}, whose lookup
+ * table is module-scoped. Unlike a `Symbol` key — which
+ * `Object.getOwnPropertySymbols(Object.getPrototypeOf(el))` would reveal — a
+ * module-scoped WeakMap is unreachable from outside this module graph, and
+ * `internals` is deliberately not re-exported from `src/index.ts`.
+ */
+export interface ComponentInternals {
+  /** The closed shadow root. Never expose this on the prototype. */
+  readonly root: ShadowRoot;
+  addComponentStyles(cssInput: string): void;
+  getBaseStylesheetUrl(): string;
+  audit(event: string, data?: Record<string, unknown>): void;
+  /** Empties the in-memory audit log. Privileged: external code must never be
+   *  able to erase audit evidence. */
+  clearAuditLog(): void;
+  checkRateLimit(): RateLimitResult;
+  detectInjection(value: string, fieldName: string, showFeedback?: boolean): void;
+  rerender(): void;
+  recordTelemetryFocus(): void;
+  recordTelemetryInput(event: Event): void;
+  recordTelemetryBlur(): void;
+  setupAutofillDetection(el: HTMLInputElement | HTMLTextAreaElement): void;
+}
+
+const INTERNALS = new WeakMap<object, ComponentInternals>();
+
+/**
+ * Privileged accessor for secure components. Module-scoped by design — see
+ * {@link ComponentInternals}. Importable by sibling modules inside this
+ * package; unreachable from consumer code because `src/index.ts` does not
+ * re-export it.
+ */
+export function internals(component: SecureBaseComponent): ComponentInternals {
+  const found = INTERNALS.get(component);
+  if (!found) {
+    throw new TypeError('internals() called on a non-secure component');
+  }
+  return found;
+}
+
 export abstract class SecureBaseComponent extends HTMLElement {
   /** Maximum number of entries retained in the in-memory audit log */
   static readonly #MAX_AUDIT_LOG_SIZE = 1000;
+
+  /**
+   * Set to `true` by a subclass that drives its own rendering (see
+   * `secure-table`). Such a component still gets full security initialisation
+   * from the base `connectedCallback`; only the base render pass is skipped.
+   *
+   * This replaces the former pattern of calling a public `initializeSecurity()`
+   * directly, which both exposed a tier-downgrade entry point and left
+   * `#initialized` false forever — silently disabling the tier-immutability
+   * guard and all reactive attribute handling for those components.
+   */
+  protected static readonly managesOwnRendering: boolean = false;
 
   // Human-readable labels for each injection pattern ID.
   // Used by components that opt into inline threat feedback UI.
@@ -67,6 +129,11 @@ export abstract class SecureBaseComponent extends HTMLElement {
     windowStart: Date.now()
   };
   #initialized: boolean = false;
+  // Write-once latch for the security tier. Separate from #initialized so the
+  // guard engages for components that skip the base render pass.
+  #tierLocked: boolean = false;
+  // Re-entrancy guard for reverting a blocked security-tier attribute change.
+  #revertingTier: boolean = false;
   // Field names currently matching an injection pattern. Used to emit a
   // 'secure-threat-cleared' transition event when a flagged field becomes clean.
   #activeThreatFields: Set<string> = new Set();
@@ -88,6 +155,27 @@ export abstract class SecureBaseComponent extends HTMLElement {
     super();
     this.#shadow = this.attachShadow({ mode: 'closed' });
     this.#config = getTierConfig(this.#securityTier);
+
+    // Register the privileged surface in the module-scoped table rather than on
+    // the prototype. See ComponentInternals for why `protected` was insufficient.
+    INTERNALS.set(this, {
+      root: this.#shadow,
+      addComponentStyles: (cssInput: string) => { this.#addComponentStyles(cssInput); },
+      getBaseStylesheetUrl: () => this.#getBaseStylesheetUrl(),
+      audit: (event: string, data: Record<string, unknown> = {}) => { this.#audit(event, data); },
+      clearAuditLog: () => { this.#auditLog = []; },
+      checkRateLimit: () => this.#checkRateLimit(),
+      detectInjection: (value: string, fieldName: string, showFeedback = false) => {
+        this.#detectInjection(value, fieldName, showFeedback);
+      },
+      rerender: () => { this.#render(); },
+      recordTelemetryFocus: () => { this.#recordTelemetryFocus(); },
+      recordTelemetryInput: (event: Event) => { this.#recordTelemetryInput(event); },
+      recordTelemetryBlur: () => { this.#recordTelemetryBlur(); },
+      setupAutofillDetection: (el: HTMLInputElement | HTMLTextAreaElement) => {
+        this.#setupAutofillDetection(el);
+      },
+    });
   }
 
   static get observedAttributes(): string[] {
@@ -95,32 +183,52 @@ export abstract class SecureBaseComponent extends HTMLElement {
   }
 
   connectedCallback(): void {
-    if (!this.#initialized) {
-      this.#initialize();
-      this.#initialized = true;
+    if (this.#initialized) {
+      return;
     }
-  }
+    // Order matters: the tier must be locked before anything can re-enter.
+    this.#initialized = true;
+    this.#lockSecurityTier();
 
-  #initialize(): void {
-    this.initializeSecurity();
-    this.#render();
+    // A component that drives its own rendering (secure-table) still gets full
+    // security initialisation above; only the base render pass is skipped.
+    if (!(this.constructor as typeof SecureBaseComponent).managesOwnRendering) {
+      this.#render();
+    }
   }
 
   /**
-   * Initialize security tier, config, and audit logging without triggering render.
+   * Resolve the security tier once, then freeze it for the element's lifetime.
    *
-   * Components that manage their own rendering (e.g. secure-table) can call this
-   * from their connectedCallback instead of super.connectedCallback() to get
-   * security initialization without the base render lifecycle.
-   * @protected
+   * ⚠ SECURITY: this is deliberately `#private` and runs exactly once. It was
+   * previously a `protected initializeSecurity()`, which TypeScript erases —
+   * shipping a public method that re-read the `security-tier` attribute. Since
+   * `attributeChangedCallback` warns but leaves the poisoned attribute in the
+   * DOM, any page script could call `el.initializeSecurity()` to downgrade a
+   * CRITICAL field to `public`: masking off, autocomplete back on, audit
+   * silenced. Re-entry is now impossible.
    */
-  protected initializeSecurity(): void {
+  #lockSecurityTier(): void {
+    if (this.#tierLocked) {
+      return;
+    }
     const tierAttr = this.getAttribute('security-tier');
     if (tierAttr && isValidTier(tierAttr)) {
       this.#securityTier = tierAttr;
+    } else if (tierAttr !== null) {
+      // An unrecognised tier leaves the component at the CRITICAL default.
+      // Surface it, or a typo looks identical to a field that needs no tier.
+      console.warn(
+        `Invalid security-tier "${tierAttr}" ignored; staying at CRITICAL (fail-secure).`
+      );
     }
 
     this.#config = getTierConfig(this.#securityTier);
+    this.#tierLocked = true;
+
+    if (tierAttr !== null && tierAttr !== this.#securityTier) {
+      this.#audit('invalid_tier', { attempted: tierAttr, applied: this.#securityTier });
+    }
 
     this.#audit('component_initialized', {
       tier: this.#securityTier,
@@ -129,17 +237,31 @@ export abstract class SecureBaseComponent extends HTMLElement {
   }
 
   // security-tier is immutable after init to prevent privilege escalation.
-  // NOTE: We intentionally do NOT revert the DOM attribute here — calling
-  // setAttribute() from within attributeChangedCallback would re-trigger the
-  // callback with swapped oldValue/newValue, causing infinite recursion.
-  // The internal #securityTier field is already immutable so component
-  // behaviour is unaffected regardless of what the DOM attribute shows.
+  //
+  // The attribute IS reverted. Leaving it poisoned was previously justified on
+  // the grounds that only #securityTier drives behaviour — but every tier badge
+  // and border is a `:host([security-tier="…"])` rule, so a blocked change still
+  // repainted a CRITICAL field as public (or a public one as critical, which is
+  // the more useful direction for a phishing overlay). The recursion that
+  // justified leaving it is avoided with a re-entrancy flag.
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
-    if (name === 'security-tier' && this.#initialized) {
-      console.warn(
-        `Security tier cannot be changed after initialization. ` +
-        `Attempted change from "${oldValue}" to "${newValue}" blocked.`
-      );
+    if (name === 'security-tier' && this.#tierLocked) {
+      if (this.#revertingTier) {
+        return;
+      }
+      if (newValue !== this.#securityTier) {
+        console.warn(
+          `Security tier cannot be changed after initialization. ` +
+          `Attempted change from "${oldValue}" to "${newValue}" blocked.`
+        );
+        this.#audit('threat_tier_change_blocked', {
+          attempted: newValue,
+          enforced: this.#securityTier
+        });
+        this.#revertingTier = true;
+        this.setAttribute('security-tier', this.#securityTier);
+        this.#revertingTier = false;
+      }
       return;
     }
 
@@ -154,7 +276,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
 
   #render(): void {
     this.#shadow.innerHTML = '';
-    this.addComponentStyles(new URL('./base.css', import.meta.url).href);
+    this.#addComponentStyles(new URL('./base.css', import.meta.url).href);
 
     const content = this.render();
     if (content) {
@@ -175,7 +297,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
    * Pass the return value directly to addComponentStyles().
    * @protected
    */
-  protected getBaseStylesheetUrl(): string {
+  #getBaseStylesheetUrl(): string {
     return new URL('./base.css', import.meta.url).href;
   }
 
@@ -193,7 +315,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
    * Detection: CSS text always contains `{`; resolved URLs never do.
    * @protected
    */
-  protected addComponentStyles(cssInput: string): void {
+  #addComponentStyles(cssInput: string): void {
     if (cssInput.includes('{')) {
       // CSS text — bundle mode.
       const sheet = new CSSStyleSheet();
@@ -276,7 +398,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
    * WAF rule, or with a token-bucket at the API layer). Do not treat this as a
    * security control in isolation.
    */
-  protected checkRateLimit(): RateLimitResult {
+  #checkRateLimit(): RateLimitResult {
     if (!this.#config.rateLimit.enabled) {
       return { allowed: true, retryAfter: 0 };
     }
@@ -346,19 +468,6 @@ export abstract class SecureBaseComponent extends HTMLElement {
     );
   }
 
-  /**
-   * Internal accessor for the closed shadow root.
-   *
-   * Named `root` (not `shadowRoot`) deliberately: `Element.shadowRoot` returns
-   * `null` for closed shadow DOMs — overriding it with a public getter defeats
-   * the entire point of `mode: 'closed'`. External callers MUST NOT receive a
-   * reference to the shadow root; use the public API (`.value`, `.valid`, events)
-   * instead. Subclasses may access internal DOM through this protected getter.
-   */
-  protected get root(): ShadowRoot {
-    return this.#shadow;
-  }
-
   get securityTier(): SecurityTierValue {
     return this.#securityTier;
   }
@@ -400,14 +509,6 @@ export abstract class SecureBaseComponent extends HTMLElement {
     delete this.#externalErrorEl.dataset['variant'];
   }
 
-  protected clearAuditLog(): void {
-    this.#auditLog = [];
-  }
-
-  protected audit(event: string, data: Record<string, unknown>): void {
-    this.#audit(event, data);
-  }
-
   /**
    * Scans value against known client-side injection patterns and fires a
    * `secure-threat-detected` event on the first match.
@@ -422,12 +523,12 @@ export abstract class SecureBaseComponent extends HTMLElement {
    * First match wins; the raw value is intentionally absent from the event.
    * showFeedback activates the inline threat UI on the field.
    */
-  protected detectInjection(value: string, fieldName: string, showFeedback = false): void {
+  #detectInjection(value: string, fieldName: string, showFeedback = false): void {
     const feedbackEnabled = showFeedback || this.hasAttribute('threat-feedback');
     for (const { id, pattern } of SecureBaseComponent.#INJECTION_PATTERNS) {
       if (pattern.test(value)) {
         this.#activeThreatFields.add(fieldName);
-        this.audit('threat_detected', {
+        this.#audit('threat_detected', {
           fieldName,
           patternId: id,
           threatType: 'injection',
@@ -455,7 +556,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
     // Without this, a form blocked on injection stays blocked even after the user
     // removes the offending input.
     if (this.#activeThreatFields.delete(fieldName)) {
-      this.audit('threat_cleared', { fieldName });
+      this.#audit('threat_cleared', { fieldName });
       this.dispatchEvent(new CustomEvent<ThreatClearedDetail>('secure-threat-cleared', {
         detail: {
           fieldName,
@@ -480,11 +581,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
     return SecureBaseComponent.#THREAT_LABELS[patternId] ?? `Injection blocked: ${patternId}`;
   }
 
-  protected rerender(): void {
-    this.#render();
-  }
-
-  protected recordTelemetryFocus(): void {
+  #recordTelemetryFocus(): void {
     const t = this.#telemetryState;
     t.focusAt = Date.now();
     t.blurAt = null;
@@ -496,7 +593,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
     t.lastInputLength = el ? el.value.length : 0;
   }
 
-  protected recordTelemetryInput(event: Event): void {
+  #recordTelemetryInput(event: Event): void {
     const t = this.#telemetryState;
     const now = Date.now();
 
@@ -533,7 +630,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
     if (el) t.lastInputLength = el.value.length;
   }
 
-  protected recordTelemetryBlur(): void {
+  #recordTelemetryBlur(): void {
     const t = this.#telemetryState;
     t.blurAt = Date.now();
 
@@ -550,7 +647,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
    * Call once per element during event listener setup. Works alongside the
    * `insertReplacementText` (Chrome) and empty-inputType (Firefox) paths in
    * recordTelemetryInput to give full cross-browser coverage. */
-  protected setupAutofillDetection(el: HTMLInputElement | HTMLTextAreaElement): void {
+  #setupAutofillDetection(el: HTMLInputElement | HTMLTextAreaElement): void {
     el.addEventListener('animationstart', (e: Event) => {
       if ((e as AnimationEvent).animationName === 'secure-autofill-detect') {
         this.#telemetryState.autofillDetected = true;

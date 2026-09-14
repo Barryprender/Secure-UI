@@ -67,8 +67,8 @@ describe('SecurePasswordConfirm', () => {
 
     it('has a shadow root', () => {
       document.body.appendChild(el);
-      expect((el as any).root).toBeDefined();
-      expect((el as any).root).not.toBeNull();
+      expect(shadowOf(el)).toBeDefined();
+      expect(shadowOf(el)).not.toBeNull();
     });
 
     it('is always CRITICAL tier', () => {
@@ -91,22 +91,22 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('renders two password inputs', () => {
-      const inputs = (el as any).root!.querySelectorAll('input[type="password"]');
+      const inputs = shadowOf(el)!.querySelectorAll('input[type="password"]');
       expect(inputs.length).toBe(2);
     });
 
     it('renders a toggle button for each password input', () => {
-      const toggles = (el as any).root!.querySelectorAll('button.toggle-btn');
+      const toggles = shadowOf(el)!.querySelectorAll('button.toggle-btn');
       expect(toggles.length).toBe(2);
     });
 
     it('uses default label "New Password" for the password field', () => {
-      const label = (el as any).root!.querySelector('[part="password-label"]');
+      const label = shadowOf(el)!.querySelector('[part="password-label"]');
       expect(label?.textContent).toBe('New Password');
     });
 
     it('uses default label "Confirm Password" for the confirm field', () => {
-      const label = (el as any).root!.querySelector('[part="confirm-label"]');
+      const label = shadowOf(el)!.querySelector('[part="confirm-label"]');
       expect(label?.textContent).toBe('Confirm Password');
     });
 
@@ -116,7 +116,7 @@ describe('SecurePasswordConfirm', () => {
       custom.setAttribute('name', 'password');
       custom.setAttribute('password-label', 'New secret');
       document.body.appendChild(custom);
-      const label = (custom as any).root!.querySelector('[part="password-label"]');
+      const label = shadowOf(custom)!.querySelector('[part="password-label"]');
       expect(label?.textContent).toBe('New secret');
       custom.remove();
     });
@@ -127,44 +127,44 @@ describe('SecurePasswordConfirm', () => {
       custom.setAttribute('name', 'password');
       custom.setAttribute('confirm-label', 'Repeat secret');
       document.body.appendChild(custom);
-      const label = (custom as any).root!.querySelector('[part="confirm-label"]');
+      const label = shadowOf(custom)!.querySelector('[part="confirm-label"]');
       expect(label?.textContent).toBe('Repeat secret');
       custom.remove();
     });
 
     it('password input has part="password-input"', () => {
-      const input = (el as any).root!.querySelector('[part="password-input"]');
+      const input = shadowOf(el)!.querySelector('[part="password-input"]');
       expect(input).not.toBeNull();
       expect((input as HTMLInputElement).type).toBe('password');
     });
 
     it('confirm input has part="confirm-input"', () => {
-      const input = (el as any).root!.querySelector('[part="confirm-input"]');
+      const input = shadowOf(el)!.querySelector('[part="confirm-input"]');
       expect(input).not.toBeNull();
       expect((input as HTMLInputElement).type).toBe('password');
     });
 
     it('both inputs have autocomplete="new-password"', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]');
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]');
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]');
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]');
       expect(passwordInput?.autocomplete).toBe('new-password');
       expect(confirmInput?.autocomplete).toBe('new-password');
     });
 
     it('renders a match indicator element', () => {
-      const indicator = (el as any).root!.querySelector('[part="match-indicator"]');
+      const indicator = shadowOf(el)!.querySelector('[part="match-indicator"]');
       expect(indicator).not.toBeNull();
     });
 
     it('renders error containers for both fields', () => {
-      const passwordError = (el as any).root!.querySelector('[part="password-error"]');
-      const confirmError = (el as any).root!.querySelector('[part="confirm-error"]');
+      const passwordError = shadowOf(el)!.querySelector('[part="password-error"]');
+      const confirmError = shadowOf(el)!.querySelector('[part="confirm-error"]');
       expect(passwordError).not.toBeNull();
       expect(confirmError).not.toBeNull();
     });
 
     it('error containers have role="alert"', () => {
-      const errors = (el as any).root!.querySelectorAll('[role="alert"]');
+      const errors = shadowOf(el)!.querySelectorAll('[role="alert"]');
       expect(errors.length).toBe(2);
     });
 
@@ -174,8 +174,8 @@ describe('SecurePasswordConfirm', () => {
       req.setAttribute('name', 'password');
       req.setAttribute('required', '');
       document.body.appendChild(req);
-      const passwordInput = (req as any).root!.querySelector<HTMLInputElement>('[part="password-input"]');
-      const confirmInput = (req as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]');
+      const passwordInput = shadowOf(req)!.querySelector<HTMLInputElement>('[part="password-input"]');
+      const confirmInput = shadowOf(req)!.querySelector<HTMLInputElement>('[part="confirm-input"]');
       expect(passwordInput?.getAttribute('aria-required')).toBe('true');
       expect(confirmInput?.getAttribute('aria-required')).toBe('true');
       req.remove();
@@ -200,38 +200,38 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('password toggle changes input type to "text" on first click', () => {
-      const toggle = (el as any).root!.querySelector<HTMLButtonElement>('[part="password-toggle"]')!;
-      const input = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const toggle = shadowOf(el)!.querySelector<HTMLButtonElement>('[part="password-toggle"]')!;
+      const input = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
       toggle.click();
       expect(input.type).toBe('text');
     });
 
     it('password toggle changes input type back to "password" on second click', () => {
-      const toggle = (el as any).root!.querySelector<HTMLButtonElement>('[part="password-toggle"]')!;
-      const input = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const toggle = shadowOf(el)!.querySelector<HTMLButtonElement>('[part="password-toggle"]')!;
+      const input = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
       toggle.click();
       toggle.click();
       expect(input.type).toBe('password');
     });
 
     it('confirm toggle changes confirm input type to "text" on first click', () => {
-      const toggle = (el as any).root!.querySelector<HTMLButtonElement>('[part="confirm-toggle"]')!;
-      const input = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const toggle = shadowOf(el)!.querySelector<HTMLButtonElement>('[part="confirm-toggle"]')!;
+      const input = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       toggle.click();
       expect(input.type).toBe('text');
     });
 
     it('confirm toggle changes confirm input back to "password" on second click', () => {
-      const toggle = (el as any).root!.querySelector<HTMLButtonElement>('[part="confirm-toggle"]')!;
-      const input = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const toggle = shadowOf(el)!.querySelector<HTMLButtonElement>('[part="confirm-toggle"]')!;
+      const input = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       toggle.click();
       toggle.click();
       expect(input.type).toBe('password');
     });
 
     it('toggling one field does not affect the other', () => {
-      const passwordToggle = (el as any).root!.querySelector<HTMLButtonElement>('[part="password-toggle"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordToggle = shadowOf(el)!.querySelector<HTMLButtonElement>('[part="password-toggle"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       passwordToggle.click();
       expect(confirmInput.type).toBe('password');
     });
@@ -245,15 +245,15 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('typing in the password field does not trigger match validation before confirm is touched', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmError = (el as any).root!.querySelector('[part="confirm-error"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmError = shadowOf(el)!.querySelector('[part="confirm-error"]')!;
 
       typeInto(passwordInput, 'Secret1!');
       expect(confirmError.classList.contains('hidden')).toBe(true);
     });
 
     it('dispatches "secure-password-confirm-change" event when typing in password field', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
       const listener = vi.fn();
       el.addEventListener('secure-password-confirm-change', listener);
       typeInto(passwordInput, 'Secret1!');
@@ -262,7 +262,7 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('"secure-password-confirm-change" event detail includes name and tier', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
       let detail: Record<string, unknown> = {};
       el.addEventListener('secure-password-confirm-change', (e) => {
         detail = (e as CustomEvent).detail as Record<string, unknown>;
@@ -273,8 +273,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('shows password strength error after blurring with a weak password', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const passwordError = (el as any).root!.querySelector('[part="password-error"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordError = shadowOf(el)!.querySelector('[part="password-error"]')!;
 
       typeInto(passwordInput, 'weak');
       blurInput(passwordInput);
@@ -283,8 +283,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('clears password strength error after blurring with a strong password', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const passwordError = (el as any).root!.querySelector('[part="password-error"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordError = shadowOf(el)!.querySelector('[part="password-error"]')!;
 
       typeInto(passwordInput, 'weak');
       blurInput(passwordInput);
@@ -296,40 +296,40 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('requires at least 8 characters', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const passwordError = (el as any).root!.querySelector('[part="password-error"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordError = shadowOf(el)!.querySelector('[part="password-error"]')!;
       typeInto(passwordInput, 'Sh0rt!');
       blurInput(passwordInput);
       expect(passwordError.textContent).toContain('8');
     });
 
     it('requires an uppercase letter', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const passwordError = (el as any).root!.querySelector('[part="password-error"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordError = shadowOf(el)!.querySelector('[part="password-error"]')!;
       typeInto(passwordInput, 'nouppercase1!');
       blurInput(passwordInput);
       expect(passwordError.textContent?.toLowerCase()).toContain('uppercase');
     });
 
     it('requires a lowercase letter', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const passwordError = (el as any).root!.querySelector('[part="password-error"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordError = shadowOf(el)!.querySelector('[part="password-error"]')!;
       typeInto(passwordInput, 'NOLOWERCASE1!');
       blurInput(passwordInput);
       expect(passwordError.textContent?.toLowerCase()).toContain('lowercase');
     });
 
     it('requires a number', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const passwordError = (el as any).root!.querySelector('[part="password-error"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordError = shadowOf(el)!.querySelector('[part="password-error"]')!;
       typeInto(passwordInput, 'NoNumbers!');
       blurInput(passwordInput);
       expect(passwordError.textContent?.toLowerCase()).toContain('number');
     });
 
     it('requires a special character', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const passwordError = (el as any).root!.querySelector('[part="password-error"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordError = shadowOf(el)!.querySelector('[part="password-error"]')!;
       typeInto(passwordInput, 'NoSpecial1');
       blurInput(passwordInput);
       expect(passwordError.textContent?.toLowerCase()).toContain('special');
@@ -344,9 +344,9 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('does not show confirm error before the confirm field is touched', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
-      const confirmError = (el as any).root!.querySelector('[part="confirm-error"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const confirmError = shadowOf(el)!.querySelector('[part="confirm-error"]')!;
 
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'Wrong');
@@ -354,9 +354,9 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('shows mismatch error after confirm is blurred with a different value', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
-      const confirmError = (el as any).root!.querySelector('[part="confirm-error"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const confirmError = shadowOf(el)!.querySelector('[part="confirm-error"]')!;
 
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'WrongPass1!');
@@ -367,9 +367,9 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('clears confirm error once passwords match after confirm is touched', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
-      const confirmError = (el as any).root!.querySelector('[part="confirm-error"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const confirmError = shadowOf(el)!.querySelector('[part="confirm-error"]')!;
 
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'Wrong');
@@ -381,8 +381,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('sets aria-invalid on confirm input when mismatched', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
 
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'WrongPass1!');
@@ -392,8 +392,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('removes aria-invalid from confirm input when passwords match', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
 
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'WrongPass1!');
@@ -404,9 +404,9 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('re-validates on every password keystroke once confirm is touched', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
-      const confirmError = (el as any).root!.querySelector('[part="confirm-error"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const confirmError = shadowOf(el)!.querySelector('[part="confirm-error"]')!;
 
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'StrongPass1!');
@@ -426,8 +426,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('dispatches "secure-password-match" when passwords match after confirm is touched', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       const listener = vi.fn();
       el.addEventListener('secure-password-match', listener);
 
@@ -440,8 +440,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('"secure-password-match" detail includes name and matched=true', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       let detail: Record<string, unknown> = {};
       el.addEventListener('secure-password-match', (e) => {
         detail = (e as CustomEvent).detail as Record<string, unknown>;
@@ -456,8 +456,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('dispatches "secure-password-mismatch" when passwords do not match after confirm touched', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       const listener = vi.fn();
       el.addEventListener('secure-password-mismatch', listener);
 
@@ -470,8 +470,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('"secure-password-mismatch" detail includes matched=false', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       let detail: Record<string, unknown> = {};
       el.addEventListener('secure-password-mismatch', (e) => {
         detail = (e as CustomEvent).detail as Record<string, unknown>;
@@ -485,8 +485,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('does NOT dispatch match/mismatch events before confirm is touched', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       const matchListener = vi.fn();
       const mismatchListener = vi.fn();
       el.addEventListener('secure-password-match', matchListener);
@@ -504,8 +504,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('events bubble and are composed', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       let capturedEvent: CustomEvent | null = null;
       document.body.addEventListener('secure-password-match', (e) => {
         capturedEvent = e as CustomEvent;
@@ -521,8 +521,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('raw password value does not appear in event detail', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       let matchDetail: Record<string, unknown> = {};
       el.addEventListener('secure-password-match', (e) => {
         matchDetail = (e as CustomEvent).detail as Record<string, unknown>;
@@ -549,14 +549,14 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('returns null when only the password field has a value', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
       typeInto(passwordInput, 'StrongPass1!');
       expect(el.getPasswordValue()).toBeNull();
     });
 
     it('returns null when passwords do not match', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'WrongPass2@');
       blurInput(confirmInput);
@@ -564,8 +564,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('returns the password string when both fields match', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'StrongPass1!');
       blurInput(confirmInput);
@@ -585,14 +585,14 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('is false when only password field has a value', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
       typeInto(passwordInput, 'StrongPass1!');
       expect(el.valid).toBe(false);
     });
 
     it('is false when passwords do not match', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'WrongPass2@');
       blurInput(confirmInput);
@@ -600,8 +600,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('is false when passwords match but are too short', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       typeInto(passwordInput, 'Sh0!');
       typeInto(confirmInput, 'Sh0!');
       blurInput(confirmInput);
@@ -609,8 +609,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('is false when passwords match but lack a special character', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       typeInto(passwordInput, 'NoSpecial1');
       typeInto(confirmInput, 'NoSpecial1');
       blurInput(confirmInput);
@@ -618,8 +618,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('is true when passwords match and meet all strength requirements', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'StrongPass1!');
       blurInput(confirmInput);
@@ -661,8 +661,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('hidden input value is empty when passwords do not match', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'WrongPass2@');
       blurInput(confirmInput);
@@ -672,8 +672,8 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('hidden input value is the password when passwords match', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'StrongPass1!');
       blurInput(confirmInput);
@@ -718,13 +718,13 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('increments focusCount when the password field receives focus', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
       focusInput(passwordInput);
       expect(el.getFieldTelemetry().focusCount).toBe(1);
     });
 
     it('detects paste on the password field', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
       passwordInput.value = 'StrongPass1!';
       passwordInput.dispatchEvent(new InputEvent('input', {
         bubbles: true,
@@ -735,7 +735,7 @@ describe('SecurePasswordConfirm', () => {
     });
 
     it('counts corrections on the password field', () => {
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
       passwordInput.dispatchEvent(new InputEvent('input', {
         bubbles: true,
         inputType: 'deleteContentBackward',
@@ -749,8 +749,8 @@ describe('SecurePasswordConfirm', () => {
   describe('Cleanup on disconnect', () => {
     it('clears password values from memory on disconnect', () => {
       document.body.appendChild(el);
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
 
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'StrongPass1!');
@@ -763,8 +763,8 @@ describe('SecurePasswordConfirm', () => {
 
     it('clears the hidden input value on disconnect', () => {
       document.body.appendChild(el);
-      const passwordInput = (el as any).root!.querySelector<HTMLInputElement>('[part="password-input"]')!;
-      const confirmInput = (el as any).root!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
+      const passwordInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="password-input"]')!;
+      const confirmInput = shadowOf(el)!.querySelector<HTMLInputElement>('[part="confirm-input"]')!;
 
       typeInto(passwordInput, 'StrongPass1!');
       typeInto(confirmInput, 'StrongPass1!');
@@ -782,6 +782,7 @@ describe('SecurePasswordConfirm', () => {
 // ── Injection detection integration ──────────────────────────────────────────
 
 import type { ThreatDetectedDetail } from '../../src/core/types.js';
+import { shadowOf } from '../helpers/internals.js';
 
 describe('SecurePasswordConfirm — injection detection', () => {
   function mount(): SecurePasswordConfirm {
@@ -793,7 +794,7 @@ describe('SecurePasswordConfirm — injection detection', () => {
   }
 
   function typeIntoShadow(el: SecurePasswordConfirm, selector: string, value: string): void {
-    const input = (el as any).root?.querySelector<HTMLInputElement>(selector);
+    const input = shadowOf(el)?.querySelector<HTMLInputElement>(selector);
     if (input) {
       input.value = value;
       input.dispatchEvent(new Event('input', { bubbles: true }));

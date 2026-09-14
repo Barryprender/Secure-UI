@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SecureSubmitButton } from '../../src/components/secure-submit-button/secure-submit-button.js';
 import { SecureInput } from '../../src/components/secure-input/secure-input.js';
 import { SecureForm } from '../../src/components/secure-form/secure-form.js';
+import { shadowOf, internals } from '../helpers/internals.js';
 
 // Register components if not already defined
 if (!customElements.get('secure-submit-button')) {
@@ -53,8 +54,8 @@ describe('SecureSubmitButton', () => {
     it('should have shadow DOM', () => {
       document.body.appendChild(button);
 
-      expect((button as any).root).toBeDefined();
-      expect((button as any).root).not.toBeNull();
+      expect(shadowOf(button)).toBeDefined();
+      expect(shadowOf(button)).not.toBeNull();
     });
 
     it('should default to CRITICAL security tier', () => {
@@ -73,7 +74,7 @@ describe('SecureSubmitButton', () => {
     it('should render a button element inside shadow DOM', () => {
       document.body.appendChild(button);
 
-      const shadowButton = (button as any).root?.querySelector('button');
+      const shadowButton = shadowOf(button)?.querySelector('button');
       expect(shadowButton).not.toBeNull();
       expect(shadowButton?.type).toBe('button');
     });
@@ -81,7 +82,7 @@ describe('SecureSubmitButton', () => {
     it('should render with default label "Submit"', () => {
       document.body.appendChild(button);
 
-      const shadowContent = (button as any).root?.innerHTML || '';
+      const shadowContent = shadowOf(button)?.innerHTML || '';
       expect(shadowContent).toContain('Submit');
     });
 
@@ -89,14 +90,14 @@ describe('SecureSubmitButton', () => {
       button.setAttribute('label', 'Save Changes');
       document.body.appendChild(button);
 
-      const shadowContent = (button as any).root?.innerHTML || '';
+      const shadowContent = shadowOf(button)?.innerHTML || '';
       expect(shadowContent).toContain('Save Changes');
     });
 
     it('should have loading indicator hidden by default', () => {
       document.body.appendChild(button);
 
-      const loading = (button as any).root?.querySelector('.btn-loading');
+      const loading = shadowOf(button)?.querySelector('.btn-loading');
       expect(loading).not.toBeNull();
       expect(loading?.classList.contains('hidden')).toBe(true);
     });
@@ -104,7 +105,7 @@ describe('SecureSubmitButton', () => {
     it('should have label visible by default', () => {
       document.body.appendChild(button);
 
-      const label = (button as any).root?.querySelector('.btn-label');
+      const label = shadowOf(button)?.querySelector('.btn-label');
       expect(label).not.toBeNull();
       expect(label?.classList.contains('hidden')).toBe(false);
     });
@@ -162,7 +163,7 @@ describe('SecureSubmitButton', () => {
       document.body.appendChild(button);
       await flushMicrotasks();
 
-      const innerBtn = (button as any).root?.querySelector('button');
+      const innerBtn = shadowOf(button)?.querySelector('button');
       expect(innerBtn?.getAttribute('aria-disabled')).toBe('true');
     });
   });
@@ -281,7 +282,7 @@ describe('SecureSubmitButton', () => {
 
       button.setAttribute('label', 'Updated Label');
 
-      const labelEl = (button as any).root?.querySelector('.btn-label');
+      const labelEl = shadowOf(button)?.querySelector('.btn-label');
       expect(labelEl?.textContent).toBe('Updated Label');
     });
 
@@ -289,7 +290,7 @@ describe('SecureSubmitButton', () => {
       button.setAttribute('label', '<script>alert("xss")</script>');
       document.body.appendChild(button);
 
-      const labelEl = (button as any).root?.querySelector('.btn-label');
+      const labelEl = shadowOf(button)?.querySelector('.btn-label');
       // textContent assignment prevents script execution — no child elements created.
       const scriptEl = labelEl?.querySelector('script');
       expect(scriptEl).toBeNull();
@@ -298,7 +299,7 @@ describe('SecureSubmitButton', () => {
     it('should have default loading label "Submitting..."', () => {
       document.body.appendChild(button);
 
-      const loadingEl = (button as any).root?.querySelector('.btn-loading');
+      const loadingEl = shadowOf(button)?.querySelector('.btn-loading');
       expect(loadingEl?.textContent).toContain('Submitting...');
     });
 
@@ -306,7 +307,7 @@ describe('SecureSubmitButton', () => {
       button.setAttribute('loading-label', 'Please wait...');
       document.body.appendChild(button);
 
-      const loadingEl = (button as any).root?.querySelector('.btn-loading');
+      const loadingEl = shadowOf(button)?.querySelector('.btn-loading');
       expect(loadingEl?.textContent).toContain('Please wait...');
     });
 
@@ -315,7 +316,7 @@ describe('SecureSubmitButton', () => {
 
       button.setAttribute('loading-label', 'Saving...');
 
-      const loadingEl = (button as any).root?.querySelector('.btn-loading');
+      const loadingEl = shadowOf(button)?.querySelector('.btn-loading');
       expect(loadingEl?.textContent).toContain('Saving...');
     });
   });
@@ -332,7 +333,7 @@ describe('SecureSubmitButton', () => {
       const auditSpy = vi.fn();
       button.addEventListener('secure-audit', auditSpy);
 
-      const innerBtn = (button as any).root?.querySelector('button');
+      const innerBtn = shadowOf(button)?.querySelector('button');
       innerBtn?.click();
 
       // The audit for 'submit_button_clicked' should NOT fire
@@ -365,9 +366,9 @@ describe('SecureSubmitButton', () => {
       await flushMicrotasks();
 
       // Clear audit log to isolate click entries
-      (button as unknown as { clearAuditLog(): void }).clearAuditLog();
+      internals(button).clearAuditLog();
 
-      const innerBtn = (button as any).root?.querySelector('button');
+      const innerBtn = shadowOf(button)?.querySelector('button');
 
       // Only proceed if button became enabled
       if (!innerBtn?.disabled) {
@@ -393,9 +394,9 @@ describe('SecureSubmitButton', () => {
       await flushMicrotasks();
 
       expect(button.disabled).toBe(false);
-      (button as unknown as { clearAuditLog(): void }).clearAuditLog();
+      internals(button).clearAuditLog();
 
-      const innerBtn = (button as any).root?.querySelector('button');
+      const innerBtn = shadowOf(button)?.querySelector('button');
       innerBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
       await flushMicrotasks();
 
@@ -418,7 +419,7 @@ describe('SecureSubmitButton', () => {
 
       expect(button.disabled).toBe(false);
 
-      const innerBtn = (button as any).root?.querySelector('button');
+      const innerBtn = shadowOf(button)?.querySelector('button');
       expect(innerBtn).not.toBeNull();
       expect(() => {
         for (let i = 0; i < 10; i++) {
@@ -488,21 +489,21 @@ describe('SecureSubmitButton', () => {
     it('should have aria-disabled on the button', () => {
       document.body.appendChild(button);
 
-      const innerBtn = (button as any).root?.querySelector('button');
+      const innerBtn = shadowOf(button)?.querySelector('button');
       expect(innerBtn?.hasAttribute('aria-disabled')).toBe(true);
     });
 
     it('should have aria-hidden on loading indicator', () => {
       document.body.appendChild(button);
 
-      const loading = (button as any).root?.querySelector('.btn-loading');
+      const loading = shadowOf(button)?.querySelector('.btn-loading');
       expect(loading?.getAttribute('aria-hidden')).toBe('true');
     });
 
     it('should use type="button" (not submit) for shadow DOM compatibility', () => {
       document.body.appendChild(button);
 
-      const innerBtn = (button as any).root?.querySelector('button');
+      const innerBtn = shadowOf(button)?.querySelector('button');
       expect(innerBtn?.type).toBe('button');
     });
   });
@@ -519,7 +520,7 @@ describe('SecureSubmitButton', () => {
     it('should update label when label attribute changes', () => {
       button.setAttribute('label', 'New Label');
 
-      const labelEl = (button as any).root?.querySelector('.btn-label');
+      const labelEl = shadowOf(button)?.querySelector('.btn-label');
       expect(labelEl?.textContent).toBe('New Label');
     });
 
@@ -528,14 +529,14 @@ describe('SecureSubmitButton', () => {
       button.removeAttribute('label');
 
       // The handleAttributeChange receives null for newValue, defaults to 'Submit'
-      const labelEl = (button as any).root?.querySelector('.btn-label');
+      const labelEl = shadowOf(button)?.querySelector('.btn-label');
       expect(labelEl?.textContent).toBe('Submit');
     });
 
     it('should update loading label when loading-label attribute changes', () => {
       button.setAttribute('loading-label', 'Working...');
 
-      const loadingEl = (button as any).root?.querySelector('.btn-loading');
+      const loadingEl = shadowOf(button)?.querySelector('.btn-loading');
       expect(loadingEl?.textContent).toContain('Working...');
     });
 
@@ -598,10 +599,12 @@ describe('SecureSubmitButton', () => {
       expect(Array.isArray(button.getAuditLog())).toBe(true);
     });
 
-    it('clearAuditLog is protected (not on the public surface)', () => {
-      // clearAuditLog is protected to prevent external code from erasing audit evidence.
-      expect((button as unknown as Record<string, unknown>)['clearAuditLog']).toBeTypeOf('function');
-      (button as unknown as { clearAuditLog(): void }).clearAuditLog();
+    it('clearAuditLog is NOT reachable from the public surface', () => {
+      // `protected` is erased at compile time, so this used to ship as a public
+      // prototype method — any page script could erase the audit evidence.
+      // It now lives only on the module-scoped internals surface.
+      expect((button as unknown as Record<string, unknown>)['clearAuditLog']).toBeUndefined();
+      internals(button).clearAuditLog();
       expect(button.getAuditLog().length).toBe(0);
     });
   });
@@ -615,28 +618,28 @@ describe('SecureSubmitButton', () => {
       document.body.appendChild(button);
 
       // Project uses <link rel="stylesheet"> for CSP compliance, not adoptedStyleSheets
-      const links = (button as any).root?.querySelectorAll('link[rel="stylesheet"]');
+      const links = shadowOf(button)?.querySelectorAll('link[rel="stylesheet"]');
       expect(links?.length).toBeGreaterThan(0);
     });
 
     it('should have submit-container class in shadow DOM', () => {
       document.body.appendChild(button);
 
-      const container = (button as any).root?.querySelector('.submit-container');
+      const container = shadowOf(button)?.querySelector('.submit-container');
       expect(container).not.toBeNull();
     });
 
     it('should have submit-btn class on button', () => {
       document.body.appendChild(button);
 
-      const btn = (button as any).root?.querySelector('.submit-btn');
+      const btn = shadowOf(button)?.querySelector('.submit-btn');
       expect(btn).not.toBeNull();
     });
 
     it('should have spinner element in loading indicator', () => {
       document.body.appendChild(button);
 
-      const spinner = (button as any).root?.querySelector('.spinner');
+      const spinner = shadowOf(button)?.querySelector('.spinner');
       expect(spinner).not.toBeNull();
     });
   });
@@ -700,7 +703,7 @@ describe('SecureSubmitButton', () => {
       button.setAttribute('loading-label', '<img src=x onerror=alert(1)>');
       document.body.appendChild(button);
 
-      const loadingEl = (button as any).root?.querySelector('.btn-loading');
+      const loadingEl = shadowOf(button)?.querySelector('.btn-loading');
       // textContent assignment prevents HTML parsing — no <img> element created.
       const imgEl = loadingEl?.querySelector('img');
       expect(imgEl).toBeNull();
@@ -711,7 +714,7 @@ describe('SecureSubmitButton', () => {
       document.body.appendChild(button);
 
       // Falls back to 'Submit' because sanitizeValue('') || 'Submit'
-      const labelEl = (button as any).root?.querySelector('.btn-label');
+      const labelEl = shadowOf(button)?.querySelector('.btn-label');
       expect(labelEl?.textContent).toBe('Submit');
     });
   });
@@ -749,7 +752,7 @@ describe('SecureSubmitButton', () => {
       document.body.appendChild(form);
       await flushMicrotasks();
 
-      const innerBtn = (btn as any).root?.querySelector('button') as HTMLButtonElement;
+      const innerBtn = shadowOf(btn)?.querySelector('button') as HTMLButtonElement;
       // Click sets loading state
       innerBtn.click();
       expect(innerBtn.disabled).toBe(true);
@@ -771,7 +774,7 @@ describe('SecureSubmitButton', () => {
       document.body.appendChild(form);
       await flushMicrotasks();
 
-      const innerBtn = (btn as any).root?.querySelector('button');
+      const innerBtn = shadowOf(btn)?.querySelector('button');
       expect(innerBtn?.disabled).toBe(false);
 
       // Spy on form.submit to verify it's called via isSecureFormLike path
@@ -792,7 +795,7 @@ describe('SecureSubmitButton', () => {
       document.body.appendChild(form);
       await flushMicrotasks();
 
-      const innerBtn = (btn as any).root?.querySelector('button');
+      const innerBtn = shadowOf(btn)?.querySelector('button');
       // First click sets #isSubmitting=true via #setLoading(true)
       innerBtn?.click();
       // #isSubmitting is now true; dispatch a field event to trigger #evaluateValidity
@@ -812,14 +815,14 @@ describe('SecureSubmitButton', () => {
 
       // Exhaust the rate limit counter via the protected method before clicking,
       // so the very next click hits the rate-limit-exceeded branch.
-      const rateCheck = (btn as unknown as { checkRateLimit(): { allowed: boolean } }).checkRateLimit.bind(btn);
+      const rateCheck = () => internals(btn).checkRateLimit();
       for (let i = 0; i < 10; i++) rateCheck(); // 10 calls = maxAttempts for sensitive
 
       // Force the button enabled so #handleClick is reached
-      const innerEl = (btn as any).root?.querySelector('button') as HTMLButtonElement | null;
+      const innerEl = shadowOf(btn)?.querySelector('button') as HTMLButtonElement | null;
       if (innerEl) innerEl.disabled = false;
 
-      const auditSpy = vi.spyOn(btn, 'audit');
+      const auditSpy = vi.spyOn(internals(btn), 'audit');
       innerEl?.click(); // rate limit exceeded → audit 'submit_button_rate_limited'
 
       const rateLimitEntry = auditSpy.mock.calls.find(

@@ -7,6 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SecureSelect } from '../../src/components/secure-select/secure-select.js';
+import { shadowOf } from '../helpers/internals.js';
 
 // Register the component if not already defined
 if (!customElements.get('secure-select')) {
@@ -35,8 +36,8 @@ describe('SecureSelect', () => {
     it('should have shadow DOM', () => {
       document.body.appendChild(select);
 
-      expect((select as any).root).toBeDefined();
-      expect((select as any).root).not.toBeNull();
+      expect(shadowOf(select)).toBeDefined();
+      expect(shadowOf(select)).not.toBeNull();
     });
 
     it('should default to CRITICAL security tier', () => {
@@ -56,7 +57,7 @@ describe('SecureSelect', () => {
       select.setAttribute('label', 'Choose an option');
       document.body.appendChild(select);
 
-      const shadowContent = (select as any).root?.innerHTML || '';
+      const shadowContent = shadowOf(select)?.innerHTML || '';
       expect(shadowContent).toContain('Choose an option');
     });
   });
@@ -82,7 +83,7 @@ describe('SecureSelect', () => {
       select.addOption('opt1', 'Option 1');
       select.addOption('opt2', 'Option 2');
 
-      const shadowContent = (select as any).root?.innerHTML || '';
+      const shadowContent = shadowOf(select)?.innerHTML || '';
       expect(shadowContent).toContain('Option 1');
       expect(shadowContent).toContain('Option 2');
     });
@@ -92,7 +93,7 @@ describe('SecureSelect', () => {
       select.addOption('opt2', 'Option 2');
       select.removeOption('opt1');
 
-      const shadowContent = (select as any).root?.innerHTML || '';
+      const shadowContent = shadowOf(select)?.innerHTML || '';
       expect(shadowContent).not.toContain('Option 1');
       expect(shadowContent).toContain('Option 2');
     });
@@ -102,7 +103,7 @@ describe('SecureSelect', () => {
       select.addOption('opt2', 'Option 2');
       select.clearOptions();
 
-      const internalSelect = (select as any).root?.querySelector('select');
+      const internalSelect = shadowOf(select)?.querySelector('select');
       if (internalSelect) {
         // Should have no options (or just a placeholder)
         expect(internalSelect.options.length).toBeLessThanOrEqual(1);
@@ -159,7 +160,7 @@ describe('SecureSelect', () => {
     it('should sanitize option text', () => {
       select.addOption('xss', '<script>alert("xss")</script>');
 
-      const shadowContent = (select as any).root?.innerHTML || '';
+      const shadowContent = shadowOf(select)?.innerHTML || '';
       expect(shadowContent).not.toContain('<script>');
     });
 
@@ -168,7 +169,7 @@ describe('SecureSelect', () => {
       // content cannot execute regardless of what string is stored there.
       select.addOption('<script>alert(1)</script>', 'Malicious');
 
-      const internalSelect = (select as any).root?.querySelector('select');
+      const internalSelect = shadowOf(select)?.querySelector('select');
       if (internalSelect && internalSelect.options.length > 0) {
         // No <script> child element should be created in the select.
         const scriptEl = internalSelect.querySelector('script');
@@ -271,7 +272,7 @@ describe('SecureSelect', () => {
       const eventHandler = vi.fn();
       select.addEventListener('secure-select-change', eventHandler);
 
-      const internalSelect = (select as any).root?.querySelector('select');
+      const internalSelect = shadowOf(select)?.querySelector('select');
       expect(internalSelect).not.toBeNull();
       internalSelect!.value = 'opt1';
       internalSelect!.dispatchEvent(new Event('change', { bubbles: true }));
@@ -287,7 +288,7 @@ describe('SecureSelect', () => {
       select.setAttribute('security-tier', 'critical');
       document.body.appendChild(select);
 
-      const internalSelect = (select as any).root?.querySelector('select');
+      const internalSelect = shadowOf(select)?.querySelector('select');
       if (internalSelect) {
         expect(internalSelect.autocomplete).toBe('off');
       }
@@ -297,7 +298,7 @@ describe('SecureSelect', () => {
       select.setAttribute('security-tier', 'sensitive');
       document.body.appendChild(select);
 
-      const internalSelect = (select as any).root?.querySelector('select');
+      const internalSelect = shadowOf(select)?.querySelector('select');
       if (internalSelect) {
         expect(internalSelect.autocomplete).toBe('off');
       }
@@ -342,7 +343,7 @@ describe('SecureSelect', () => {
     });
 
     it('should support multiple attribute', () => {
-      const internalSelect = (select as any).root?.querySelector('select');
+      const internalSelect = shadowOf(select)?.querySelector('select');
       if (internalSelect) {
         expect(internalSelect.multiple).toBe(true);
       }
@@ -364,7 +365,7 @@ describe('SecureSelect', () => {
       // Wait for microtask to complete (options are transferred asynchronously)
       await new Promise(resolve => queueMicrotask(resolve));
 
-      const shadowContent = (select as any).root?.innerHTML || '';
+      const shadowContent = shadowOf(select)?.innerHTML || '';
       // Options should be transferred to shadow DOM
       expect(shadowContent).toContain('Light DOM Option');
     });
@@ -396,7 +397,7 @@ describe('SecureSelect', () => {
       // Wait for microtask to complete (options are transferred asynchronously)
       await new Promise(resolve => queueMicrotask(resolve));
 
-      const internalSelect = (select as any).root?.querySelector('select') as HTMLSelectElement;
+      const internalSelect = shadowOf(select)?.querySelector('select') as HTMLSelectElement;
       expect(internalSelect).toBeDefined();
       expect(internalSelect.value).toBe('private');
 
@@ -411,7 +412,7 @@ describe('SecureSelect', () => {
       select.setAttribute('disabled', '');
       document.body.appendChild(select);
 
-      const internalSelect = (select as any).root?.querySelector('select');
+      const internalSelect = shadowOf(select)?.querySelector('select');
       if (internalSelect) {
         expect(internalSelect.disabled).toBe(true);
       }
@@ -438,7 +439,7 @@ describe('SecureSelect', () => {
     it('should handle unicode in option text', () => {
       select.addOption('unicode', 'Option 世界 🌍');
 
-      const shadowContent = (select as any).root?.innerHTML || '';
+      const shadowContent = shadowOf(select)?.innerHTML || '';
       expect(shadowContent).toContain('世界');
     });
 

@@ -22,6 +22,7 @@ import { SecureFileUpload } from '../../src/components/secure-file-upload/secure
 import { SecureDatetime } from '../../src/components/secure-datetime/secure-datetime.js';
 import { SecureTable } from '../../src/components/secure-table/secure-table.js';
 import { SecureSubmitButton } from '../../src/components/secure-submit-button/secure-submit-button.js';
+import { shadowOf } from '../helpers/internals.js';
 
 // Register all components
 const components: [string, CustomElementConstructor][] = [
@@ -329,7 +330,7 @@ describe('Accessibility — positive ARIA assertions', () => {
     container.appendChild(el);
     await new Promise(r => setTimeout(r, 50));
 
-    const internalInput = (el as any).root?.querySelector('input');
+    const internalInput = shadowOf(el)?.querySelector('input');
     expect(internalInput?.getAttribute('aria-required')).toBe('true');
   });
 
@@ -341,12 +342,12 @@ describe('Accessibility — positive ARIA assertions', () => {
     container.appendChild(el);
     await new Promise(r => setTimeout(r, 50));
 
-    const internalInput = (el as any).root?.querySelector('input');
+    const internalInput = shadowOf(el)?.querySelector('input');
     const describedBy = internalInput?.getAttribute('aria-describedby');
     expect(describedBy).toBeTruthy();
 
     // The referenced element must exist in the shadow DOM
-    const errorEl = (el as any).root?.getElementById(describedBy!);
+    const errorEl = shadowOf(el)?.getElementById(describedBy!);
     expect(errorEl).not.toBeNull();
   });
 
@@ -358,8 +359,8 @@ describe('Accessibility — positive ARIA assertions', () => {
     container.appendChild(el);
     await new Promise(r => setTimeout(r, 50));
 
-    const label = (el as any).root?.querySelector('label');
-    const internalInput = (el as any).root?.querySelector('input');
+    const label = shadowOf(el)?.querySelector('label');
+    const internalInput = shadowOf(el)?.querySelector('input');
     expect(label).not.toBeNull();
     expect(internalInput).not.toBeNull();
     // label.htmlFor must match input.id
@@ -375,7 +376,7 @@ describe('Accessibility — positive ARIA assertions', () => {
     container.appendChild(el);
     await new Promise(r => setTimeout(r, 50));
 
-    const internalInput = (el as any).root?.querySelector('input');
+    const internalInput = shadowOf(el)?.querySelector('input');
     // aria-invalid must be absent (or false) before the user has interacted
     const ariaInvalid = internalInput?.getAttribute('aria-invalid');
     expect(ariaInvalid === null || ariaInvalid === 'false').toBe(true);
@@ -390,7 +391,7 @@ describe('Accessibility — positive ARIA assertions', () => {
     container.appendChild(el);
     await new Promise(r => setTimeout(r, 50));
 
-    const internalTextarea = (el as any).root?.querySelector('textarea');
+    const internalTextarea = shadowOf(el)?.querySelector('textarea');
     expect(internalTextarea?.getAttribute('aria-required')).toBe('true');
   });
 
@@ -402,9 +403,9 @@ describe('Accessibility — positive ARIA assertions', () => {
     container.appendChild(el);
     await new Promise(r => setTimeout(r, 50));
 
-    const internalInput = (el as any).root?.querySelector('input');
+    const internalInput = shadowOf(el)?.querySelector('input');
     // Either a <label> exists or aria-label is set — input must not be unlabelled
-    const hasLabel = !!(el as any).root?.querySelector('label');
+    const hasLabel = !!shadowOf(el)?.querySelector('label');
     const hasAriaLabel = !!internalInput?.getAttribute('aria-label');
     expect(hasLabel || hasAriaLabel).toBe(true);
   });
