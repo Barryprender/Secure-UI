@@ -7,6 +7,42 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.4.2] — 2026-06-05
+
+### Security
+
+- **`SecureTable` nested-wrapper XSS bypass closed** — `#sanitizeDomNode` now walks with a live cursor and re-sanitizes the children of an unwrapped element. Payloads hidden inside a stripped wrapper (for example `<p><img onerror=...></p>`) previously survived the pass.
+- **`SecureFileUpload` magic-number validation for all tiers** — `#validateFileContent` was only applied at `CRITICAL`. File content signatures are now checked at every security tier.
+- **`sanitizeValue()` alignment in `SecureForm`** — `SecureForm` used a `div.innerHTML` round-trip, which double-encoded values already sanitized by the field. It now mirrors the base implementation: strip control characters, return plain text.
+- **Strict CSP and HSTS in `server.js`** — Ships `default-src`/`script-src`/`style-src 'self'` with no `unsafe-inline`, plus HSTS, COOP and `Permissions-Policy`. `examples/index.html` is now CSP-clean: styles moved to `examples/styles.css`, scripts to `examples/demo.js`, remote fonts removed.
+
+### Fixed
+
+- **Injection block is lifted when a field is cleared** — A field that previously matched an injection pattern now emits `secure-threat-cleared` (`ThreatClearedDetail`) once its value is clean. `SecureForm` consumes the event to release the submission block. Without it, a single flagged keystroke blocked the form permanently. The base class tracks flagged fields and only fires on the flagged → clean transition.
+- **`SecureForm` collects `secure-card` hidden fields** — `#collectFormData()` explicitly queries `secure-card input[type="hidden"]` (last-4, expiry, holder). These are `type="hidden"`, so the standard input query skipped them. PAN and CVC still have no hidden input.
+- **`./base-component` no longer exported from the built package** — `build/css-inliner.js` generated a `dist/package.json` exports entry for the base class, contradicting the documented invariant that `SecureBaseComponent` is not public.
+
+### Maintenance
+
+- `npm audit fix` applied to resolve dev-dependency advisories. The published package has no runtime dependencies.
+
+---
+
+## [0.4.1] — 2026-05-26
+
+### Documentation
+
+- **`SECURITY.md`** — Supported version updated to `0.4.x`. CSRF blocking documented explicitly as a client-side control that requires a server-side counterpart.
+- **`docs/ARCHITECTURE.md`** — `SecureBaseComponent` marked as not exported. Subclassing examples replaced with the supported composition pattern (wrap a `<secure-input>` in your own custom element).
+
+### Maintenance
+
+- CI: `actions/checkout` v4 → v6, `actions/setup-node` v4 → v6, Node 20 → 22 (Node 20 reached end of life).
+- CI: `actions/upload-pages-artifact` v3 → v5, `actions/deploy-pages` v4 → v5.
+- `size-limit` configuration reverted after an invalid `esm` option was tried.
+
+---
+
 ## [0.4.0] — 2026-05-26
 
 ### Breaking Changes
@@ -47,7 +83,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased] — 0.3.x
+## [0.3.x] — 2026-04-16
 
 ### Added
 
