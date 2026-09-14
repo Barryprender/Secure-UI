@@ -40,6 +40,21 @@ const COMPONENTS_WITHOUT_CSS = new Set(['secure-telemetry-provider']);
 
 const distExists = fs.existsSync(DIST);
 
+// A skip is acceptable locally (run `npm run build` first) but never in CI.
+//
+// CI used to run the tests BEFORE the build, so dist/ did not exist and every
+// assertion in this file turned into it.skip — the suite reported green having
+// executed none of them. That silently disabled the CSP check on the bundle and
+// the assertions that SecureBaseComponent stays out of the published exports.
+// The workflow order is fixed; this makes the failure mode impossible to
+// reintroduce quietly.
+if (!distExists && process.env['CI']) {
+  throw new Error(
+    'dist/ is missing in CI: the build-artifact assertions would silently skip. ' +
+    'Run `npm run build` before `npm run test:coverage`.'
+  );
+}
+
 // ─── Bundle file ──────────────────────────────────────────────────────────────
 
 describe('dist/secure-ui.bundle.js', () => {
@@ -218,6 +233,39 @@ describe('dist/package.json — exports map', () => {
       ([key, value]) => key.includes('base-component') || JSON.stringify(value).includes('base-component')
     );
     expect(leaked).toEqual([]);
+  });
+});
+
+// ─── The ROOT manifest is what npm actually publishes ─────────────────────────
+//
+// The assertions above cover dist/package.json, which exists to mark dist/ as
+// ESM. Module resolution for a consumer uses the ROOT package.json — so guarding
+// only the nested one left the file that matters unchecked.
+
+describe('root package.json — the published manifest', () => {
+  let rootPkg: Record<string, unknown>;
+
+  beforeAll(() => {
+    rootPkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8')) as Record<string, unknown>;
+  });
+
+  it('does not export ./base-component', () => {
+    expect((rootPkg.exports as Record<string, unknown>)?.['./base-component']).toBeUndefined();
+  });
+
+  it('exposes no exports map entry referencing base-component', () => {
+    const entries = Object.entries(rootPkg.exports as Record<string, unknown>);
+    const leaked = entries.filter(
+      ([key, value]) => key.includes('base-component') || JSON.stringify(value).includes('base-component')
+    );
+    expect(leaked).toEqual([]);
+  });
+
+  it('still exports every component', () => {
+    const exportsMap = rootPkg.exports as Record<string, unknown>;
+    for (const name of COMPONENTS) {
+      expect(exportsMap[`./${name}`]).toBeDefined();
+    }
   });
 });
 

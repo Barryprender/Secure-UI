@@ -68,7 +68,14 @@ const inlineCssPlugin = {
           .replace(/`/g, '\\`')
           .replace(/\$\{/g, '\\${');
 
-        source = source.replaceAll(full, `\`${escaped}\``);
+        // Replacement passed as a function: String.prototype.replaceAll
+        // interprets $$, $&, $`, $' and $n in a replacement STRING. CSS is not
+        // escaped for those, so a `$'` anywhere in a stylesheet spliced the whole
+        // remainder of the TypeScript source into the generated template literal
+        // — which contains backticks, so the literal terminated early and the
+        // rest was parsed as executable JS in the shipped bundle. A function
+        // replacement never interprets `$`.
+        source = source.replaceAll(full, () => `\`${escaped}\``);
       }
 
       return { contents: source, loader: 'ts' };

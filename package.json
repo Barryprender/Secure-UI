@@ -66,7 +66,9 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "SECURITY.md",
+    "sbom.json"
   ],
   "scripts": {
     "clean": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\"",
@@ -89,10 +91,12 @@
     "test:build": "vitest run --config vitest.build.config.ts",
     "size": "size-limit",
     "audit:check": "npm audit --audit-level=high",
+    "sbom": "cyclonedx-npm --omit dev --output-format JSON --output-file sbom.json",
+    "sbom:check": "node build/sbom-check.js",
     "test:e2e": "npm run build:ts && npx playwright test",
     "test:e2e:headed": "npm run build:ts && npx playwright test --headed",
     "test:e2e:ui": "npx playwright test --ui",
-    "prepublishOnly": "npm run lint && npm run typecheck && npm run test && npm run build && npm run test:build"
+    "prepublishOnly": "npm run lint && npm run typecheck && npm run audit:check && npm run sbom:check && npm run test && npm run build && npm run test:build"
   },
   "keywords": [
     "web-components",
@@ -119,6 +123,7 @@
   },
   "homepage": "https://github.com/Barryprender/Secure-UI#readme",
   "devDependencies": {
+    "@cyclonedx/cyclonedx-npm": "6.0.1",
     "@playwright/test": "^1.58.2",
     "@size-limit/preset-small-lib": "^12.0.1",
     "@vitest/coverage-v8": "^4.1.11",

@@ -31,6 +31,11 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
 
+      # SBOM freshness — a stale SBOM describes a dependency tree that no longer
+      # exists, so this fails rather than warns.
+      - name: SBOM check
+        run: npm run sbom:check
+
       # Type check
       - name: Type check
         run: npm run typecheck
@@ -39,14 +44,26 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # Tests with coverage
+      # Build BEFORE the tests.
+      #
+      # The build-artifact suite (tests/build/) skips itself when dist/ is
+      # missing. With the build running after the tests, dist/ did not exist yet,
+      # so every one of those checks became it.skip and CI reported green while
+      # executing zero of them — including the CSP assertion that the bundle
+      # contains no <link> stylesheet, and the assertions that
+      # SecureBaseComponent is absent from the published exports.
+      - name: Build distributable
+        run: npm run build
+
+      # Tests with coverage (dist/ now exists, so the build-artifact suite runs)
       - name: Test with coverage
         run: npm run test:coverage
 
-      # Build distributable
-      - run: npm run build
+      # Build-artifact assertions, run explicitly so a skip cannot hide here either
+      - name: Build artifact checks
+        run: npm run test:build
 
-      # Bundle size check (runs after build so dist/ exists)
+      # Bundle size check
       - name: Bundle size check
         run: npm run size
 
