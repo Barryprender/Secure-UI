@@ -1,6 +1,10 @@
 
 import { SecureBaseComponent, internals } from '../../core/base-component.js';
-import { getTierConfig } from '../../core/security-config.js';
+import {
+  getTierConfig,
+  SECURE_FIELD_CHANGE_EVENTS,
+  SECURE_FIELD_SELECTOR
+} from '../../core/security-config.js';
 import type { SecurityTierValue, TierConfig } from '../../core/types.js';
 
 // Structural interface for the parent <secure-form> element.
@@ -147,10 +151,12 @@ export class SecureSubmitButton extends SecureBaseComponent {
     const target = this.#parentForm || this.parentElement;
     if (!target) return;
 
-    target.addEventListener('secure-input-change', this.#boundHandleFieldChange);
-    target.addEventListener('secure-textarea-change', this.#boundHandleFieldChange);
-    target.addEventListener('secure-select-change', this.#boundHandleFieldChange);
-    target.addEventListener('secure-datetime-change', this.#boundHandleFieldChange);
+    // Every secure field's change event, from the shared registry — a field
+    // whose event is missed here leaves the button holding a stale verdict and
+    // never re-enables, however valid the form becomes.
+    for (const changeEvent of SECURE_FIELD_CHANGE_EVENTS) {
+      target.addEventListener(changeEvent, this.#boundHandleFieldChange);
+    }
     // Reset loading state when the form reports successful submission.
     target.addEventListener('secure-form-success', this.#boundHandleFormSuccess);
   }
@@ -189,9 +195,7 @@ export class SecureSubmitButton extends SecureBaseComponent {
     const container = this.#parentForm || this.parentElement;
     if (!container) return false;
 
-    const fields = container.querySelectorAll(
-      'secure-input, secure-textarea, secure-select, secure-datetime, secure-file-upload'
-    );
+    const fields = container.querySelectorAll(SECURE_FIELD_SELECTOR);
 
     for (const field of fields) {
       const typedField = field as unknown as { valid: boolean };
@@ -306,10 +310,9 @@ export class SecureSubmitButton extends SecureBaseComponent {
     this.#setLoading(false);
     const target = this.#parentForm || this.parentElement;
     if (target) {
-      target.removeEventListener('secure-input-change', this.#boundHandleFieldChange);
-      target.removeEventListener('secure-textarea-change', this.#boundHandleFieldChange);
-      target.removeEventListener('secure-select-change', this.#boundHandleFieldChange);
-      target.removeEventListener('secure-datetime-change', this.#boundHandleFieldChange);
+      for (const changeEvent of SECURE_FIELD_CHANGE_EVENTS) {
+        target.removeEventListener(changeEvent, this.#boundHandleFieldChange);
+      }
       target.removeEventListener('secure-form-success', this.#boundHandleFormSuccess);
     }
   }

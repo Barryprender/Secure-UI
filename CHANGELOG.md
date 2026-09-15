@@ -7,6 +7,56 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.5.1] — 2026-09-15
+
+Bug-fix release. A completed `<secure-card>`, file upload or password pair left
+the submit button disabled. Reported from the React demo: a valid card was
+entered and "Pay securely" stayed grey.
+
+### Fixed
+
+- **`<secure-submit-button>` now hears every field.** It subscribed to a
+  hand-written list of four change events — input, textarea, select, datetime —
+  and queried a hand-written list of five field tags. `<secure-form>` kept its
+  own, longer list. 0.5.0 added `secure-card` and `secure-password-confirm` to
+  the form's copy and missed the button's, so the button never learned that a
+  completed card, file or password pair had made the form valid. It kept the
+  verdict from the last event it did hear. A card filled in **last** left "Pay"
+  disabled for ever; touching any ordinary text field afterwards enabled it,
+  which is what made the bug look intermittent. A form whose only field was a
+  `<secure-file-upload>` had nothing else to touch and could never be submitted
+  at all.
+- **`<secure-password-confirm>` announces changes from the confirm box.** It
+  dispatched `secure-password-confirm-change` only from the password box, never
+  from the confirm box — so the single keystroke that makes the two match, and
+  the component valid, emitted nothing. Found by the regression test for the
+  fix above: the button fix alone did not make a password form submittable.
+  `blur` on the confirm box now emits it too. The detail is unchanged and still
+  carries no value.
+
+### Changed
+
+- **One registry replaces the duplicated lists.** `SECURE_FIELD_COMPONENTS` in
+  `src/core/security-config.ts` pairs each field tag with the change event it
+  emits, and derives `SECURE_FIELD_SELECTOR` and `SECURE_FIELD_CHANGE_EVENTS`
+  from it. `<secure-form>` and `<secure-submit-button>` both read it; neither
+  holds a private copy. Duplicated lists are the root cause here and were the
+  root cause of two 0.5.0 findings — the same two tags were missing from
+  `<secure-form>`'s validation and collection selectors. Adding a field
+  component now means adding one line, in one place.
+
+### Tests
+
+- 1295 tests across 31 files (was 1288 across 30).
+- New: `tests/components/secure-submit-button-field-coverage.test.ts`. Each test
+  drives the real failing sequence — complete the unheard field **last**, with
+  no later keystroke in a heard field to mask the bug — with a control proving
+  the button still refuses an incomplete card or a mismatched password pair.
+  One test asserts the button subscribes to every event in the registry, so a
+  new field component cannot be added without wiring its event.
+
+---
+
 ## [0.5.0] — 2026-09-14
 
 Security release. A full audit of the package found that three of the four

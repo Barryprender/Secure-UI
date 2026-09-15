@@ -241,3 +241,42 @@ export const SECURITY_HEADERS: Readonly<SecurityHeaders> = Object.freeze({
   'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
 });
 
+
+/**
+ * The field components a <secure-form> validates and collects, paired with the
+ * change event each one emits.
+ *
+ * These two lists are defined together, and nothing may hold a private copy of
+ * either. Before 0.5.1 <secure-form> and <secure-submit-button> each carried
+ * their own selector: 0.5.0 added secure-card and secure-password-confirm to
+ * the form's copy and missed the button's, so <secure-submit-button> never
+ * learned that a completed card or a matched password pair made the form valid.
+ * A card filled in last left "Pay" disabled for ever, and a form whose only
+ * field was a <secure-file-upload> could never be submitted at all.
+ *
+ * Adding a field component means adding it here, in one place, with its event.
+ */
+export const SECURE_FIELD_COMPONENTS: readonly Readonly<{
+  tag: string;
+  changeEvent: string;
+}>[] = Object.freeze([
+  Object.freeze({ tag: 'secure-input', changeEvent: 'secure-input-change' }),
+  Object.freeze({ tag: 'secure-textarea', changeEvent: 'secure-textarea-change' }),
+  Object.freeze({ tag: 'secure-select', changeEvent: 'secure-select-change' }),
+  Object.freeze({ tag: 'secure-datetime', changeEvent: 'secure-datetime-change' }),
+  Object.freeze({ tag: 'secure-file-upload', changeEvent: 'secure-file-change' }),
+  Object.freeze({ tag: 'secure-card', changeEvent: 'secure-card-change' }),
+  Object.freeze({
+    tag: 'secure-password-confirm',
+    changeEvent: 'secure-password-confirm-change'
+  })
+]);
+
+/** CSS selector matching every secure field component. */
+export const SECURE_FIELD_SELECTOR: string =
+  SECURE_FIELD_COMPONENTS.map(f => f.tag).join(', ');
+
+/** Every change event a secure field component emits. */
+export const SECURE_FIELD_CHANGE_EVENTS: readonly string[] = Object.freeze(
+  SECURE_FIELD_COMPONENTS.map(f => f.changeEvent)
+);

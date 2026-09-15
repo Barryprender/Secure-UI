@@ -194,11 +194,7 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
       if (this.#confirmTouched) {
         this.#checkMatch();
       }
-      this.dispatchEvent(new CustomEvent<SecurePasswordConfirmChangeDetail>('secure-password-confirm-change', {
-        detail: { name: this.getAttribute('name') ?? '', tier: this.securityTier },
-        bubbles: true,
-        composed: true,
-      }));
+      this.#dispatchChange();
     });
 
     this.#passwordInput!.addEventListener('blur', () => {
@@ -214,12 +210,18 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
       if (this.#confirmTouched) {
         this.#checkMatch();
       }
+      // The confirm box used to emit nothing. Matching the two boxes is what
+      // makes this component valid, so the one keystroke that completes the
+      // pair announced nothing: <secure-submit-button> never re-checked, and a
+      // registration form whose password was filled last kept a dead button.
+      this.#dispatchChange();
     });
 
     this.#confirmInput!.addEventListener('blur', () => {
       this.#confirmTouched = true;
       this.#confirmValue = this.#confirmInput!.value;
       this.#checkMatch();
+      this.#dispatchChange();
     });
   }
 
@@ -295,6 +297,18 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
     if (!/[0-9]/.test(value))       return 'Password must include a number';
     if (!/[^a-zA-Z0-9]/.test(value)) return 'Password must include a special character';
     return null;
+  }
+
+  /**
+   * Announce a value change. Carries no value: both boxes are CRITICAL tier and
+   * this event bubbles and composes, so any page script can hear it.
+   */
+  #dispatchChange(): void {
+    this.dispatchEvent(new CustomEvent<SecurePasswordConfirmChangeDetail>('secure-password-confirm-change', {
+      detail: { name: this.getAttribute('name') ?? '', tier: this.securityTier },
+      bubbles: true,
+      composed: true,
+    }));
   }
 
   #checkMatch(): void {

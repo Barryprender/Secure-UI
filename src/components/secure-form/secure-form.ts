@@ -1,5 +1,10 @@
 
-import { SecurityTier, TIER_CONFIG, isValidTier } from '../../core/security-config.js';
+import {
+  SecurityTier,
+  TIER_CONFIG,
+  isValidTier,
+  SECURE_FIELD_SELECTOR
+} from '../../core/security-config.js';
 import type {
   SecurityTierValue,
   AuditLogEntry,
@@ -20,14 +25,10 @@ export class SecureForm extends HTMLElement {
    * Every secure field tag. Used for validation, telemetry aggregation and for
    * deciding whether a threat event came from a field this form owns.
    *
-   * secure-password-confirm and secure-card were previously absent from the
-   * validation and telemetry queries, so the form's advertised guarantee —
-   * "submission is blocked unless every secure field is valid" — did not hold
-   * for the two components carrying the highest-value data.
+   * Sourced from the shared registry in security-config, never re-typed here:
+   * a local copy is what let this list and <secure-submit-button>'s diverge.
    */
-  static readonly #SECURE_FIELD_SELECTOR =
-    'secure-input, secure-textarea, secure-select, secure-datetime, ' +
-    'secure-file-upload, secure-card, secure-password-confirm';
+  static readonly #SECURE_FIELD_SELECTOR = SECURE_FIELD_SELECTOR;
 
   /**
    * Fields whose value may be mirrored into a light-DOM hidden input for native
