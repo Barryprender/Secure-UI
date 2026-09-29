@@ -850,3 +850,23 @@ describe('SecurePasswordConfirm — injection detection', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 });
+
+describe('SecurePasswordConfirm — group label', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('renders the label attribute as sanitised text', () => {
+    const el = document.createElement('secure-password-confirm');
+    el.setAttribute('label', 'Choose <b>password</b>');
+    document.body.appendChild(el);
+    const label = shadowOf(el).querySelector('.group-label')!;
+    expect(label.textContent).toBe('Choose <b>password</b>');
+    expect(label.children.length).toBe(0);
+  });
+
+  it('never writes a hidden input, even outside <secure-form>', () => {
+    const el = document.createElement('secure-password-confirm');
+    el.setAttribute('name', 'pw');
+    document.body.appendChild(el);
+    expect(el.querySelector('input[type="hidden"]')).toBeNull();
+  });
+});

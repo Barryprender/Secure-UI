@@ -16,7 +16,6 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
   #passwordVisible: boolean = false;
   #confirmVisible: boolean = false;
 
-  #hiddenInput: HTMLInputElement | null = null;
   #instanceId: string = `secure-password-confirm-${Math.random().toString(36).substring(2, 11)}`;
 
   // This component is locked to CRITICAL tier unconditionally.
@@ -108,7 +107,7 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
     this.#attachPasswordListeners();
     this.#attachConfirmListeners();
     this.#attachToggleListeners();
-    this.#createHiddenInput();
+    this.#warnNoHiddenInput();
 
     internals(this).addComponentStyles(new URL('./secure-password-confirm.css', import.meta.url).href);
 
@@ -313,7 +312,6 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
 
   #checkMatch(): void {
     const matched = this.#passwordValue.length > 0 && this.#passwordValue === this.#confirmValue;
-    this.#syncHiddenInput(matched);
     this.#updateMatchIndicator(matched);
 
     if (matched) {
@@ -364,32 +362,18 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
 
   // ── Form participation ────────────────────────────────────────────────────
 
-  #createHiddenInput(): void {
+  /**
+   * No hidden input, ever: the password must never be mirrored into the light
+   * DOM, where document.querySelector('input[type=hidden]') reads it in
+   * cleartext. Native submission for a password goes through <secure-form>.
+   */
+  #warnNoHiddenInput(): void {
     const name = this.getAttribute('name');
     if (!name || this.closest('secure-form')) return;
-
-    // This component is locked to CRITICAL, so the guard always refuses: the
-    // password must never be mirrored into the light DOM, where
-    // document.querySelector('input[type=hidden]') reads it in cleartext.
-    // Native submission for a password goes through <secure-form>.
-    if (!this.mayExposeValueToLightDom(true)) {
-      console.warn(
-        `secure-password-confirm[name="${name}"]: the password is not written to a ` +
-        `hidden input. Wrap the component in <secure-form> for form submission.`
-      );
-      return;
-    }
-
-    this.#hiddenInput = document.createElement('input');
-    this.#hiddenInput.type = 'hidden';
-    this.#hiddenInput.name = name;
-    this.#hiddenInput.value = '';
-    this.appendChild(this.#hiddenInput);
-  }
-
-  #syncHiddenInput(matched: boolean): void {
-    if (!this.#hiddenInput) return;
-    this.#hiddenInput.value = matched ? this.#passwordValue : '';
+    console.warn(
+      `secure-password-confirm[name="${name}"]: the password is not written to a ` +
+      `hidden input. Wrap the component in <secure-form> for form submission.`
+    );
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
@@ -418,11 +402,6 @@ export class SecurePasswordConfirm extends SecureBaseComponent {
     this.#confirmValue = '';
     if (this.#passwordInput) this.#passwordInput.value = '';
     if (this.#confirmInput) this.#confirmInput.value = '';
-    if (this.#hiddenInput) {
-      this.#hiddenInput.value = '';
-      this.#hiddenInput.remove();
-      this.#hiddenInput = null;
-    }
   }
 }
 

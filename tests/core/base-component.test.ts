@@ -858,3 +858,54 @@ describe('SecureBaseComponent', () => {
     });
   });
 });
+
+describe('SecureBaseComponent — uncovered paths', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('internals() throws for an element that is not a secure component', () => {
+    expect(() => internals(document.createElement('div') as unknown as SecureBaseComponent)).toThrow(TypeError);
+  });
+
+  it('neutralises a server-rendered fallback input on upgrade', () => {
+    const el = document.createElement('test-component');
+    el.innerHTML = '<input name="email" required minlength="3" maxlength="9" pattern="x+"><input type="hidden" name="keep">';
+    document.body.appendChild(el);
+
+    const fallback = el.querySelector('input:not([type="hidden"])')!;
+    for (const attr of ['name', 'required', 'minlength', 'maxlength', 'pattern']) {
+      expect(fallback.hasAttribute(attr)).toBe(false);
+    }
+    expect(fallback.getAttribute('tabindex')).toBe('-1');
+    expect(fallback.getAttribute('aria-hidden')).toBe('true');
+    expect(el.querySelector('input[type="hidden"]')!.getAttribute('name')).toBe('keep');
+  });
+
+  it.each([[20, '17-32'], [50, '33-64'], [100, '65+']])(
+    'buckets a %i-char value length as %s in validation_failed',
+    (length, bucket) => {
+      const el = document.createElement('test-component') as TestComponent;
+      document.body.appendChild(el);
+      const seen: unknown[] = [];
+      el.addEventListener('secure-audit', (e) => seen.push((e as CustomEvent).detail.data));
+      el.testValidateInput('a'.repeat(length), { minLength: 200 });
+      expect(seen).toContainEqual(expect.objectContaining({ lengthBucket: bucket }));
+    }
+  );
+
+  it('keeps the tier lock on reconnect', () => {
+    const el = document.createElement('test-component') as TestComponent;
+    el.setAttribute('security-tier', 'public');
+    document.body.appendChild(el);
+    el.remove();
+    document.body.appendChild(el);
+    expect(el.securityTier).toBe(SecurityTier.PUBLIC);
+  });
+
+  it('adopts inlined CSS text (bundle mode) as a constructed stylesheet', () => {
+    const el = document.createElement('test-component') as TestComponent;
+    document.body.appendChild(el);
+    const before = shadowOf(el).adoptedStyleSheets.length;
+    internals(el).addComponentStyles(':host{display:block}');
+    expect(shadowOf(el).adoptedStyleSheets.length).toBe(before + 1);
+  });
+});

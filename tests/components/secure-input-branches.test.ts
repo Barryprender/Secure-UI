@@ -806,3 +806,40 @@ describe('SecureInput — clearThreatFeedback transitionend callback (lines 692�
     expect(threatContainer.textContent).toBe('');
   });
 });
+
+describe('SecureInput — paste and change listeners', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  function mount(): SecureInput {
+    const si = document.createElement('secure-input') as SecureInput;
+    si.setAttribute('security-tier', 'critical');
+    si.setAttribute('type', 'text');
+    si.setAttribute('name', 'secret');
+    document.body.appendChild(si);
+    return si;
+  }
+
+  it('uses clipboard text captured on paste for a masked field', () => {
+    const si = mount();
+    const el = getInternalInput(si);
+    const paste = new Event('paste', { bubbles: true });
+    Object.defineProperty(paste, 'clipboardData', { value: { getData: () => 'hunter2' } });
+    el.dispatchEvent(paste);
+
+    el.value = '•••••••';
+    el.setSelectionRange(7, 7);
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste', data: null }));
+
+    expect(si.value).toBe('hunter2');
+  });
+
+  it('audits a change event with the value length only', () => {
+    const si = mount();
+    si.value = 'abcd';
+    const seen: { event: string; data?: Record<string, unknown> }[] = [];
+    si.addEventListener('secure-audit', (e) => seen.push((e as CustomEvent).detail));
+    getInternalInput(si).dispatchEvent(new Event('change'));
+    const entry = seen.find((d) => d.event === 'input_changed');
+    expect(entry?.data).toEqual({ name: 'secret', valueLength: 4 });
+  });
+});
