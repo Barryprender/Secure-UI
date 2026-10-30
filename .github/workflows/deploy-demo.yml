@@ -39,8 +39,11 @@ jobs:
           mkdir -p _site/dist
           cp -r dist/* _site/dist/
 
-          # Rewrite examples/index.html to use relative paths
-          sed 's|/latest/|./dist/|g' examples/index.html > _site/index.html
+          # The page also loads these from /examples/ — copy them into the site root
+          cp examples/styles.css examples/demo.js _site/
+
+          # Rewrite index.html: /latest/ -> ./dist/ and /examples/ -> ./ (site root)
+          sed -e 's|/latest/|./dist/|g' -e 's|/examples/|./|g' examples/index.html > _site/index.html
 
       - uses: actions/upload-pages-artifact@v5
         with:
