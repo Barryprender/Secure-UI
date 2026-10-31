@@ -24,7 +24,7 @@ export class SecureTable extends SecureBaseComponent {
     return null;
   }
 
-  // The table drives its own innerHTML-based rendering for dynamic
+  // The table drives its own DOM-node rendering for dynamic
   // sort/filter/pagination updates, so the base render pass is skipped. Security
   // initialisation still runs in the base connectedCallback — previously this
   // component called a public initializeSecurity() instead, which left
@@ -96,13 +96,14 @@ export class SecureTable extends SecureBaseComponent {
               return;
             }
 
-            // Store both text content and HTML if needed
-            if (td.innerHTML.trim().includes('<')) {
+            // Store both text content and markup if present. `.children.length`
+            // detects element markup without reading innerHTML. The markup string
+            // is captured once here for the `_html` pass-through convention; a
+            // getter read never throws under Trusted Types (only assignment does).
+            row[dataKey] = td.textContent?.trim() ?? '';
+            if (td.children.length > 0) {
               // Cell contains HTML (like forms, badges, etc.)
-              row[dataKey] = td.textContent?.trim() ?? '';
               row[`${dataKey}_html`] = td.innerHTML.trim();
-            } else {
-              row[dataKey] = td.textContent?.trim() ?? '';
             }
           }
         });
@@ -121,7 +122,10 @@ export class SecureTable extends SecureBaseComponent {
     return (value: unknown, row: Record<string, unknown>, columnKey: string): string => {
       const htmlKey = `${columnKey}_html`;
       const raw = Object.hasOwn(row, htmlKey) ? row[htmlKey] as string : null;
-      return raw ? this.#sanitizeHtml(raw) : this.#sanitize(value);
+      // Return an HTML string per the public `render` contract. The cell builder
+      // runs every render output through #sanitizeHtmlToFragment, so raw markup is
+      // cleaned there; the non-markup branch is escaped so stray `<` stays text.
+      return raw ?? this.#sanitize(value);
     };
   }
 
@@ -288,11 +292,17 @@ export class SecureTable extends SecureBaseComponent {
    * and javascript:/data: URIs are always stripped.
    * @private
    */
-  #sanitizeHtml(html: string): string {
-    if (!html) return '';
+  #sanitizeHtmlToFragment(html: string): DocumentFragment {
+    const fragment = document.createDocumentFragment();
+    if (!html) return fragment;
+    // DOMParser does NOT execute scripts and is NOT a Trusted Types sink — the
+    // parsed document is inert and nothing is assigned to an HTML sink. We walk
+    // and strip the result, then move the surviving nodes into a fragment the
+    // caller appends with DOM APIs. No innerHTML assignment anywhere.
     const doc = new DOMParser().parseFromString(`<!DOCTYPE html><body>${html}`, 'text/html');
     this.#sanitizeDomNode(doc.body);
-    return doc.body.innerHTML;
+    while (doc.body.firstChild) fragment.appendChild(doc.body.firstChild);
+    return fragment;
   }
 
   #sanitizeDomNode(node: Node): void {
@@ -346,132 +356,185 @@ export class SecureTable extends SecureBaseComponent {
     }
   }
 
+  // Returns raw (unescaped) display text. The caller sets it via textContent,
+  // which escapes for the DOM — escaping here too would double-encode.
   #maskValue(value: unknown, tier: string | undefined): string {
     if (value === null || value === undefined || value === '') return '-';
 
     const strValue = String(value);
 
     if (tier === SecurityTier.SENSITIVE && strValue.length > 4) {
-      // The visible tail must be escaped: this return value is interpolated raw
-      // into `<td>${...}</td>` and written via innerHTML. Every other branch in
-      // this method escapes; this one did not.
-      return '\u2022'.repeat(strValue.length - 4) + this.#sanitize(strValue.slice(-4));
+      return '•'.repeat(strValue.length - 4) + strValue.slice(-4);
     }
 
     if (tier === SecurityTier.CRITICAL) {
-      return '\u2022'.repeat(strValue.length);
+      return '•'.repeat(strValue.length);
     }
 
-    return this.#sanitize(strValue);
+    return strValue;
   }
 
-  #renderCell(value: unknown, row: Record<string, unknown>, column: TableColumnDefinition): string {
+  // Fills a <td> with the cell's content using DOM APIs only — no HTML strings.
+  #buildCell(td: HTMLElement, value: unknown, row: Record<string, unknown>, column: TableColumnDefinition): void {
     // ⚠ SECURITY: masking wins over HTML pass-through, and is decided first.
     //
     // The HTML branch used to run before masking, and #parseSlottedTable creates
-    // `${key}_html` for EVERY cell whose innerHTML contains a `<`. So a CRITICAL
-    // or SENSITIVE column rendered its value in full whenever the server had
-    // wrapped it in any markup at all — even a <span> or a stray <br>. A column
-    // declared `data-tier="critical"` showed a complete SSN after upgrade.
+    // `${key}_html` for EVERY cell that contains markup. So a CRITICAL or
+    // SENSITIVE column rendered its value in full whenever the server had wrapped
+    // it in any markup at all — even a <span> or a stray <br>. A column declared
+    // `data-tier="critical"` showed a complete SSN after upgrade.
     if (column.tier === SecurityTier.SENSITIVE || column.tier === SecurityTier.CRITICAL) {
-      return this.#maskValue(value, column.tier);
+      td.textContent = this.#maskValue(value, column.tier);
+      return;
     }
 
     if (typeof column.render === 'function') {
-      return this.#sanitizeHtml(column.render(value, row, column.key));
+      td.appendChild(this.#sanitizeHtmlToFragment(column.render(value, row, column.key)));
+      return;
     }
 
     const htmlKey = `${column.key}_html`;
     if (Object.hasOwn(row, htmlKey) && row[htmlKey]) {
-      return this.#sanitizeHtml(row[htmlKey] as string);
+      td.appendChild(this.#sanitizeHtmlToFragment(row[htmlKey] as string));
+      return;
     }
 
-    return this.#maskValue(value, column.tier);
+    td.textContent = this.#maskValue(value, column.tier);
   }
 
-  #renderTableContent(): { tableHtml: string; paginationHtml: string } {
+  // Build the table body and pagination as DOM nodes. Returns null pagination
+  // when a single page (or empty) — the caller clears the pagination container.
+  #buildTableContent(): { content: Node; pagination: Node | null } {
     const totalPages = Math.ceil(this.#filteredData.length / this.#pagination.pageSize);
     const startIndex = (this.#pagination.currentPage - 1) * this.#pagination.pageSize;
     const endIndex = startIndex + this.#pagination.pageSize;
     const pageData = this.#filteredData.slice(startIndex, endIndex);
 
-    let tableHtml: string;
-    let paginationHtml: string;
-
     if (pageData.length === 0 || this.#columns.length === 0) {
-      const emptyHeading = this.#columns.length === 0 ? 'No columns configured' : 'No results found';
-      const emptyBody = this.#columns.length === 0 ? 'Set the columns property to configure the table' : 'Try adjusting your search term';
-      tableHtml = `
-        <div class="empty-state">
-          <div class="empty-state-icon" aria-hidden="true">\uD83D\uDD0D</div>
-          <h3>${this.#sanitize(emptyHeading)}</h3>
-          <p>${this.#sanitize(emptyBody)}</p>
-        </div>`;
-      paginationHtml = '';
-    } else {
-      tableHtml = `
-        <div class="table-wrapper">
-          <table class="data-table">
-            <thead>
-              <tr>
-                ${this.#columns.map(col => {
-                const isSorted = this.#sortConfig.column === col.key;
-                const sortArrow = isSorted ? (this.#sortConfig.direction === 'asc' ? '\u25B2' : '\u25BC') : '\u25B2';
-                const ariaSortAttr = col.sortable !== false
-                  ? `aria-sort="${isSorted ? (this.#sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}"`
-                  : '';
-                return `
-                  <th
-                    class="${col.sortable !== false ? 'sortable' : ''} ${isSorted ? 'sorted' : ''}"
-                    data-column="${this.#sanitize(col.key)}"
-                    ${ariaSortAttr}
-                  >
-                    ${this.#sanitize(col.label)}
-                    ${col.sortable !== false ? `<span class="sort-indicator" aria-hidden="true">${sortArrow}</span>` : ''}
-                    ${col.tier ? `<span class="security-badge" aria-hidden="true">${this.#sanitize(col.tier)}</span>` : ''}
-                  </th>`;
-              }).join('')}
-              </tr>
-            </thead>
-            <tbody>
-              ${pageData.map(row => `
-                <tr>
-                  ${this.#columns.map(col => `
-                    <td>${this.#renderCell(row[col.key], row, col)}</td>
-                  `).join('')}
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>`;
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
 
-      paginationHtml = totalPages > 1 ? `
-        <div class="pagination">
-          <div class="pagination-info">
-            Showing ${startIndex + 1}-${Math.min(endIndex, this.#filteredData.length)} of ${this.#filteredData.length} results
-          </div>
-          <div class="pagination-controls">
-            <button class="pagination-button" id="prevBtn" ${this.#pagination.currentPage === 1 ? 'disabled' : ''}>
-              \u2190 Previous
-            </button>
-            ${this.#renderPageNumbers(totalPages)}
-            <button class="pagination-button" id="nextBtn" ${this.#pagination.currentPage === totalPages ? 'disabled' : ''}>
-              Next \u2192
-            </button>
-          </div>
-        </div>` : '';
+      const icon = document.createElement('div');
+      icon.className = 'empty-state-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = '🔍';
+
+      const heading = document.createElement('h3');
+      heading.textContent = this.#columns.length === 0 ? 'No columns configured' : 'No results found';
+
+      const body = document.createElement('p');
+      body.textContent = this.#columns.length === 0
+        ? 'Set the columns property to configure the table'
+        : 'Try adjusting your search term';
+
+      empty.append(icon, heading, body);
+      return { content: empty, pagination: null };
     }
 
-    return { tableHtml, paginationHtml };
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-wrapper';
+
+    const table = document.createElement('table');
+    table.className = 'data-table';
+
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    for (const col of this.#columns) {
+      const isSorted = this.#sortConfig.column === col.key;
+      const sortable = col.sortable !== false;
+
+      const th = document.createElement('th');
+      if (sortable) th.classList.add('sortable');
+      if (isSorted) th.classList.add('sorted');
+      th.setAttribute('data-column', col.key);
+      if (sortable) {
+        th.setAttribute('aria-sort', isSorted ? (this.#sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none');
+        // Wire the sort handler on the created element, not via a later query.
+        th.addEventListener('click', () => this.#applySort(col.key));
+      }
+
+      th.append(document.createTextNode(col.label));
+
+      if (sortable) {
+        const indicator = document.createElement('span');
+        indicator.className = 'sort-indicator';
+        indicator.setAttribute('aria-hidden', 'true');
+        indicator.textContent = isSorted ? (this.#sortConfig.direction === 'asc' ? '▲' : '▼') : '▲';
+        th.append(indicator);
+      }
+
+      if (col.tier) {
+        const badge = document.createElement('span');
+        badge.className = 'security-badge';
+        badge.setAttribute('aria-hidden', 'true');
+        badge.textContent = col.tier;
+        th.append(badge);
+      }
+
+      headRow.append(th);
+    }
+    thead.append(headRow);
+
+    const tbody = document.createElement('tbody');
+    for (const row of pageData) {
+      const tr = document.createElement('tr');
+      for (const col of this.#columns) {
+        const td = document.createElement('td');
+        this.#buildCell(td, row[col.key], row, col);
+        tr.append(td);
+      }
+      tbody.append(tr);
+    }
+
+    table.append(thead, tbody);
+    wrapper.append(table);
+
+    const pagination = totalPages > 1
+      ? this.#buildPagination(totalPages, startIndex, endIndex)
+      : null;
+
+    return { content: wrapper, pagination };
+  }
+
+  #buildPagination(totalPages: number, startIndex: number, endIndex: number): HTMLElement {
+    const pagination = document.createElement('div');
+    pagination.className = 'pagination';
+
+    const info = document.createElement('div');
+    info.className = 'pagination-info';
+    info.textContent = `Showing ${startIndex + 1}-${Math.min(endIndex, this.#filteredData.length)} of ${this.#filteredData.length} results`;
+
+    const controls = document.createElement('div');
+    controls.className = 'pagination-controls';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'pagination-button';
+    prevBtn.id = 'prevBtn';
+    prevBtn.textContent = '← Previous';
+    prevBtn.disabled = this.#pagination.currentPage === 1;
+    prevBtn.addEventListener('click', () => this.#goToPage(this.#pagination.currentPage - 1));
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'pagination-button';
+    nextBtn.id = 'nextBtn';
+    nextBtn.textContent = 'Next →';
+    nextBtn.disabled = this.#pagination.currentPage === totalPages;
+    nextBtn.addEventListener('click', () => this.#goToPage(this.#pagination.currentPage + 1));
+
+    controls.append(prevBtn);
+    for (const btn of this.#buildPageNumbers(totalPages)) controls.append(btn);
+    controls.append(nextBtn);
+
+    pagination.append(info, controls);
+    return pagination;
   }
 
   #render(): void {
     if (!internals(this).root) return;
 
-    const { tableHtml, paginationHtml } = this.#renderTableContent();
-
-    // Clear child nodes (adoptedStyleSheets survive this).
-    internals(this).root.innerHTML = '';
+    // Clear child nodes (adoptedStyleSheets survive this). replaceChildren is
+    // Trusted-Types-safe; `innerHTML = ''` throws under `trusted-types 'none'`.
+    internals(this).root.replaceChildren();
     // The #tableContent container is recreated below, so its delegated listener
     // is gone with it and must be bound again.
     this.#actionListenerAttached = false;
@@ -488,23 +551,34 @@ export class SecureTable extends SecureBaseComponent {
 
     const container = document.createElement('div');
     container.className = 'table-container';
-    container.innerHTML = `
-      <div class="table-header">
-        <input
-          type="search"
-          class="search-input"
-          placeholder="Search across all columns..."
-          value="${this.#sanitize(this.#filterTerm)}"
-          id="searchInput"
-        />
-      </div>
-      <div id="tableContent">${tableHtml}</div>
-      <div id="paginationContent">${paginationHtml}</div>
-    `;
+
+    const header = document.createElement('div');
+    header.className = 'table-header';
+
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.className = 'search-input';
+    search.placeholder = 'Search across all columns...';
+    search.value = this.#filterTerm;
+    search.id = 'searchInput';
+    // Wire the search handler on the created element, not via a later query.
+    search.addEventListener('input', (e: Event) => {
+      this.#applyFilter((e.target as HTMLInputElement).value);
+    });
+    header.append(search);
+
+    const tableContent = document.createElement('div');
+    tableContent.id = 'tableContent';
+
+    const paginationContent = document.createElement('div');
+    paginationContent.id = 'paginationContent';
+
+    container.append(header, tableContent, paginationContent);
     internals(this).root.appendChild(container);
 
-    // Attach event listeners
-    this.#attachEventListeners();
+    // Action delegation binds once to the persistent #tableContent container.
+    this.#attachActionDelegation(tableContent);
+    this.#fillTableContent(tableContent, paginationContent);
   }
 
   // Partial re-render: replaces table body and pagination without touching the search input.
@@ -519,18 +593,26 @@ export class SecureTable extends SecureBaseComponent {
       return;
     }
 
-    const { tableHtml, paginationHtml } = this.#renderTableContent();
-
-    tableContainer.innerHTML = tableHtml;
-    if (paginationContainer) {
-      paginationContainer.innerHTML = paginationHtml;
-    }
-
-    // Re-attach listeners for table and pagination (search input listener is preserved)
-    this.#attachTableEventListeners();
+    this.#fillTableContent(tableContainer, paginationContainer);
   }
 
-  #renderPageNumbers(totalPages: number): string {
+  // Populate the table and pagination containers with freshly built nodes.
+  // Table/pagination listeners are wired during node construction, so there is
+  // nothing to re-attach here. The delegated action listener lives on the
+  // persistent #tableContent container and survives replaceChildren.
+  #fillTableContent(tableContainer: Element, paginationContainer: Element | null): void {
+    const { content, pagination } = this.#buildTableContent();
+    tableContainer.replaceChildren(content);
+    if (paginationContainer) {
+      if (pagination) {
+        paginationContainer.replaceChildren(pagination);
+      } else {
+        paginationContainer.replaceChildren();
+      }
+    }
+  }
+
+  #buildPageNumbers(totalPages: number): HTMLButtonElement[] {
     const maxButtons = 5;
     let startPage = Math.max(1, this.#pagination.currentPage - Math.floor(maxButtons / 2));
     const endPage = Math.min(totalPages, startPage + maxButtons - 1);
@@ -539,107 +621,60 @@ export class SecureTable extends SecureBaseComponent {
       startPage = Math.max(1, endPage - maxButtons + 1);
     }
 
-    let buttons = '';
+    const buttons: HTMLButtonElement[] = [];
     for (let i = startPage; i <= endPage; i++) {
-      buttons += `
-        <button
-          class="pagination-button ${i === this.#pagination.currentPage ? 'active' : ''}"
-          data-page="${i}"
-        >
-          ${i}
-        </button>
-      `;
+      const btn = document.createElement('button');
+      btn.className = 'pagination-button';
+      if (i === this.#pagination.currentPage) btn.classList.add('active');
+      btn.setAttribute('data-page', String(i));
+      btn.textContent = String(i);
+      const page = i;
+      btn.addEventListener('click', () => this.#goToPage(page));
+      buttons.push(btn);
     }
     return buttons;
   }
 
-  // Only called on full render; search input listener survives partial updates.
-  #attachEventListeners(): void {
-    const searchInput = internals(this).root.getElementById('searchInput');
-    if (searchInput) {
-      searchInput.addEventListener('input', (e: Event) => {
-        this.#applyFilter((e.target as HTMLInputElement).value);
-      });
-    }
-
-    // Table and pagination listeners
-    this.#attachTableEventListeners();
-  }
-
-  #attachTableEventListeners(): void {
-    const headers = internals(this).root.querySelectorAll('th.sortable');
-    headers.forEach(th => {
-      th.addEventListener('click', () => {
-        const column = th.getAttribute('data-column');
-        if (!column) return;
-        this.#applySort(column);
-      });
-    });
-
-    const prevBtn = internals(this).root.getElementById('prevBtn');
-    const nextBtn = internals(this).root.getElementById('nextBtn');
-
-    if (prevBtn) {
-      prevBtn.addEventListener('click', () => {
-        this.#goToPage(this.#pagination.currentPage - 1);
-      });
-    }
-
-    if (nextBtn) {
-      nextBtn.addEventListener('click', () => {
-        this.#goToPage(this.#pagination.currentPage + 1);
-      });
-    }
-
-    const pageButtons = internals(this).root.querySelectorAll('.pagination-button[data-page]');
-    pageButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const page = parseInt(btn.getAttribute('data-page')!, 10);
-        this.#goToPage(page);
-      });
-    });
-
+  #attachActionDelegation(tableContent: Element): void {
     // Action button delegation — dispatches 'table-action' CustomEvent on the host
     // element when any [data-action] element inside the table is clicked.
     // This allows page-level scripts to handle action buttons without needing
     // access to the closed shadow DOM.
-    // Attach exactly once. #updateTableContent() replaces only the inner HTML,
+    // Attach exactly once. #fillTableContent() replaces only the inner nodes,
     // so this container survives every sort, filter keystroke and page change —
-    // and each call added another distinct closure. Eight search keystrokes then
-    // one "delete" click fired nine secure-table-action events: nine real
+    // and each call used to add another distinct closure. Eight search keystrokes
+    // then one "delete" click fired nine secure-table-action events: nine real
     // deletions from one user click, and nine audit entries for one action.
-    const tableContent = internals(this).root.getElementById('tableContent');
-    if (tableContent && !this.#actionListenerAttached) {
-      this.#actionListenerAttached = true;
-      tableContent.addEventListener('click', (e: Event) => {
-        const target = (e.target as HTMLElement).closest('[data-action]');
-        if (!target) return;
+    if (this.#actionListenerAttached) return;
+    this.#actionListenerAttached = true;
+    tableContent.addEventListener('click', (e: Event) => {
+      const target = (e.target as HTMLElement).closest('[data-action]');
+      if (!target) return;
 
-        const action = target.getAttribute('data-action');
-        // Collect all data-* attributes from the action element
-        const detail = Object.create(null) as Record<string, string>;
-        detail['action'] = action!;
-        for (const attr of Array.from(target.attributes)) {
-          if (attr.name.startsWith('data-') && attr.name !== 'data-action') {
-            // Convert data-user-id to userId style key
-            const key = attr.name.slice(5).replace(/-([a-z])/g, (_match: string, c: string) => c.toUpperCase());
-            // Guard against prototype pollution via data-__proto__ style attributes
-            if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
-              continue;
-            }
-            detail[key] = attr.value;
+      const action = target.getAttribute('data-action');
+      // Collect all data-* attributes from the action element
+      const detail = Object.create(null) as Record<string, string>;
+      detail['action'] = action!;
+      for (const attr of Array.from(target.attributes)) {
+        if (attr.name.startsWith('data-') && attr.name !== 'data-action') {
+          // Convert data-user-id to userId style key
+          const key = attr.name.slice(5).replace(/-([a-z])/g, (_match: string, c: string) => c.toUpperCase());
+          // Guard against prototype pollution via data-__proto__ style attributes
+          if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+            continue;
           }
+          detail[key] = attr.value;
         }
+      }
 
-        this.dispatchEvent(new CustomEvent('secure-table-action', {
-          bubbles: true,
-          composed: true,
-          detail
-        }));
+      this.dispatchEvent(new CustomEvent('secure-table-action', {
+        bubbles: true,
+        composed: true,
+        detail
+      }));
 
-        internals(this).audit('table_action', detail);
-      });
-    }
+      internals(this).audit('table_action', detail);
+    });
   }
 }
 

@@ -7,6 +7,36 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.5.2] — 2026-10-31
+
+Compatibility release. Components rendered blank under a strict Content-Security-Policy
+that enforces Trusted Types.
+
+### Fixed
+
+- **Components work under `require-trusted-types-for 'script'; trusted-types 'none'`.**
+  Every render path assigned to an HTML sink (`innerHTML`), which throws under
+  that CSP — including `innerHTML = ''`. On the previous release every component
+  rendered 0px tall with `This document requires 'TrustedHTML' assignment.` in
+  the console. All rendering now uses DOM APIs (`createElement`, `textContent`,
+  `replaceChildren`, `append`). Sinks removed:
+  - `SecureBaseComponent.#render` — `shadowRoot.innerHTML = ''` → `replaceChildren()`
+  - `SecureSelect.clearOptions` — `select.innerHTML = ''` → `replaceChildren()`
+  - `SecureFileUpload` — two `previewContainer.innerHTML = ''` → `replaceChildren()`
+  - `SecureTable` — the table, header, rows, cells, sort buttons and pagination
+    were built as HTML strings and written via `innerHTML`; rewritten to build
+    DOM nodes and wire listeners on the created elements. Cell values go in through
+    `textContent`; the `render`/`_html` HTML pass-through is parsed with `DOMParser`
+    (inert, not a Trusted Types sink), sanitised, and appended as nodes.
+
+### Behaviour
+
+- No public API change. The `secure-table` `render` column option and the
+  `_html` cell convention still work and are sanitised exactly as before; DOM
+  structure, classes, ARIA attributes, events and masking are unchanged.
+
+---
+
 ## [0.5.1] — 2026-09-15
 
 Bug-fix release. A completed `<secure-card>`, file upload or password pair left

@@ -404,7 +404,7 @@ export class SecureSelect extends SecureBaseComponent {
   clearOptions(): void {
     if (!this.#selectElement) return;
 
-    this.#selectElement.innerHTML = '';
+    this.#selectElement.replaceChildren();
     this.#validOptions.clear();
   }
 

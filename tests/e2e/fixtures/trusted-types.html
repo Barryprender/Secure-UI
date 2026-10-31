@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trusted Types CSP fixture</title>
+  <link rel="stylesheet" href="/latest/styles/tokens.css" />
+</head>
+<body>
+  <!--
+    Mounts one of every component under a strict Trusted Types CSP. The CSP is
+    applied as an HTTP header by the spec (route interception); this document has
+    no inline script or style, so it loads cleanly under `script-src 'self'`.
+    secure-select reads its options from light-DOM <option> children.
+    secure-table is configured from trusted-types.setup.js (plain cell values,
+    including an XSS probe, plus > 1 page of rows for pagination).
+  -->
+  <secure-input id="tt-input" name="name" label="Name"></secure-input>
+
+  <secure-textarea id="tt-textarea" name="bio" label="Bio"></secure-textarea>
+
+  <secure-select id="tt-select" name="fruit" label="Fruit">
+    <option value="apple">Apple</option>
+    <option value="pear">Pear</option>
+    <option value="plum">Plum</option>
+  </secure-select>
+
+  <secure-datetime id="tt-datetime" name="when" label="When"></secure-datetime>
+
+  <secure-file-upload id="tt-file" name="doc" label="Document"></secure-file-upload>
+
+  <secure-password-confirm id="tt-password" name="pw" label="Password"></secure-password-confirm>
+
+  <secure-card id="tt-card" name="payment"></secure-card>
+
+  <secure-submit-button id="tt-submit">Submit</secure-submit-button>
+
+  <secure-table id="tt-table"></secure-table>
+
+  <!-- secure-telemetry-provider is a light-DOM wrapper; it takes its height from
+       the field it wraps. This also mounts secure-form + a nested secure-input. -->
+  <secure-telemetry-provider id="tt-telemetry">
+    <secure-form id="tt-form" action="/submit">
+      <secure-input id="tt-form-input" name="formfield" label="Form field"></secure-input>
+    </secure-form>
+  </secure-telemetry-provider>
+
+  <script type="module" src="/test-fixtures/trusted-types.setup.js"></script>
+</body>
+</html>
