@@ -1,6 +1,6 @@
 {
   "name": "secure-ui-components",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Security-first web component library with zero dependencies",
   "type": "module",
   "main": "./dist/index.js",
@@ -94,6 +94,7 @@
     "sbom": "cyclonedx-npm --omit dev --output-format JSON --output-file sbom.json",
     "sbom:check": "node build/sbom-check.js",
     "test:e2e": "npm run build:ts && npx playwright test",
+    "test:csp": "npm run build:ts && npx playwright test tests/e2e/specs/trusted-types-csp.spec.ts",
     "test:e2e:headed": "npm run build:ts && npx playwright test --headed",
     "test:e2e:ui": "npx playwright test --ui",
     "prepublishOnly": "npm run lint && npm run typecheck && npm run audit:check && npm run sbom:check && npm run test && npm run build && npm run test:build"

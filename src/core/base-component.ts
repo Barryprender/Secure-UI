@@ -315,7 +315,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
   }
 
   #render(): void {
-    this.#shadow.innerHTML = '';
+    this.#shadow.replaceChildren();
     this.#addComponentStyles(new URL('./base.css', import.meta.url).href);
 
     const content = this.render();

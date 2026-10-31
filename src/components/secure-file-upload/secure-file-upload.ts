@@ -894,7 +894,7 @@ export class SecureFileUpload extends SecureBaseComponent {
    * @private
    */
   #showPreview(files: FileList): void {
-    this.#previewContainer!.innerHTML = '';
+    this.#previewContainer!.replaceChildren();
 
     Array.from(files).forEach((file) => {
       const preview = document.createElement('div');
@@ -943,7 +943,7 @@ export class SecureFileUpload extends SecureBaseComponent {
   #removeFile(): void {
     this.#fileInput!.value = '';
     this.#selectedFiles = null;
-    this.#previewContainer!.innerHTML = '';
+    this.#previewContainer!.replaceChildren();
     this.#updateFileNameDisplay(null);
     this.#clearErrors();
 

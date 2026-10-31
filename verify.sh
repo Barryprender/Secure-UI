@@ -67,6 +67,9 @@ if [ -z "$FAST" ]; then
     check build npm run -s build
     check tests npm run -s test:coverage
     check build-artifacts npm run -s test:build
+    # Only the strict-CSP / Trusted Types browser test runs here. The rest of the
+    # Playwright suite is not wired into CI (it was not before this either).
+    check e2e-csp npm run -s test:csp
     check size npm run -s size
 fi
 

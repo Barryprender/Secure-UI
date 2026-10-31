@@ -17,6 +17,7 @@ Security-first Web Component library with built-in behavioral telemetry. Zero de
 - **Zero Dependencies** — Pure TypeScript, no runtime dependencies
 - **Progressive Enhancement** — All components render meaningful markup and work without JavaScript
 - **CSP-Safe** — Bundle mode uses `adoptedStyleSheets` (constructable stylesheets, exempt from `unsafe-inline`); ESM/dev mode uses `<link>` from `'self'`; neither requires `unsafe-inline`
+- **Trusted Types ready** — Works under a strict CSP with `require-trusted-types-for 'script'; trusted-types 'none'`. All rendering uses DOM APIs (`createElement`, `textContent`, `replaceChildren`) — no HTML-string sinks. See [Strict CSP / Trusted Types](#strict-csp--trusted-types)
 - **SSR Friendly** — Adopts server-rendered markup on upgrade; no document access in constructors
 - **Fully Customisable** — CSS Design Tokens + `::part()` API
 - **Comprehensive Testing** — 1200 tests, 84%+ branch coverage
@@ -162,6 +163,28 @@ import 'secure-ui-components/secure-input';
 import 'secure-ui-components/secure-form';
 import 'secure-ui-components/secure-telemetry-provider';
 ```
+
+### Strict CSP / Trusted Types
+
+Every component renders with DOM APIs only — no `innerHTML`, no HTML-string
+sinks — so the library runs under a host page that enforces
+[Trusted Types](https://developer.mozilla.org/en-US/docs/Web/API/Trusted_Types_API)
+and forbids creating a policy:
+
+```
+Content-Security-Policy:
+  default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;
+  connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';
+  form-action 'self'; require-trusted-types-for 'script'; trusted-types 'none'
+```
+
+`trusted-types 'none'` means no Trusted Types policy may be created — not even
+by the library — so the components never attempt one.
+
+**Serving the code under this CSP:** `script-src 'self'` only allows scripts
+from your own origin. A CDN install (`https://unpkg.com/...`) would need that CDN
+origin added to `script-src`. For strict-CSP apps, **self-host `dist/`** and
+serve it from your own origin instead.
 
 ---
 
