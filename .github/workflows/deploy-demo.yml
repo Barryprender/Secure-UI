@@ -16,7 +16,9 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: latest now maps to Ubuntu 26.04, which
+    # Playwright 1.58 cannot install browser OS deps for. 24.04 is supported.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
