@@ -3,9 +3,9 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
   "version": 1,
-  "serialNumber": "urn:uuid:c13d1fef-2fa5-49c6-a140-effa057359fb",
+  "serialNumber": "urn:uuid:ac100d33-8dd6-4f6b-bd20-58575b31f472",
   "metadata": {
-    "timestamp": "2026-11-01T14:00:31.332Z",
+    "timestamp": "2026-11-01T15:24:27.000Z",
     "tools": {
       "components": [
         {
@@ -98,8 +98,8 @@
     "component": {
       "type": "application",
       "name": "secure-ui-components",
-      "version": "0.5.3",
-      "bom-ref": "secure-ui-components@0.5.3",
+      "version": "0.5.4",
+      "bom-ref": "secure-ui-components@0.5.4",
       "author": "Barry Prendergast",
       "description": "Security-first web component library with zero dependencies",
       "licenses": [
@@ -110,7 +110,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/secure-ui-components@0.5.3?vcs_url=git%2Bhttps%3A%2F%2Fgithub.com%2FBarryprender%2FSecure-UI.git",
+      "purl": "pkg:npm/secure-ui-components@0.5.4?vcs_url=git%2Bhttps%3A%2F%2Fgithub.com%2FBarryprender%2FSecure-UI.git",
       "externalReferences": [
         {
           "url": "git+https://github.com/Barryprender/Secure-UI.git",
@@ -143,7 +143,7 @@
   "components": [],
   "dependencies": [
     {
-      "ref": "secure-ui-components@0.5.3"
+      "ref": "secure-ui-components@0.5.4"
     }
   ]
 }

@@ -41,6 +41,23 @@ that enforces Trusted Types.
 
 ---
 
+## [0.5.4] — 2026-11-01
+
+Rebuild release. 0.5.3 was published with `--ignore-scripts` after only the
+TypeScript was recompiled, so the single-file bundle (`dist/secure-ui.bundle.js`,
+the `secure-ui-components/bundle` entry) was stale: it shipped the 0.5.3 feature
+work but **not** the node-path security hardening. The per-module files
+(`import 'secure-ui-components'` and subpaths) were correct. No source change —
+this release simply ships a full, consistent build. 0.5.3 is deprecated on npm.
+
+### Fixed
+
+- **`secure-ui-components/bundle` now includes the inert-document node-path
+  sanitizer** added in 0.5.3. Bundle (and `<script>`/CDN) consumers get the same
+  `secure-table` safety as module consumers.
+
+---
+
 ## [0.5.3] — 2026-11-01
 
 Completes Trusted Types support for `secure-table` and makes sortable headers
