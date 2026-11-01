@@ -318,12 +318,22 @@ export class SecureTable extends SecureBaseComponent {
    */
   #sanitizeNodeToFragment(node: Node): DocumentFragment {
     const fragment = document.createDocumentFragment();
-    // Wrap the clone so #sanitizeDomNode can walk and (if needed) unwrap even a
-    // single disallowed top-level element, exactly as the string path does.
-    const holder = document.createElement('div');
-    holder.appendChild(node.cloneNode(true));
+    // Sanitize inside an INERT document (no browsing context): its elements never
+    // fetch resources or run event handlers, so a dangerous node — e.g. an
+    // <img onerror> cloned from server-rendered slotted markup — cannot fire while
+    // we walk it. importNode copies `node` in (leaving the caller's node untouched);
+    // the wrapper lets #sanitizeDomNode unwrap even a single disallowed top-level
+    // element. Only the cleaned survivors are imported back into the live document.
+    // This matches the string path, which parses inertly via DOMParser.
+    const inert = document.implementation.createHTMLDocument('');
+    const holder = inert.createElement('div');
+    holder.appendChild(inert.importNode(node, true));
     this.#sanitizeDomNode(holder);
-    while (holder.firstChild) fragment.appendChild(holder.firstChild);
+    while (holder.firstChild) {
+      const clean = holder.firstChild;
+      holder.removeChild(clean);
+      fragment.appendChild(document.importNode(clean, true));
+    }
     return fragment;
   }
 
