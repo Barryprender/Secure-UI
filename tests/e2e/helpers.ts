@@ -62,10 +62,24 @@ export async function exhaustRateLimit(
 ): Promise<void> {
   await page.evaluate(
     ({ sel, n }: { sel: string; n: number }) => {
-      const el = document.querySelector(sel) as any;
+      const el = document.querySelector(sel);
+      if (!el) return;
+      // checkRateLimit() is privileged (ADR-0006) and unreachable from page
+      // script, so rate limiting is observed via its public signal: the
+      // 'rate_limit_exceeded' secure-audit event (audit gate 'always',
+      // bubbles + composed). Count only hits whose composed path is this field.
+      const w = window as unknown as { __rlHits?: Record<string, number> };
+      w.__rlHits = w.__rlHits ?? {};
+      w.__rlHits[sel] = 0;
+      document.addEventListener('secure-audit', (e: Event) => {
+        const ce = e as CustomEvent<{ event?: string }>;
+        if (ce.detail?.event === 'rate_limit_exceeded' && e.composedPath().includes(el)) {
+          w.__rlHits![sel] = (w.__rlHits![sel] ?? 0) + 1;
+        }
+      });
       for (let i = 0; i < n; i++) {
-        el.focus?.();
-        el.blur?.();
+        (el as HTMLElement).focus();
+        (el as HTMLElement).blur();
       }
     },
     { sel: hostSelector, n: cycles }
@@ -74,12 +88,15 @@ export async function exhaustRateLimit(
   await page.waitForTimeout(100);
 }
 
-/** Returns true if the component's rate limit is currently exceeded. */
+/**
+ * Returns true if rate limiting fired for this field during the preceding
+ * exhaustRateLimit() call (i.e. a 'rate_limit_exceeded' audit was emitted).
+ */
 export async function isRateLimited(page: Page, hostSelector: string): Promise<boolean> {
-  return page.evaluate(
-    (sel) => (document.querySelector(sel) as any)?.checkRateLimit?.()?.allowed === false,
-    hostSelector
-  );
+  return page.evaluate((sel) => {
+    const w = window as unknown as { __rlHits?: Record<string, number> };
+    return (w.__rlHits?.[sel] ?? 0) > 0;
+  }, hostSelector);
 }
 
 /** Set a component's value via the public setter. */

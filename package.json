@@ -94,7 +94,6 @@
     "sbom": "cyclonedx-npm --omit dev --output-format JSON --output-file sbom.json",
     "sbom:check": "node build/sbom-check.js",
     "test:e2e": "npm run build:ts && npx playwright test",
-    "test:csp": "npm run build:ts && npx playwright test tests/e2e/specs/trusted-types-csp.spec.ts",
     "test:e2e:headed": "npm run build:ts && npx playwright test --headed",
     "test:e2e:ui": "npx playwright test --ui",
     "prepublishOnly": "npm run lint && npm run typecheck && npm run audit:check && npm run sbom:check && npm run test && npm run build && npm run test:build"
@@ -144,6 +143,8 @@
     "node": ">=18.0.0"
   },
   "overrides": {
-    "flatted": "^3.4.2"
+    "flatted": "^3.4.2",
+    "minimatch": "^11.0.1",
+    "glob": "^14.0.2"
   }
 }

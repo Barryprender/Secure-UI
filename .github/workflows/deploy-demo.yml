@@ -29,13 +29,12 @@ jobs:
 
       - run: npm ci
 
-      # verify.sh runs the strict-CSP / Trusted Types Playwright test; CI must
-      # have the browser before it runs.
+      # verify.sh runs the Playwright e2e suite; CI must have the browser first.
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
       # Every gate lives in ./verify.sh: the audit, the SBOM check, the type
-      # check, lint, the build, both unit suites, the strict-CSP browser test and
+      # check, lint, the build, both unit suites, the Playwright e2e suite and
       # the size check. Locally and here it is the same script, so they cannot drift.
       - name: verify.sh
         run: sh verify.sh

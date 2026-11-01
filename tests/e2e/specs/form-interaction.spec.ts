@@ -91,35 +91,29 @@ test.describe('Form Interaction', () => {
 
   // ── Submission event ──────────────────────────────────────────────────────────
 
-  test('secure-form-submit fires with correct formData on valid submission', async ({ page }) => {
-    // Set up event capture before filling fields
-    await page.evaluate(() => {
-      (window as any).__submitted = false;
-      (window as any).__formData = null;
-      document.getElementById('test-form')!.addEventListener('secure-form-submit', (e: any) => {
-        (window as any).__submitted = true;
-        (window as any).__formData = e.detail.formData;
-        e.detail.cancelSubmission();
-      }, { once: true });
-    });
-
-    // Fill all required fields via public API
+  test('valid submission POSTs the field values to the server', async ({ page }) => {
+    // formData is intentionally NOT on the secure-form-submit event detail
+    // (security: no sensitive data on a bubbling, composed event). The submitted
+    // values are verified where they actually go — the POST body. The action is
+    // mocked in beforeEach; here we also capture the request to read its body.
     await setValue(page, 'secure-input[name="username"]', 'alice');
     await setValue(page, 'secure-input[name="email"]', 'alice@example.com');
     await setValue(page, 'secure-input[name="password"]', 'S3cur3P@ss!');
 
-    // Submit via the internal <form> element (secure-form renders to light DOM, no shadow)
-    await page.evaluate(() => {
-      (document.querySelector('#test-form form') as HTMLFormElement)?.requestSubmit();
-    });
-    await page.waitForFunction(() => (window as any).__submitted === true, { timeout: 5000 });
+    const [request] = await Promise.all([
+      page.waitForRequest('**/api/test-submit'),
+      // Submit via the internal <form> element (secure-form renders to light DOM, no shadow)
+      page.evaluate(() => {
+        (document.querySelector('#test-form form') as HTMLFormElement)?.requestSubmit();
+      }),
+    ]);
 
-    const formData = await page.evaluate(
-      () => (window as any).__formData as Record<string, string>
-    );
-    expect(formData['username']).toBe('alice');
-    expect(formData['email']).toBe('alice@example.com');
-    expect(formData).toHaveProperty('password');
+    const body = request.postDataJSON() as Record<string, unknown>;
+    expect(body['username']).toBe('alice');
+    expect(body['email']).toBe('alice@example.com');
+    expect(body).toHaveProperty('password');
+    // CSRF token travels in the body too.
+    expect(body['_csrf']).toBe('test-csrf-token-abc123');
   });
 
   test('secure-form-submit event detail includes telemetry with riskScore', async ({ page }) => {

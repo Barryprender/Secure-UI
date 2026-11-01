@@ -34,16 +34,9 @@
     <secure-submit-button>Submit</secure-submit-button>
   </secure-form>
 
-  <script type="module">
-    import '/latest/components/secure-form/secure-form.js';
-    import '/latest/components/secure-input/secure-input.js';
-    import '/latest/components/secure-submit-button/secure-submit-button.js';
-
-    // Capture submit events for assertions — prevent real fetch
-    document.getElementById('test-form').addEventListener('secure-form-submit', (e) => {
-      window.__lastSubmitDetail = e.detail;
-      e.detail.cancelSubmission();
-    });
-  </script>
+  <!-- External module, not inline: the server's `script-src 'self'` CSP blocks
+       inline scripts, which previously left this fixture's components
+       unregistered and every form-interaction test timing out. -->
+  <script type="module" src="/test-fixtures/secure-form.setup.js"></script>
 </body>
 </html>
