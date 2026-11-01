@@ -26,14 +26,51 @@ that enforces Trusted Types.
   - `SecureTable` — the table, header, rows, cells, sort buttons and pagination
     were built as HTML strings and written via `innerHTML`; rewritten to build
     DOM nodes and wire listeners on the created elements. Cell values go in through
-    `textContent`; the `render`/`_html` HTML pass-through is parsed with `DOMParser`
-    (inert, not a Trusted Types sink), sanitised, and appended as nodes.
+    `textContent`; the `render`/`_html` HTML pass-through is parsed with `DOMParser`,
+    sanitised, and appended as nodes.
+
+> **Correction (see 0.5.3):** this entry claimed `DOMParser.parseFromString` is
+> "not a Trusted Types sink". That is wrong — it **is** a sink and throws under
+> `trusted-types 'none'`, so an HTML-string cell still failed. 0.5.3 fixes it.
 
 ### Behaviour
 
 - No public API change. The `secure-table` `render` column option and the
   `_html` cell convention still work and are sanitised exactly as before; DOM
   structure, classes, ARIA attributes, events and masking are unchanged.
+
+---
+
+## [0.5.3] — 2026-11-01
+
+Completes Trusted Types support for `secure-table` and makes sortable headers
+keyboard operable.
+
+### Fixed
+
+- **`secure-table` HTML cells no longer throw under Trusted Types.**
+  `DOMParser.parseFromString` **is** a Trusted Types injection sink (0.5.2 wrongly
+  stated otherwise). Under `require-trusted-types-for 'script'; trusted-types 'none'`
+  it threw inside the `data` setter, so a single `render`-returns-string or `_html`
+  cell took down the whole table. Now:
+  - A `render` function **may return a `Node`** (Element or `DocumentFragment`).
+    It is sanitised directly with the existing allowlist walker — no parsing — so
+    it works under any CSP. This is the recommended form.
+  - Slotted (server-rendered) tables clone the cell's child nodes and sanitise the
+    clone instead of reading `innerHTML`. No `DOMParser`.
+  - A `render` that returns a **string**, or a `_html` string value, still parses
+    with `DOMParser`, but the call is wrapped: on a Trusted Types failure the cell
+    degrades to showing the string as text and emits a `secure-audit` event
+    (`html_blocked_by_trusted_types`). One cell degrades; the table never fails.
+- **Sortable column headers are keyboard operable (WCAG 2.1.1).** Each sortable
+  `<th>` now holds a real `<button>` that carries the label and the sort handler,
+  so Tab reaches it and Enter/Space sort. `aria-sort` stays on the `<th>`. After a
+  sort re-render, focus returns to the same column's button.
+
+### Changed
+
+- `TableColumnDefinition.render` return type is now `string | Node` (was `string`).
+  Existing string renderers are unaffected.
 
 ---
 

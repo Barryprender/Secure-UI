@@ -181,6 +181,23 @@ Content-Security-Policy:
 `trusted-types 'none'` means no Trusted Types policy may be created — not even
 by the library — so the components never attempt one.
 
+**`secure-table` HTML cells under this CSP:** a `render` function or a `_html`
+cell value given as an **HTML string** is parsed with `DOMParser`, which *is* a
+Trusted Types sink and throws under this CSP. The affected cell then degrades to
+showing the string as plain text and emits a `secure-audit` event
+(`html_blocked_by_trusted_types`); the rest of the table is unaffected. To render
+real markup under strict CSP, have `render` **return a `Node`** instead of a
+string — nodes are sanitised without parsing and work everywhere:
+
+```js
+column.render = (value) => {
+  const badge = document.createElement('span');
+  badge.className = 'badge';
+  badge.textContent = String(value);   // textContent — never innerHTML
+  return badge;                          // a Node, not an HTML string
+};
+```
+
 **Serving the code under this CSP:** `script-src 'self'` only allows scripts
 from your own origin. A CDN install (`https://unpkg.com/...`) would need that CDN
 origin added to `script-src`. For strict-CSP apps, **self-host `dist/`** and
@@ -698,7 +715,7 @@ table.columns = [
 | `filterable` | boolean | Include in global search |
 | `tier` | string | Mask values at this tier level |
 | `width` | string | CSS column width |
-| `render` | `(value, row, key) => string` | Custom cell renderer — return value is treated as HTML and sanitized before insertion (event handlers and disallowed tags stripped) |
+| `render` | `(value, row, key) => string \| Node` | Custom cell renderer. Return a **`Node`** (e.g. from `document.createElement`) to render markup under any CSP — it is sanitized in place, no parsing. A returned **HTML string** is parsed and sanitized too, but `DOMParser` is a Trusted Types sink: under a strict CSP the cell degrades to text and fires a `secure-audit` (`html_blocked_by_trusted_types`). Event handlers, disallowed tags and unsafe URLs are always stripped. |
 
 **Column masking**
 
