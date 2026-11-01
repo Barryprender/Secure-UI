@@ -250,12 +250,20 @@ export interface TableColumnDefinition {
   tier?: SecurityTierValue;
   width?: string;
   /**
-   * Custom cell renderer. Return value is treated as an HTML string and run
-   * through the library's DOMParser-based sanitizer before insertion — event
-   * handlers and disallowed tags are stripped. Safe data-* attributes and
-   * common inline elements are preserved.
+   * Custom cell renderer.
+   *
+   * Return a `Node` (e.g. built with `document.createElement`) — it is sanitized
+   * in place and works everywhere, including under a strict Trusted Types CSP.
+   * This is the recommended form.
+   *
+   * Returning an HTML `string` still works: it is parsed with DOMParser and run
+   * through the same tag/attribute allowlist. But `DOMParser.parseFromString` is
+   * a Trusted Types sink, so under `require-trusted-types-for 'script'` with no
+   * default policy the parse throws; the cell then degrades to showing the string
+   * as plain text and a `secure-audit` event (`html_blocked_by_trusted_types`) is
+   * emitted. Event handlers, disallowed tags and unsafe URLs are always stripped.
    */
-  render?: (value: unknown, row: Record<string, unknown>, columnKey: string) => string;
+  render?: (value: unknown, row: Record<string, unknown>, columnKey: string) => string | Node;
 }
 
 /**

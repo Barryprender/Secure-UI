@@ -41,24 +41,26 @@ describe('SecureTable — sorting', () => {
   afterEach(() => { table.remove(); });
 
   it('sorts ascending on first click of a sortable header', () => {
-    const th = shadowOf(table)?.querySelector('th.sortable') as HTMLElement | null;
-    th?.click();
+    // The sort handler now lives on the <button> inside the <th>, not the <th>.
+    const btn = shadowOf(table)?.querySelector('th.sortable .sort-button') as HTMLElement | null;
+    btn?.click();
     const shadow = shadowOf(table)?.innerHTML ?? '';
     expect(shadow).toContain('sorted');
   });
 
   it('toggles to descending on second click', () => {
-    const th = shadowOf(table)?.querySelector('th.sortable') as HTMLElement | null;
-    th?.click();
-    th?.click();
+    const btn = shadowOf(table)?.querySelector('th.sortable .sort-button') as HTMLElement | null;
+    btn?.click();
+    // Re-render replaces the button; re-query before the second click.
+    const btn2 = shadowOf(table)?.querySelector('th.sortable .sort-button') as HTMLElement | null;
+    btn2?.click();
     const shadow = shadowOf(table)?.innerHTML ?? '';
     expect(shadow).toContain('descending');
   });
 
   it('switches sort column on clicking a different header', () => {
-    const headers = shadowOf(table)?.querySelectorAll('th.sortable');
-    (headers?.[0] as HTMLElement)?.click();
-    (headers?.[1] as HTMLElement)?.click();
+    (shadowOf(table)?.querySelectorAll('th.sortable .sort-button')?.[0] as HTMLElement)?.click();
+    (shadowOf(table)?.querySelectorAll('th.sortable .sort-button')?.[1] as HTMLElement)?.click();
     const shadow = shadowOf(table)?.innerHTML ?? '';
     // Second column should now be sorted
     expect(shadow).toContain('ascending');

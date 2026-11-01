@@ -109,6 +109,29 @@
   color: var(--secure-ui-color-primary);
 }
 
+/* Sort control — a real <button> inside the <th> so keyboard and screen-reader
+   users can sort (WCAG 2.1.1). Reset to look like the header text, fill the cell
+   so the whole header stays clickable, and keep a visible keyboard focus ring. */
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.sort-button:focus-visible {
+  outline: var(--secure-ui-border-width-base) solid var(--secure-ui-color-primary);
+  outline-offset: 2px;
+  border-radius: var(--secure-ui-border-radius-base);
+}
+
 .sort-indicator {
   display: inline-block;
   margin-left: var(--secure-ui-space-1);

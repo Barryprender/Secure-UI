@@ -12,9 +12,26 @@ window.__tableReady = false;
 window.__xss = false;
 window.__tableClicks = 0;
 
+// HTML-cell path probes. Each stays false unless injected markup executes.
+window.__xssStr = false;
+window.__xssHtmlVal = false;
+window.__xssSlot = false;
+// Column keys for which a cell degraded a blocked HTML string to text. Under the
+// strict CSP this fills with the string-render and `_html` columns; the Node and
+// slotted paths never parse, so they never appear here.
+window.__htmlBlocked = [];
+
 document.addEventListener('click', (e) => {
   if (e.composedPath().some((n) => n instanceof Element && n.id === 'tt-table')) {
     window.__tableClicks++;
+  }
+});
+
+// secure-audit bubbles + composes out of the closed root; count the fallbacks.
+document.addEventListener('secure-audit', (e) => {
+  const d = e.detail;
+  if (d && d.event === 'html_blocked_by_trusted_types') {
+    window.__htmlBlocked.push(d.data ? d.data.columnKey : null);
   }
 });
 
@@ -42,5 +59,11 @@ for (let i = 2; i <= 12; i++) {
   rows.push({ id: i, name: 'User ' + i, note: 'row ' + i });
 }
 table.data = rows;
+
+// The tt-html-table (string / Node / _html cell paths) is configured by the spec
+// itself, not here: a blocked string parse logs a CSP-violation console error even
+// when caught, and that would pollute the shared "no TrustedHTML error" fixture.
+// Keeping it out of the default setup leaves this fixture sink-clean for the other
+// tests; only the HTML-cell tests opt in.
 
 window.__tableReady = true;
