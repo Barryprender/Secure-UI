@@ -35,7 +35,28 @@
 
   <secure-submit-button id="tt-submit">Submit</secure-submit-button>
 
+  <!-- Light-DOM focus anchor for the keyboard-sort test: focus this, then Tab
+       moves into the table's shadow (search input, then the first sort button). -->
+  <button id="kb-anchor" type="button">anchor</button>
+
   <secure-table id="tt-table"></secure-table>
+
+  <!-- Exercises the HTML-cell paths under the CSP: a string render, a Node render
+       (built with createElement, with dangerous children to strip), and a `_html`
+       row value. Configured in trusted-types.setup.js. -->
+  <secure-table id="tt-html-table"></secure-table>
+
+  <!-- Slotted (server-rendered) table: the parser clones the cell's child nodes
+       instead of reading innerHTML, so no DOMParser runs and it works under the
+       CSP. The javascript: link and onclick must be stripped by the sanitizer. -->
+  <secure-table id="tt-slot-table">
+    <table slot="table">
+      <thead><tr><th data-key="c" data-render-html>C</th></tr></thead>
+      <tbody>
+        <tr><td data-key="c"><b>ok</b> <a href="javascript:void(0)" onclick="window.__xssSlot = true">x</a></td></tr>
+      </tbody>
+    </table>
+  </secure-table>
 
   <!-- secure-telemetry-provider is a light-DOM wrapper; it takes its height from
        the field it wraps. This also mounts secure-form + a nested secure-input. -->

@@ -96,14 +96,17 @@ export class SecureTable extends SecureBaseComponent {
               return;
             }
 
-            // Store both text content and markup if present. `.children.length`
-            // detects element markup without reading innerHTML. The markup string
-            // is captured once here for the `_html` pass-through convention; a
-            // getter read never throws under Trusted Types (only assignment does).
+            // Store the plain text, and — when the cell has element markup — a
+            // CLONE of its child nodes for the `_html` pass-through convention.
+            // `.children.length` detects markup without reading innerHTML. We clone
+            // the live nodes rather than read innerHTML because the string form
+            // would then have to be re-parsed with DOMParser, a Trusted Types sink
+            // that throws under a strict CSP. Cloning skips parsing entirely.
             row[dataKey] = td.textContent?.trim() ?? '';
             if (td.children.length > 0) {
-              // Cell contains HTML (like forms, badges, etc.)
-              row[`${dataKey}_html`] = td.innerHTML.trim();
+              const frag = document.createDocumentFragment();
+              for (const node of Array.from(td.childNodes)) frag.appendChild(node.cloneNode(true));
+              row[`${dataKey}_html`] = frag;
             }
           }
         });
@@ -118,13 +121,14 @@ export class SecureTable extends SecureBaseComponent {
     }
   }
 
-  #createRenderFunction(_th: HTMLElement): (value: unknown, row: Record<string, unknown>, columnKey: string) => string {
-    return (value: unknown, row: Record<string, unknown>, columnKey: string): string => {
+  #createRenderFunction(_th: HTMLElement): (value: unknown, row: Record<string, unknown>, columnKey: string) => string | Node {
+    return (value: unknown, row: Record<string, unknown>, columnKey: string): string | Node => {
       const htmlKey = `${columnKey}_html`;
-      const raw = Object.hasOwn(row, htmlKey) ? row[htmlKey] as string : null;
-      // Return an HTML string per the public `render` contract. The cell builder
-      // runs every render output through #sanitizeHtmlToFragment, so raw markup is
-      // cleaned there; the non-markup branch is escaped so stray `<` stays text.
+      // A slotted cell with markup stored a cloned DocumentFragment (a Node) under
+      // the `_html` key. Return it as-is: the cell builder sanitizes nodes directly,
+      // with no string parsing, so slotted HTML survives a strict Trusted Types CSP.
+      // Cells without markup fall back to the escaped text so a stray `<` stays text.
+      const raw = Object.hasOwn(row, htmlKey) ? (row[htmlKey] as Node) : null;
       return raw ?? this.#sanitize(value);
     };
   }
@@ -209,6 +213,13 @@ export class SecureTable extends SecureBaseComponent {
 
     this.#updateTableContent();
 
+    // Re-render replaces the header, so the focused sort button is gone. Return
+    // focus to the new button for the same column — a keyboard user keeps their
+    // place and can toggle direction with another Enter/Space.
+    const root = internals(this).root;
+    const button = root?.querySelector(`[data-sort-button="${CSS.escape(columnKey)}"]`);
+    if (button instanceof HTMLElement) button.focus();
+
     internals(this).audit('table_sorted', {
       column: columnKey,
       direction: this.#sortConfig.direction
@@ -285,24 +296,63 @@ export class SecureTable extends SecureBaseComponent {
 
 
   /**
-   * Sanitize an HTML string using a strict tag/attribute allowlist.
-   * Uses DOMParser (does not execute scripts) and walks the result tree,
-   * stripping disallowed elements and attributes.
-   * data-* attributes are preserved for action delegation; event handlers
-   * and javascript:/data: URIs are always stripped.
+   * Turn a cell render result into a sanitized DocumentFragment.
+   *
+   * A `Node` (the recommended `render` return, and how slotted markup is captured)
+   * is sanitized directly — no string parsing, so it is always Trusted-Types-safe.
+   * A `string` is parsed with DOMParser, which IS a Trusted Types sink; see
+   * #sanitizeHtmlStringToFragment for the strict-CSP fallback.
    * @private
    */
-  #sanitizeHtmlToFragment(html: string): DocumentFragment {
+  #toSanitizedFragment(result: string | Node, columnKey: string): DocumentFragment {
+    return result instanceof Node
+      ? this.#sanitizeNodeToFragment(result)
+      : this.#sanitizeHtmlStringToFragment(result, columnKey);
+  }
+
+  /**
+   * Sanitize a Node tree with the strict tag/attribute allowlist and return its
+   * surviving nodes in a fragment. Works on a CLONE so a node the caller still
+   * holds is never mutated. No DOMParser, no HTML sink — safe under Trusted Types.
+   * @private
+   */
+  #sanitizeNodeToFragment(node: Node): DocumentFragment {
+    const fragment = document.createDocumentFragment();
+    // Wrap the clone so #sanitizeDomNode can walk and (if needed) unwrap even a
+    // single disallowed top-level element, exactly as the string path does.
+    const holder = document.createElement('div');
+    holder.appendChild(node.cloneNode(true));
+    this.#sanitizeDomNode(holder);
+    while (holder.firstChild) fragment.appendChild(holder.firstChild);
+    return fragment;
+  }
+
+  /**
+   * Sanitize an HTML string using the strict tag/attribute allowlist.
+   *
+   * ⚠ `DOMParser.parseFromString` IS a Trusted Types sink. Under
+   * `require-trusted-types-for 'script'` with no default policy it throws a
+   * TypeError. The try/catch degrades that one cell to plain text and emits a
+   * `secure-audit` (`html_blocked_by_trusted_types`) event, so a single HTML cell
+   * can never bring down the whole table. The parsed document is inert — no script
+   * runs — and we walk/strip it before moving survivors into the fragment.
+   * data-* attributes are preserved for action delegation; event handlers and
+   * javascript:/data: URIs are always stripped.
+   * @private
+   */
+  #sanitizeHtmlStringToFragment(html: string, columnKey: string): DocumentFragment {
     const fragment = document.createDocumentFragment();
     if (!html) return fragment;
-    // DOMParser does NOT execute scripts and is NOT a Trusted Types sink — the
-    // parsed document is inert and nothing is assigned to an HTML sink. We walk
-    // and strip the result, then move the surviving nodes into a fragment the
-    // caller appends with DOM APIs. No innerHTML assignment anywhere.
-    const doc = new DOMParser().parseFromString(`<!DOCTYPE html><body>${html}`, 'text/html');
-    this.#sanitizeDomNode(doc.body);
-    while (doc.body.firstChild) fragment.appendChild(doc.body.firstChild);
-    return fragment;
+    try {
+      const doc = new DOMParser().parseFromString(`<!DOCTYPE html><body>${html}`, 'text/html');
+      this.#sanitizeDomNode(doc.body);
+      while (doc.body.firstChild) fragment.appendChild(doc.body.firstChild);
+      return fragment;
+    } catch {
+      fragment.appendChild(document.createTextNode(html));
+      internals(this).audit('html_blocked_by_trusted_types', { columnKey });
+      return fragment;
+    }
   }
 
   #sanitizeDomNode(node: Node): void {
@@ -389,13 +439,13 @@ export class SecureTable extends SecureBaseComponent {
     }
 
     if (typeof column.render === 'function') {
-      td.appendChild(this.#sanitizeHtmlToFragment(column.render(value, row, column.key)));
+      td.appendChild(this.#toSanitizedFragment(column.render(value, row, column.key), column.key));
       return;
     }
 
     const htmlKey = `${column.key}_html`;
     if (Object.hasOwn(row, htmlKey) && row[htmlKey]) {
-      td.appendChild(this.#sanitizeHtmlToFragment(row[htmlKey] as string));
+      td.appendChild(this.#toSanitizedFragment(row[htmlKey] as string | Node, column.key));
       return;
     }
 
@@ -447,20 +497,31 @@ export class SecureTable extends SecureBaseComponent {
       if (sortable) th.classList.add('sortable');
       if (isSorted) th.classList.add('sorted');
       th.setAttribute('data-column', col.key);
+
       if (sortable) {
         th.setAttribute('aria-sort', isSorted ? (this.#sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none');
-        // Wire the sort handler on the created element, not via a later query.
-        th.addEventListener('click', () => this.#applySort(col.key));
-      }
 
-      th.append(document.createTextNode(col.label));
+        // The sort control is a real <button>, not a click handler on the <th>.
+        // A <th> is not focusable and ignores Enter/Space, so sorting used to be
+        // mouse-only (WCAG 2.1.1 fail). A button is focusable and fires click on
+        // Enter and Space for free. #applySort restores focus to this button by
+        // its data-sort-button key after the re-render.
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'sort-button';
+        button.setAttribute('data-sort-button', col.key);
+        button.append(document.createTextNode(col.label));
 
-      if (sortable) {
         const indicator = document.createElement('span');
         indicator.className = 'sort-indicator';
         indicator.setAttribute('aria-hidden', 'true');
         indicator.textContent = isSorted ? (this.#sortConfig.direction === 'asc' ? '▲' : '▼') : '▲';
-        th.append(indicator);
+        button.append(indicator);
+
+        button.addEventListener('click', () => this.#applySort(col.key));
+        th.append(button);
+      } else {
+        th.append(document.createTextNode(col.label));
       }
 
       if (col.tier) {

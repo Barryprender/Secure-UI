@@ -314,6 +314,60 @@ describe('SecureTable', () => {
         expect(html).not.toContain('onerror');
       });
     });
+
+    // A `render` that returns a Node, and slotted markup captured as cloned nodes,
+    // both skip DOMParser entirely (it is a Trusted Types sink). They are sanitized
+    // with the same allowlist walker, directly on the node tree.
+    describe('Node render + slotted node paths', () => {
+      it('renders a Node returned by render and strips dangerous children', () => {
+        table.columns = [{
+          key: 'c', label: 'C', render: () => {
+            const frag = document.createDocumentFragment();
+            const b = document.createElement('b');
+            b.textContent = 'bold';
+            const img = document.createElement('img');
+            img.setAttribute('onerror', 'x()');
+            const a = document.createElement('a');
+            a.setAttribute('href', 'javascript:alert(1)');
+            a.textContent = 'l';
+            frag.append(b, img, a);
+            return frag;
+          }
+        }];
+        table.data = [{ c: 'v' }];
+
+        const html = shadowOf(table)?.innerHTML || '';
+        expect(html).toContain('<b>bold</b>');          // allowed tag kept
+        expect(html).not.toContain('<img');             // disallowed element removed
+        expect(html).not.toContain('onerror');
+        expect(html.toLowerCase()).not.toContain('javascript:');
+      });
+
+      it('sanitizes a clone, leaving the caller-held Node untouched', () => {
+        const img = document.createElement('img');
+        img.setAttribute('onerror', 'x()');
+        table.columns = [{ key: 'c', label: 'C', render: () => img }];
+        table.data = [{ c: 'v' }];
+        // The cell stripped it, but the original node the test still holds is intact.
+        expect(img.getAttribute('onerror')).toBe('x()');
+      });
+
+      it('clones and sanitizes slotted cell nodes without re-parsing innerHTML', () => {
+        const el = document.createElement('secure-table') as SecureTable;
+        el.innerHTML =
+          '<table slot="table">' +
+          '<thead><tr><th data-key="c">C</th></tr></thead>' +
+          '<tbody><tr><td data-key="c"><b>ok</b>' +
+          '<a href="javascript:alert(1)" onclick="evil()">x</a></td></tr></tbody></table>';
+        document.body.appendChild(el);
+
+        const html = shadowOf(el)?.innerHTML || '';
+        expect(html).toContain('<b>ok</b>');
+        expect(html.toLowerCase()).not.toContain('javascript:');
+        expect(html).not.toContain('onclick');
+        el.remove();
+      });
+    });
   });
 
   describe('Sorting', () => {
@@ -337,6 +391,30 @@ describe('SecureTable', () => {
 
       // Should render without error
       expect(table.columns).toHaveLength(2);
+    });
+
+    it('puts a sort <button> in each sortable header; a non-sortable one has none', () => {
+      table.columns = [
+        { key: 'name', label: 'Name', sortable: true },
+        { key: 'id', label: 'ID', sortable: false }
+      ];
+      const root = shadowOf(table)!;
+      const headers = root.querySelectorAll('th');
+      expect(headers[0]?.querySelector('button.sort-button')).not.toBeNull();
+      expect(headers[1]?.querySelector('button.sort-button')).toBeNull();
+    });
+
+    it('flips aria-sort on the <th> when its sort button is activated', () => {
+      const root = shadowOf(table)!;
+      const th = () => root.querySelector('th.sortable');
+      const btn = () => root.querySelector('th.sortable .sort-button') as HTMLElement;
+
+      expect(th()?.getAttribute('aria-sort')).toBe('none');
+      btn().click();
+      expect(th()?.getAttribute('aria-sort')).toBe('ascending');
+      // Header is rebuilt on each sort, so re-query before the second activation.
+      btn().click();
+      expect(th()?.getAttribute('aria-sort')).toBe('descending');
     });
   });
 

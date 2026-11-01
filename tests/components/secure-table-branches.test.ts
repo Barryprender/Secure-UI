@@ -136,10 +136,13 @@ describe('SecureTable — sort direction toggle back to ascending (line 272)', (
     table.columns = BASE_COLS;
     table.data = makeRows(5);
 
-    const th = shadowOf(table)?.querySelector('th.sortable') as HTMLElement;
-    th.click(); // → asc
-    th.click(); // → desc
-    th.click(); // → asc again (covers line 272 arm 1: direction !== 'asc')
+    // The sort handler lives on the <button> in the <th>; the header is rebuilt
+    // on every sort, so re-query the button before each click.
+    const clickSort = () =>
+      (shadowOf(table)?.querySelector('th.sortable .sort-button') as HTMLElement).click();
+    clickSort(); // → asc
+    clickSort(); // → desc
+    clickSort(); // → asc again (covers line 272 arm 1: direction !== 'asc')
     const shadow = shadowOf(table)?.innerHTML ?? '';
     expect(shadow).toContain('ascending');
   });
@@ -163,7 +166,8 @@ describe('SecureTable — sort comparison equal values (lines 283, 284)', () => 
     const scoreHeader = Array.from(
       shadowOf(table)?.querySelectorAll('th.sortable') ?? []
     ).find(th => th.getAttribute('data-column') === 'score') as HTMLElement;
-    expect(() => scoreHeader.click()).not.toThrow();
+    const scoreBtn = scoreHeader.querySelector('.sort-button') as HTMLElement;
+    expect(() => scoreBtn.click()).not.toThrow();
     const rows = shadowOf(table)?.querySelectorAll('tbody tr');
     expect(rows?.length).toBe(3);
   });

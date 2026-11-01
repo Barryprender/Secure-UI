@@ -121,6 +121,7 @@ export abstract class SecureBaseComponent extends HTMLElement {
     threat_cleared: 'always',
     validation_failed: 'always',
     rate_limit_exceeded: 'always',
+    html_blocked_by_trusted_types: 'always',
   };
 
   /** Fallback for component-specific event names not in #AUDIT_GATES. */
